@@ -1,9 +1,10 @@
 import json
+import os
 import time
 from pathlib import Path
 
-CACHE_DIR = Path("C:/Users/andul/fed-watcher/.cache")
-CACHE_DIR.mkdir(exist_ok=True)
+CACHE_DIR = Path(os.getenv("CACHE_DIR", "/tmp/.cache"))
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _path(key: str) -> Path:
