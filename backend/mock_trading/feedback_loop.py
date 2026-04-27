@@ -1,4 +1,4 @@
-﻿"""
+"""
 Feedback loop: compare agent predictions to market-implied forward rates
 (not realized DFF) so time horizons match.
 
@@ -86,5 +86,3 @@ async def get_negative_examples(db: AsyncSession) -> list[str]:
         e.injected_at = now
     await db.commit()
     return [e.negative_example_text for e in entries]
-
-
