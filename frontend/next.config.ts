@@ -1,15 +1,8 @@
 import type { NextConfig } from "next";
 
-const BACKEND = process.env.BACKEND_URL || "http://localhost:8000";
-
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      { source: "/api/:path*",   destination: `${BACKEND}/api/:path*` },
-      { source: "/auth/:path*",  destination: `${BACKEND}/auth/:path*` },
-      { source: "/health",       destination: `${BACKEND}/health` },
-    ];
-  },
+  output: "export",   // pure static HTML — no Node.js server needed
+  trailingSlash: true, // /login → /login/index.html for static hosting
 };
 
 export default nextConfig;
