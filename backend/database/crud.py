@@ -4,7 +4,7 @@ from backend.database.models import (
     RunLog, AgentOutput, PublishedForecast, FeedbackEntry, HorizonForecast,
     HORIZONS,
 )
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 async def create_run(db: AsyncSession, cycle_type: str = "scheduled") -> RunLog:
@@ -19,7 +19,7 @@ async def complete_run(db: AsyncSession, run_id: int, status: str = "completed",
     result = await db.execute(select(RunLog).where(RunLog.id == run_id))
     run = result.scalar_one_or_none()
     if run:
-        run.completed_at = datetime.now(timezone.utc)
+        run.completed_at = datetime.utcnow()
         run.status = status
         run.collaboration_rounds = collab_rounds
         await db.commit()

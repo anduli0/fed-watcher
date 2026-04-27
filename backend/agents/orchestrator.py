@@ -1,4 +1,4 @@
-"""
+﻿"""
 Orchestrator with:
 - 21 agents (9 specialists + 12 regional Feds)
 - 4 horizons per agent (6m, 12m, 3y, 10y)
@@ -9,7 +9,7 @@ import asyncio
 import json
 import random
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 import anthropic
 from backend.data import activity_log as AL
 
@@ -29,19 +29,19 @@ from backend.agents.regional_agents import REGIONAL_AGENTS
 
 from backend.config import settings
 
-# All agents — 9 specialists + 12 regional
+# All agents ??9 specialists + 12 regional
 SPECIALIST_AGENTS: list[BaseAgent] = [a1, a2, a3, a4, a5, a6, a7, a8, a10]
 ALL_AGENTS: list[BaseAgent] = SPECIALIST_AGENTS + REGIONAL_AGENTS
 # Pre-built O(1) lookup (populated after _AGENT_BY_ID function definition below)
 _AGENT_BY_ID: dict[int, BaseAgent] = {}
 
 # Collaboration parameters
-OUTLIER_BPS_THRESHOLD = 30.0   # |delta - mean| > 30 bps → trigger Round 2
+OUTLIER_BPS_THRESHOLD = 30.0   # |delta - mean| > 30 bps ??trigger Round 2
 MAX_OUTLIERS_REVIEWED = 3       # cap to control cost
 
 # Confidence-based filtering / weighting
 MIN_CONFIDENCE_FOR_INCLUSION = 0.25   # below this, agent excluded entirely
-CONFIDENCE_EXPONENT = 2.0              # weight ∝ confidence^N (Bayesian precision proxy)
+CONFIDENCE_EXPONENT = 2.0              # weight ??confidence^N (Bayesian precision proxy)
 
 _WEIGHT_OVERRIDES: dict[int, float] = {}
 _ADAPTIVE_MULTIPLIERS: dict[int, float] = {}  # set by adaptive_weights()
@@ -56,13 +56,13 @@ async def compute_adaptive_weights(db, event: dict | None = None) -> dict[int, f
     Auto-tune weights based on:
     1. Historical accuracy (from feedback_entry divergences)
     2. Current event type (FOMC/CPI/NFP boosts relevant agents)
-    3. Capped at [0.5×, 2.0×] multiplier
+    3. Capped at [0.5횞, 2.0횞] multiplier
     """
     from sqlalchemy import select, func
     from backend.database.models import FeedbackEntry
     multipliers: dict[int, float] = {}
 
-    # ── Accuracy-based tuning ──────────────────────────────────────────────
+    # ?? Accuracy-based tuning ??????????????????????????????????????????????
     try:
         result = await db.execute(
             select(FeedbackEntry.agent_id,
@@ -77,28 +77,28 @@ async def compute_adaptive_weights(db, event: dict | None = None) -> dict[int, f
             median_div = sorted(divs)[len(divs) // 2]
             for row in rows:
                 if row.avg_div < median_div * 0.6:
-                    multipliers[row.agent_id] = 1.35   # accurate → boost
+                    multipliers[row.agent_id] = 1.35   # accurate ??boost
                 elif row.avg_div > median_div * 1.6:
-                    multipliers[row.agent_id] = 0.65   # inaccurate → penalise
+                    multipliers[row.agent_id] = 0.65   # inaccurate ??penalise
             if multipliers:
                 AL.system_event(f"Adaptive weights: {len(multipliers)} agents adjusted from accuracy history")
     except Exception:
         pass
 
-    # Enforce [0.5×, 2.0×] cap on all multipliers
+    # Enforce [0.5횞, 2.0횞] cap on all multipliers
     multipliers = {k: max(0.5, min(2.0, v)) for k, v in multipliers.items()}
 
-    # ── Event-based boosts ─────────────────────────────────────────────────
+    # ?? Event-based boosts ?????????????????????????????????????????????????
     if event:
         label = event.get("label", "")
         if "FOMC" in label:
             for aid in [1, 5, 6]:   # Behavioral, Projections, FOMC_Minutes
                 multipliers[aid] = max(multipliers.get(aid, 1.0), 1.4)
-            AL.system_event(f"FOMC event: Behavioral/Projections/Minutes weights boosted 1.4×")
+            AL.system_event(f"FOMC event: Behavioral/Projections/Minutes weights boosted 1.4횞")
         elif "CPI" in label:
             for aid in [4, 7]:      # Academic (Taylor), Macro_Data
                 multipliers[aid] = max(multipliers.get(aid, 1.0), 1.4)
-            AL.system_event(f"CPI event: Academic/MacroData weights boosted 1.4×")
+            AL.system_event(f"CPI event: Academic/MacroData weights boosted 1.4횞")
         elif "NFP" in label:
             for aid in [7]:         # Macro_Data
                 multipliers[aid] = max(multipliers.get(aid, 1.0), 1.4)
@@ -119,10 +119,10 @@ def _effective_weight(result: AgentResult, base_weight: float) -> float:
         w *= 0.3
     if result.agent_id == 10:  # Consensus premium
         w *= 1.5
-    return max(0.1, w)  # floor at 0.1 — never zero
+    return max(0.1, w)  # floor at 0.1 ??never zero
 
 
-# O(1) agent lookup — built once at module load
+# O(1) agent lookup ??built once at module load
 _AGENT_BY_ID: dict[int, BaseAgent] = {}
 
 
@@ -139,7 +139,7 @@ def _aggregate_horizon(valid: list[AgentResult], horizon: str) -> tuple[float, f
     """
     Aggregation with:
     - Confidence pruning: agents below MIN_CONFIDENCE_FOR_INCLUSION dropped
-    - Confidence² weighting: high-conviction agents dominate (Bayesian precision proxy)
+    - Confidence짼 weighting: high-conviction agents dominate (Bayesian precision proxy)
     - Coherence penalty: incoherent agents already capped at 0.5 confidence
     Returns (weighted_delta_bps, weighted_confidence) for one horizon.
     """
@@ -152,7 +152,7 @@ def _aggregate_horizon(valid: list[AgentResult], horizon: str) -> tuple[float, f
             continue   # Prune low-conviction signals from this horizon
         agent_obj = _AGENT_BY_ID.get(r.agent_id)
         base_weight = agent_obj.weight if agent_obj else 1.0
-        # Effective weight × confidence^2 (precision-weighted Bayesian average)
+        # Effective weight 횞 confidence^2 (precision-weighted Bayesian average)
         w = _effective_weight(r, base_weight) * (h_conf ** CONFIDENCE_EXPONENT)
         weighted_delta += r.horizon_delta(horizon) * w
         weighted_confidence += h_conf * w
@@ -181,7 +181,7 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
       Round 2: Outliers see consensus & may revise (collaboration)
     Then aggregate all 4 horizons + generate derivation report.
     """
-    # ── ROUND 1: Independent analysis ──────────────────────────────────────
+    # ?? ROUND 1: Independent analysis ??????????????????????????????????????
     AL.orchestrator_event(f"Cycle start: {len(ALL_AGENTS)} agents dispatched in parallel (Round 1)")
 
     tasks = [agent.run(ctx) for agent in ALL_AGENTS]
@@ -200,12 +200,12 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
     # First-pass 12m consensus
     consensus_12m, _ = _aggregate_horizon(valid, "12m")
 
-    # ── ROUND 2: Collaboration on outliers ─────────────────────────────────
+    # ?? ROUND 2: Collaboration on outliers ?????????????????????????????????
     outliers = _identify_outliers(valid, consensus_12m)
     revisions: dict[int, AgentResult] = {}
 
     if outliers:
-        AL.orchestrator_event(f"Round 2: {len(outliers)} outlier agents reviewing consensus — {', '.join(o.agent_name for o in outliers)}")
+        AL.orchestrator_event(f"Round 2: {len(outliers)} outlier agents reviewing consensus ??{', '.join(o.agent_name for o in outliers)}")
         # Build consensus summary text for outliers
         signal_dist = {"hawkish": 0, "neutral": 0, "dovish": 0}
         for r in valid:
@@ -257,7 +257,7 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
     # Replace round-1 outputs with round-2 revisions
     final_results = [revisions.get(r.agent_id, r) for r in valid]
 
-    # ── Multi-horizon aggregation ─────────────────────────────────────────
+    # ?? Multi-horizon aggregation ?????????????????????????????????????????
     horizon_aggregates: dict[str, dict] = {}
     for h in HORIZONS:
         delta, conf = _aggregate_horizon(final_results, h)
@@ -274,16 +274,16 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
             "signal": signal,
         }
 
-    # ── Summary log ───────────────────────────────────────────────────────
+    # ?? Summary log ???????????????????????????????????????????????????????
     for h in HORIZONS:
         agg = horizon_aggregates[h]
         AL.orchestrator_event(
-            f"{h.upper()} forecast → {agg['signal'].upper()} {agg['weighted_delta_bps']:+.0f} bps "
+            f"{h.upper()} forecast ??{agg['signal'].upper()} {agg['weighted_delta_bps']:+.0f} bps "
             f"(conf {agg['confidence']:.0%})"
         )
 
-    # ── Chief synthesis + derivation report (EN + KO in parallel) ────────
-    AL.orchestrator_event("Chief synthesizing derivation report (EN + KO)…")
+    # ?? Chief synthesis + derivation report (EN + KO in parallel) ????????
+    AL.orchestrator_event("Chief synthesizing derivation report (EN + KO)??)
     report_en, report_ko = await asyncio.gather(
         _generate_derivation_report(final_results, horizon_aggregates, outliers, revisions, errors, ctx, lang="en"),
         _generate_derivation_report(final_results, horizon_aggregates, outliers, revisions, errors, ctx, lang="ko"),
@@ -291,7 +291,7 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
 
     return {
         "cycle_type": cycle_type,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.utcnow().isoformat(),
         "horizons": horizon_aggregates,
         "report_en": report_en,
         "report_ko": report_ko,
@@ -359,20 +359,20 @@ async def _generate_derivation_report(
         for h in HORIZONS
     )
 
-    outlier_text = ", ".join(o.agent_name for o in outliers) if outliers else "None — broad consensus"
+    outlier_text = ", ".join(o.agent_name for o in outliers) if outliers else "None ??broad consensus"
     revised_text = ", ".join(r.agent_name for r in revisions.values() if r.revised) or "None"
 
     if lang == "ko":
         report_instruction = (
-            "Write a derivation report in KOREAN (한국어) — under 700 characters — covering:\n"
-            "1. **요약**: 4개 horizon 한 줄씩 요약\n"
-            "2. **주요 데이터 동인**: 어떤 macro/연설/이벤트가 신호를 이끌었는지 (2-3개)\n"
-            "3. **주요 이견**: 어느 에이전트들이 다른 방향이었는지, 왜\n"
-            "4. **핵심 리스크**: 이 예측을 무효화할 수 있는 1-2개 시나리오"
+            "Write a derivation report in KOREAN (?쒓뎅?? ??under 700 characters ??covering:\n"
+            "1. **?붿빟**: 4媛?horizon ??以꾩뵫 ?붿빟\n"
+            "2. **二쇱슂 ?곗씠???숈씤**: ?대뼡 macro/?곗꽕/?대깽?멸? ?좏샇瑜??대걣?덈뒗吏 (2-3媛?\n"
+            "3. **二쇱슂 ?닿껄**: ?대뒓 ?먯씠?꾪듃?ㅼ씠 ?ㅻⅨ 諛⑺뼢?댁뿀?붿?, ??n"
+            "4. **?듭떖 由ъ뒪??*: ???덉륫??臾댄슚?뷀븷 ???덈뒗 1-2媛??쒕굹由ъ삤"
         )
     else:
         report_instruction = (
-            "Write a derivation report in ENGLISH — under 700 characters — covering:\n"
+            "Write a derivation report in ENGLISH ??under 700 characters ??covering:\n"
             "1. **Summary**: One line per horizon\n"
             "2. **Key data drivers**: Which macro/speech/event led the signal (2-3 items)\n"
             "3. **Key divergences**: Which agents differed and why\n"
@@ -416,3 +416,5 @@ Output ONLY the markdown report, no preamble.
         return resp.content[0].text
     except Exception as e:
         return f"Report generation failed: {e}"
+
+

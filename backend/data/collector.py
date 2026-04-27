@@ -1,11 +1,11 @@
-"""
-Continuous web data collector — runs every 30 minutes WITHOUT Claude API tokens.
+﻿"""
+Continuous web data collector ??runs every 30 minutes WITHOUT Claude API tokens.
 Emits real events to activity_log for frontend display.
 """
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database.init_db import AsyncSessionLocal
 from backend.database.models import DataCollectionSnapshot
@@ -34,8 +34,8 @@ def get_latest_snapshot() -> dict:
 
 async def collect_web_data() -> dict:
     AL.system_event("Data sweep started (no AI tokens)")
-    logger.info("[Collector] Starting web data sweep…")
-    started = datetime.now(timezone.utc)
+    logger.info("[Collector] Starting web data sweep??)
+    started = datetime.utcnow()
 
     # Emit per-source collection events
     AL.collecting("FRED API", "api.stlouisfed.org")
@@ -71,7 +71,7 @@ async def collect_web_data() -> dict:
     # Emit success events
     if macro:
         dff = macro.get("DFF")
-        AL.collected("FRED API", 10, f"series — DFF={dff}%")
+        AL.collected("FRED API", 10, f"series ??DFF={dff}%")
     if speeches:
         AL.collected("Fed Speeches", len(speeches), "speeches scraped")
     if minutes:
@@ -88,7 +88,7 @@ async def collect_web_data() -> dict:
         "macro_snapshot": macro,
         "macro_text": macro.summary_text() if macro else "",
         "speeches": speeches,
-        "speeches_text": "\n\n".join(f"[{s.speaker} — {s.date}]\n{s.text}" for s in speeches),
+        "speeches_text": "\n\n".join(f"[{s.speaker} ??{s.date}]\n{s.text}" for s in speeches),
         "minutes": minutes,
         "beige_book": beige or "",
         "regional": regional,
@@ -100,8 +100,8 @@ async def collect_web_data() -> dict:
     async with AsyncSessionLocal() as db:
         await _persist_snapshot(db)
 
-    elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-    AL.system_event(f"Data sweep complete in {elapsed:.1f}s · {len(speeches)} speeches, {len(minutes)} minutes, {len(regional)} regional")
+    elapsed = (datetime.utcnow() - started).total_seconds()
+    AL.system_event(f"Data sweep complete in {elapsed:.1f}s 쨌 {len(speeches)} speeches, {len(minutes)} minutes, {len(regional)} regional")
     logger.info("[Collector] Sweep done in %.1fs. Failures: %s", elapsed,
                 ", ".join(failures) if failures else "none")
 
@@ -125,3 +125,5 @@ async def _persist_snapshot(db: AsyncSession):
     )
     db.add(snap)
     await db.commit()
+
+

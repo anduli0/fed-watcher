@@ -1,4 +1,4 @@
-"""
+﻿"""
 Feedback loop: compare agent predictions to market-implied forward rates
 (not realized DFF) so time horizons match.
 
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from backend.database.models import FeedbackEntry, PublishedForecast
 from backend.data.fred_client import get_macro_snapshot
-from datetime import datetime, timezone
+from datetime import datetime
 
 DIVERGENCE_THRESHOLD_BPS = 20.0
 MAX_NEGATIVE_EXAMPLES = 10
@@ -67,7 +67,7 @@ async def generate_feedback(db: AsyncSession, run_id: int, agent_results: list[d
                 actual_delta=market_implied_bps,
                 divergence_bps=error_bps,
                 negative_example_text=neg_text,
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.utcnow(),
             ))
 
     await db.commit()
@@ -81,8 +81,10 @@ async def get_negative_examples(db: AsyncSession) -> list[str]:
         .limit(MAX_NEGATIVE_EXAMPLES)
     )
     entries = list(result.scalars().all())
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     for e in entries:
         e.injected_at = now
     await db.commit()
     return [e.negative_example_text for e in entries]
+
+

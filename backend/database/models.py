@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
-from datetime import datetime, timezone
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -8,7 +8,7 @@ HORIZONS = ("6m", "12m", "3y", "10y")
 
 
 def now_utc():
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 
 
 class RunLog(Base):
