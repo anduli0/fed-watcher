@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-navy:         #0A1628;
+  --color-navy-800:     #0D1F3C;
+  --color-navy-700:     #112952;
+  --color-slate:        #1E2D42;
+  --color-slate-400:    #4A6080;
+  --color-slate-300:    #6B839E;
+  --color-gold:         #C9A84C;
+  --color-signal-red:   #E53E3E;
+  --color-signal-green: #38A169;
+  --color-text-primary: #E8EDF5;
+  --color-text-muted:   #8BA0BC;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-navy);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  background-color: var(--color-navy-800);
+  border: 1px solid var(--color-navy-700);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+@media (max-width: 639px) {
+  .card { padding: 1rem; }
+}
+
+/* Hide scrollbar for tab nav on mobile */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+.badge-hawkish { color: var(--color-signal-red);   font-weight: 600; }
+.badge-dovish  { color: var(--color-signal-green);  font-weight: 600; }
+.badge-neutral { color: var(--color-gold);          font-weight: 600; }
+.badge-limited { color: var(--color-text-muted);    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.05em; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
