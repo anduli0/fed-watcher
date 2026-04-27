@@ -23,6 +23,12 @@ COHERENCE_LIMITS = {
 # Confidence floor for incoherent outputs (if output fails coherence check)
 COHERENCE_PENALTY_CAP = 0.5
 
+# Data-availability ceilings — agents reporting overconfidence on sparse data are capped.
+# Calibrates the well-known "Claude is too eager" problem.
+DATA_RICH_CONF_FLOOR   = 0.0    # rich data → no cap (allow up to 0.95)
+DATA_MEDIUM_CONF_CAP   = 0.65   # ≥2 of 4 sources missing → cap at 0.65
+DATA_SPARSE_CONF_CAP   = 0.45   # ≥3 of 4 sources missing → cap at 0.45
+
 
 @dataclass
 class AgentContext:
@@ -111,6 +117,30 @@ def check_coherence(horizons: dict[str, HorizonOutput]) -> tuple[bool, str]:
     return True, ""
 
 
+def data_availability_cap(ctx: "AgentContext") -> float:
+    """
+    Compute a confidence ceiling based on how much data the agent actually received.
+    Agents claiming high confidence on empty contexts get capped.
+
+    Returns 1.0 (no cap) for rich contexts, 0.45 for sparse.
+    """
+    score = 0
+    if ctx.macro_snapshot_text and len(ctx.macro_snapshot_text.strip()) > 100:
+        score += 1
+    if ctx.speeches_text and len(ctx.speeches_text.strip()) > 100:
+        score += 1
+    if ctx.fomc_minutes_texts and any(len(t.strip()) > 100 for t in ctx.fomc_minutes_texts):
+        score += 1
+    if ctx.cme_probabilities or (ctx.beige_book_text and len(ctx.beige_book_text.strip()) > 100):
+        score += 1
+    # 4=rich, 3=normal, 2=medium, ≤1=sparse
+    if score >= 3:
+        return 1.0
+    if score == 2:
+        return DATA_MEDIUM_CONF_CAP
+    return DATA_SPARSE_CONF_CAP
+
+
 class BaseAgent(ABC):
     agent_id: int
     agent_name: str
@@ -146,13 +176,19 @@ class BaseAgent(ABC):
         coherent, reason = check_coherence(result.horizons)
         if not coherent:
             result.coherent = False
-            # Cap confidence on all horizons
             for h, ho in result.horizons.items():
                 ho.confidence = min(ho.confidence, COHERENCE_PENALTY_CAP)
             result.confidence = min(result.confidence, COHERENCE_PENALTY_CAP)
             AL.emit("agent", self.agent_name,
-                    f"⚠ Incoherent output ({reason}) — confidence capped",
+                    f"Incoherent output ({reason}) - confidence capped",
                     "#E5A03E", "warn")
+
+        # Data-availability calibration: cap confidence when agent ran on sparse context
+        data_cap = data_availability_cap(ctx)
+        if data_cap < 1.0:
+            for h, ho in result.horizons.items():
+                ho.confidence = min(ho.confidence, data_cap)
+            result.confidence = min(result.confidence, data_cap)
 
         result.duration_ms = int((time.time() - t0) * 1000)
         return result
@@ -281,23 +317,37 @@ Respond ONLY with this JSON structure — no prose before or after:
 {
   "signal": "hawkish" | "neutral" | "dovish",
   "horizons": {
-    "6m":  {"delta_bps": <float>, "confidence": <0.0-1.0>, "rationale": "<one sentence>"},
-    "12m": {"delta_bps": <float>, "confidence": <0.0-1.0>, "rationale": "<one sentence>"},
-    "3y":  {"delta_bps": <float>, "confidence": <0.0-1.0>, "rationale": "<one sentence>"},
-    "10y": {"delta_bps": <float>, "confidence": <0.0-1.0>, "rationale": "<one sentence>"}
+    "6m":  {"delta_bps": <float, integer-step preferred (multiples of 5)>, "confidence": <0.00-0.95, two decimals>, "rationale": "<one sentence>"},
+    "12m": {"delta_bps": <float>, "confidence": <0.00-0.95>, "rationale": "<one sentence>"},
+    "3y":  {"delta_bps": <float>, "confidence": <0.00-0.95>, "rationale": "<one sentence>"},
+    "10y": {"delta_bps": <float>, "confidence": <0.00-0.95>, "rationale": "<one sentence>"}
   },
-  "reasoning": "<2-3 sentence dominant thesis>"
+  "reasoning": "<2-3 sentence dominant thesis citing specific data points>"
 }
 
-CRITICAL RULES:
-1. Cross-horizon coherence: Adjacent horizons cannot diverge by >100bps (6m↔12m) or >150bps (12m↔3y).
-   10y should tend toward long-run neutral (~2.5%), so delta = neutral_rate - current_rate ± structural shift.
-2. Confidence calibration:
-   - 0.7–0.9: Strong data directly relevant to your domain + clear thesis
-   - 0.5–0.7: Good data but some uncertainty or mixed signals
-   - 0.3–0.5: Limited/partial data or significant uncertainty
-   - 0.1–0.3: Little/no data — you are guessing; BE HONEST about this
-   IMPORTANT: If the data section below is sparse or empty, set confidence 0.15–0.25, NOT higher.
-   Overconfident guessing is WORSE than honest low confidence.
-3. delta_bps: cumulative change from current Fed Funds Rate; negative=cuts, positive=hikes.
+CRITICAL RULES — FAILURE TO COMPLY HURTS COMMITTEE ACCURACY:
+
+1. CROSS-HORIZON COHERENCE (hard constraint):
+   |6m → 12m| ≤ 100 bps. |12m → 3y| ≤ 150 bps. |3y → 10y| ≤ 200 bps.
+   10y should anchor to long-run neutral rate (~2.5%); deviation = (neutral - current) + structural premium.
+   Two large-magnitude sign reversals across the path is incoherent.
+
+2. CONFIDENCE CALIBRATION (be brutally honest — your confidence is precision-weighted):
+   - 0.80-0.90: You have direct, fresh, unambiguous data + a clear analytical chain → reasoning cites specifics.
+   - 0.60-0.80: Strong data but some interpretation uncertainty or one missing input.
+   - 0.40-0.60: Mixed signals, partial data, OR your domain only weakly informs this horizon.
+   - 0.20-0.40: Sparse data, you are inferring more than measuring.
+   - 0.10-0.20: You essentially have no signal — be honest, do not fabricate certainty.
+   NEVER report confidence > 0.85 unless you can cite at least 3 specific data points.
+   Overconfident guessing is the #1 source of committee error and is penalized in accuracy tracking.
+
+3. DELTA_BPS PRECISION:
+   - Cumulative change from CURRENT Fed Funds Rate. Negative = cuts. Positive = hikes.
+   - Prefer multiples of 5 bps (15, 25, 50, 75) — Fed moves in 25 bps quanta.
+   - Avoid spurious precision (e.g., 23.7 bps); round to nearest 5.
+
+4. REASONING QUALITY:
+   - Cite specific data: "CPI 3.2% Mar→3.5% Apr → re-acceleration → +25 bps hawkish"
+   - NOT vague: "Inflation pressures suggest potential tightening"
+   - 2-3 sentences max. Lead with the strongest signal.
 """

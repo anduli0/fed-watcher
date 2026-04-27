@@ -115,6 +115,14 @@ async def trigger_cycle(cycle_type: str = "scheduled"):
             prev_delta = prev.published_delta if prev else 0.0
             prev_streak = prev.unchanged_streak_days if prev else 0
 
+            # Pull recent raw deltas for this horizon → adaptive alpha selection
+            recent_raw = []
+            try:
+                hist = await crud.get_horizon_history(db, h, limit=8)
+                recent_raw = [float(x.raw_delta_bps) for x in hist if x.raw_delta_bps is not None]
+            except Exception:
+                pass
+
             stabilized = stabilize(
                 new_raw_delta=agg["weighted_delta_bps"],
                 new_confidence=agg["confidence"],
@@ -122,6 +130,7 @@ async def trigger_cycle(cycle_type: str = "scheduled"):
                 prev_streak=prev_streak,
                 event=event,
                 bypass_ema=(cycle_type == "forced"),
+                recent_raw_deltas=recent_raw,
             )
 
             justification = None

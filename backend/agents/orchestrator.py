@@ -36,12 +36,19 @@ ALL_AGENTS: list[BaseAgent] = SPECIALIST_AGENTS + REGIONAL_AGENTS
 _AGENT_BY_ID: dict[int, BaseAgent] = {}
 
 # Collaboration parameters
-OUTLIER_BPS_THRESHOLD = 30.0   # |delta - mean| > 30 bps → trigger Round 2
-MAX_OUTLIERS_REVIEWED = 3       # cap to control cost
+OUTLIER_BPS_THRESHOLD = 28.0   # |delta - mean| > 28 bps → trigger Round 2 (was 30)
+MAX_OUTLIERS_REVIEWED = 5       # review more outliers (was 3) — better consensus formation
 
 # Confidence-based filtering / weighting
-MIN_CONFIDENCE_FOR_INCLUSION = 0.25   # below this, agent excluded entirely
-CONFIDENCE_EXPONENT = 2.0              # weight ∝ confidence^N (Bayesian precision proxy)
+MIN_CONFIDENCE_FOR_INCLUSION = 0.30   # raised from 0.25 — keep only meaningful signals
+CONFIDENCE_EXPONENT = 2.5              # raised from 2.0 — reward high-conviction more aggressively
+
+# Committee disagreement penalty (Bayesian posterior tightness)
+TIGHT_CONSENSUS_STD   = 22.0   # bps stdev — below this, agents agree → confidence boost
+WIDE_DISAGREEMENT_STD = 65.0   # bps stdev — above this, scattered → confidence penalty
+CONSENSUS_BOOST       = 1.18   # tight consensus adds 18% to aggregate confidence
+DISAGREEMENT_PENALTY  = 0.78   # wide spread cuts aggregate confidence by 22%
+MAX_AGGREGATE_CONF    = 0.93   # cap aggregate confidence (never claim certainty)
 
 _WEIGHT_OVERRIDES: dict[int, float] = {}
 _ADAPTIVE_MULTIPLIERS: dict[int, float] = {}  # set by adaptive_weights()
@@ -137,29 +144,60 @@ _build_agent_index()
 
 def _aggregate_horizon(valid: list[AgentResult], horizon: str) -> tuple[float, float]:
     """
-    Aggregation with:
-    - Confidence pruning: agents below MIN_CONFIDENCE_FOR_INCLUSION dropped
-    - Confidence² weighting: high-conviction agents dominate (Bayesian precision proxy)
-    - Coherence penalty: incoherent agents already capped at 0.5 confidence
-    Returns (weighted_delta_bps, weighted_confidence) for one horizon.
+    Bayesian-style precision-weighted aggregation with committee dynamics.
+
+    Pipeline:
+    1. Prune agents below MIN_CONFIDENCE_FOR_INCLUSION
+    2. Compute precision-weighted mean (weight ∝ effective_weight × confidence^EXPONENT)
+    3. Apply committee-disagreement adjustment:
+       - Tight consensus (std < TIGHT_CONSENSUS_STD): +18% confidence boost
+       - Wide disagreement (std > WIDE_DISAGREEMENT_STD): -22% confidence penalty
+    4. Cap at MAX_AGGREGATE_CONF (never report certainty)
     """
+    import statistics
     total_weight = 0.0
     weighted_delta = 0.0
     weighted_confidence = 0.0
+    included_deltas: list[float] = []
+    included_weights: list[float] = []
+
     for r in valid:
         h_conf = r.horizon_confidence(horizon)
         if h_conf < MIN_CONFIDENCE_FOR_INCLUSION:
-            continue   # Prune low-conviction signals from this horizon
+            continue
         agent_obj = _AGENT_BY_ID.get(r.agent_id)
         base_weight = agent_obj.weight if agent_obj else 1.0
-        # Effective weight × confidence^2 (precision-weighted Bayesian average)
         w = _effective_weight(r, base_weight) * (h_conf ** CONFIDENCE_EXPONENT)
-        weighted_delta += r.horizon_delta(horizon) * w
+        delta = r.horizon_delta(horizon)
+        weighted_delta += delta * w
         weighted_confidence += h_conf * w
         total_weight += w
-    if total_weight > 0:
-        weighted_delta /= total_weight
-        weighted_confidence /= total_weight
+        included_deltas.append(delta)
+        included_weights.append(w)
+
+    if total_weight == 0:
+        return 0.0, 0.0
+
+    weighted_delta /= total_weight
+    weighted_confidence /= total_weight
+
+    # Committee disagreement adjustment — quantify posterior tightness
+    if len(included_deltas) >= 4:
+        # Weighted standard deviation around the consensus
+        var = sum(
+            wi * (di - weighted_delta) ** 2
+            for di, wi in zip(included_deltas, included_weights)
+        ) / total_weight
+        std = var ** 0.5
+
+        if std < TIGHT_CONSENSUS_STD:
+            weighted_confidence *= CONSENSUS_BOOST
+        elif std > WIDE_DISAGREEMENT_STD:
+            weighted_confidence *= DISAGREEMENT_PENALTY
+        # Else: middle band — no adjustment
+
+    # Cap at max aggregate confidence
+    weighted_confidence = min(MAX_AGGREGATE_CONF, weighted_confidence)
     return weighted_delta, weighted_confidence
 
 
@@ -205,27 +243,57 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
     revisions: dict[int, AgentResult] = {}
 
     if outliers:
+        import statistics as _stat
         AL.orchestrator_event(f"Round 2: {len(outliers)} outlier agents reviewing consensus — {', '.join(o.agent_name for o in outliers)}")
-        # Build consensus summary text for outliers
+
+        # Signal distribution
         signal_dist = {"hawkish": 0, "neutral": 0, "dovish": 0}
         for r in valid:
             signal_dist[r.signal] = signal_dist.get(r.signal, 0) + 1
 
-        # Sample diverse agents for context (not just the first 5 by ID)
-        sample = random.sample(valid, min(6, len(valid)))
-        consensus_summary = (
-            f"Aggregate 12m consensus: {consensus_12m:+.1f} bps. "
-            f"Signal distribution: hawkish={signal_dist['hawkish']}, "
-            f"neutral={signal_dist['neutral']}, dovish={signal_dist['dovish']} "
-            f"(of {len(valid)} agents). "
-            f"Sampled agent reasoning: "
-            + " | ".join(f"[{r.agent_name}] {r.reasoning[:100]}" for r in sample)
+        # Find the 3 agents CLOSEST to consensus (best counter-evidence vs random sample)
+        agents_by_distance = sorted(
+            valid,
+            key=lambda r: abs(r.horizon_delta("12m") - consensus_12m)
         )
+        anchors = agents_by_distance[:3]
+
+        # Median + range for context
+        all_12m = [r.horizon_delta("12m") for r in valid]
+        median_12m = _stat.median(all_12m)
+        lo, hi = min(all_12m), max(all_12m)
 
         async def review_outlier(orig: AgentResult) -> AgentResult:
             agent_obj = _AGENT_BY_ID.get(orig.agent_id)
             if agent_obj is None:
                 return orig
+
+            # Quantify exactly how far this outlier sits from the committee
+            outlier_error_bps = orig.horizon_delta("12m") - consensus_12m
+            error_direction = "MORE HAWKISH" if outlier_error_bps > 0 else "MORE DOVISH"
+
+            # Build targeted feedback (not generic)
+            anchor_reasoning = " | ".join(
+                f"[{a.agent_name} {a.horizon_delta('12m'):+.0f}bps]: {a.reasoning[:120]}"
+                for a in anchors
+            )
+            consensus_summary = (
+                f"COMMITTEE CONSENSUS (12m): {consensus_12m:+.1f} bps "
+                f"[median {median_12m:+.0f}, range {lo:+.0f}..{hi:+.0f}]. "
+                f"Distribution: hawkish={signal_dist['hawkish']}, "
+                f"neutral={signal_dist['neutral']}, dovish={signal_dist['dovish']} "
+                f"(of {len(valid)}).\n"
+                f"YOUR R1 OUTPUT IS {abs(outlier_error_bps):.0f} bps {error_direction} "
+                f"than consensus. Reconsider the following:\n"
+                f"  1. Are you over-weighting one data source vs peers?\n"
+                f"  2. Are you assuming a regime shift others don't see?\n"
+                f"  3. Could you be anchoring on a recent event peers have already discounted?\n\n"
+                f"3 AGENTS CLOSEST TO CONSENSUS: {anchor_reasoning}\n\n"
+                f"Either (a) provide stronger evidence to defend your contrarian view, "
+                f"or (b) revise toward consensus. Epistemic humility is rewarded — "
+                f"updating in light of new information is NOT weakness."
+            )
+
             review_ctx = AgentContext(
                 macro_snapshot_text=ctx.macro_snapshot_text,
                 speeches_text=ctx.speeches_text,
@@ -247,7 +315,7 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
                 revised.revised = abs(revised.rate_path_delta_bps - orig.rate_path_delta_bps) > 5
                 return revised
             except Exception:
-                return orig  # fall back to round 1
+                return orig
 
         review_results = await asyncio.gather(*[review_outlier(o) for o in outliers])
         for rev in review_results:
