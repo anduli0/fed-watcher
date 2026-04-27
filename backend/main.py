@@ -231,7 +231,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown(wait=False)
 
 
-app = FastAPI(title="Fed-Watcher", docs_url="/docs", redoc_url=None, lifespan=lifespan)
+app = FastAPI(title="Fed-Watcher", docs_url="/docs", redoc_url=None, lifespan=lifespan, redirect_slashes=False)
 _cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
