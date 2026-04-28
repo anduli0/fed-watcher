@@ -106,7 +106,8 @@ async def trigger_cycle(cycle_type: str = "scheduled"):
         await crud.complete_run(db, run.id, "completed", collab_rounds)
 
         # ── Stabilize and persist all 4 horizons ──
-        immediate_publish = cycle_type == "forced"
+        # Always publish immediately — cloud is always-on, no "morning publish" gate needed
+        immediate_publish = True
         report_ko = result.get("report_ko", result.get("report_text", ""))
         report_en = result.get("report_en", "")
         for h in HORIZONS:
@@ -195,17 +196,17 @@ async def trigger_cycle(cycle_type: str = "scheduled"):
 async def publish_morning_forecast():
     """Flip is_published=True at 08:00 KST on latest unpublished horizons + legacy."""
     async with AsyncSessionLocal() as db:
-        # Flip the 4 most recent horizon forecasts (one per horizon)
+        # PostgreSQL-compatible: use TRUE/FALSE for boolean, DISTINCT ON for latest per horizon
         await db.execute(text("""
-            UPDATE horizon_forecast SET is_published = 1
+            UPDATE horizon_forecast SET is_published = TRUE
             WHERE id IN (
                 SELECT MAX(id) FROM horizon_forecast
-                WHERE is_published = 0
+                WHERE is_published = FALSE
                 GROUP BY horizon
             )
         """))
         await db.execute(text("""
-            UPDATE published_forecast SET is_published = 1
+            UPDATE published_forecast SET is_published = TRUE
             WHERE id = (SELECT id FROM published_forecast ORDER BY id DESC LIMIT 1)
         """))
         await db.commit()
@@ -213,9 +214,8 @@ async def publish_morning_forecast():
 
 
 async def graceful_shutdown():
-    logger.info("Graceful shutdown initiated.")
-    scheduler.shutdown(wait=False)
-    os.kill(os.getpid(), 15)
+    # No-op on cloud — Railway keeps the server running 24/7
+    logger.info("graceful_shutdown called (no-op in cloud deployment)")
 
 
 def _restore_admin_weights():
@@ -237,7 +237,10 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(run_data_collection())
     logger.info("Fed-Watcher started. Model: %s", settings.MODEL_ID)
     yield
-    scheduler.shutdown(wait=False)
+    try:
+        scheduler.shutdown(wait=False)
+    except Exception:
+        pass
 
 
 app = FastAPI(title="Fed-Watcher", docs_url="/docs", redoc_url=None, lifespan=lifespan, redirect_slashes=False)

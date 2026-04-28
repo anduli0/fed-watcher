@@ -60,15 +60,10 @@ def init_scheduler(
         replace_existing=True,
     )
 
-    scheduler.add_job(
-        shutdown_fn,
-        CronTrigger(**SHUTDOWN_KST, timezone=TZ),
-        id="shutdown",
-        replace_existing=True,
-    )
+    # NOTE: graceful_shutdown cron removed — cloud deployment runs 24/7
 
     scheduler.start()
     logger.info(
-        "Scheduler started. Data collect every %d min · Cycles: %s · Publish 08:00 KST · Shutdown 08:30 KST",
+        "Scheduler started. Data collect every %d min · Cycles: %s · Publish 08:00 KST",
         DATA_COLLECT_MIN, INTER_CYCLE_HOURS,
     )
