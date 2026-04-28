@@ -2,7 +2,7 @@
 Source registry for Daily Macro News Briefing.
 All sources use publicly accessible RSS feeds — no paywalls, no login walls.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 
@@ -20,7 +20,8 @@ class NewsSource:
 
 
 SOURCES: list[NewsSource] = [
-    # ── Official U.S. Government Sources ──────────────────────────────────
+    # ── Official U.S. Government Sources ─────────────────────────────────
+    # These publish infrequently → 7-day lookback in fetcher
     NewsSource(
         id="fed_press",
         name="Federal Reserve Press Releases",
@@ -44,17 +45,6 @@ SOURCES: list[NewsSource] = [
         max_items=10,
     ),
     NewsSource(
-        id="treasury_press",
-        name="U.S. Treasury Press Releases",
-        category="official",
-        feed_url="https://home.treasury.gov/system/files/press-releases.rss.xml",
-        access_type="rss",
-        enabled=True,
-        reliability_weight=1.0,
-        topic_tags=["treasury", "fiscal_policy", "bonds"],
-        max_items=10,
-    ),
-    NewsSource(
         id="bls_latest",
         name="Bureau of Labor Statistics",
         category="official",
@@ -66,40 +56,18 @@ SOURCES: list[NewsSource] = [
         max_items=10,
     ),
     NewsSource(
-        id="ny_fed",
-        name="NY Fed Liberty Street Economics",
-        category="official",
-        feed_url="https://libertystreeteconomics.newyorkfed.org/feeds/index.xml",
-        access_type="rss",
-        enabled=True,
-        reliability_weight=0.95,
-        topic_tags=["fed", "monetary_policy", "financial_markets"],
-        max_items=8,
-    ),
-    NewsSource(
         id="fred_blog",
         name="FRED Blog (St. Louis Fed)",
         category="official",
         feed_url="https://fredblog.stlouisfed.org/feed/",
         access_type="rss",
         enabled=True,
-        reliability_weight=0.9,
+        reliability_weight=0.95,
         topic_tags=["monetary_policy", "macro_data"],
-        max_items=8,
+        max_items=10,
     ),
 
-    # ── Macro Analysis Blogs (free, high quality) ─────────────────────────
-    NewsSource(
-        id="calculated_risk",
-        name="Calculated Risk",
-        category="analysis",
-        feed_url="https://www.calculatedriskblog.com/feeds/posts/default",
-        access_type="rss",
-        enabled=True,
-        reliability_weight=0.9,
-        topic_tags=["growth", "labor_market", "housing", "financial_markets"],
-        max_items=15,
-    ),
+    # ── High-Quality Macro Analysis (blog-based, cloud-friendly) ─────────
     NewsSource(
         id="econbrowser",
         name="Econbrowser",
@@ -107,44 +75,107 @@ SOURCES: list[NewsSource] = [
         feed_url="https://econbrowser.com/feed",
         access_type="rss",
         enabled=True,
-        reliability_weight=0.85,
+        reliability_weight=0.9,
         topic_tags=["macro_data", "monetary_policy", "growth"],
+        max_items=15,
+    ),
+    NewsSource(
+        id="bruegel",
+        name="Bruegel Economic Policy",
+        category="analysis",
+        feed_url="https://www.bruegel.org/feed",
+        access_type="rss",
+        enabled=True,
+        reliability_weight=0.85,
+        topic_tags=["monetary_policy", "fiscal_policy", "financial_markets"],
+        max_items=10,
+    ),
+    NewsSource(
+        id="brookings_econ",
+        name="Brookings Institution",
+        category="analysis",
+        feed_url="https://www.brookings.edu/topic/economy-development/feed/",
+        access_type="rss",
+        enabled=True,
+        reliability_weight=0.85,
+        topic_tags=["fiscal_policy", "monetary_policy", "growth"],
         max_items=10,
     ),
 
-    # ── Financial News RSS ────────────────────────────────────────────────
+    # ── Yahoo Finance RSS (very reliable from cloud, broad coverage) ──────
     NewsSource(
-        id="marketwatch_econ",
-        name="MarketWatch Economy & Politics",
+        id="yahoo_finance_top",
+        name="Yahoo Finance Top Stories",
         category="news",
-        feed_url="https://feeds.marketwatch.com/marketwatch/economy-politics/",
+        feed_url="https://finance.yahoo.com/rss/topfinstories",
         access_type="rss",
         enabled=True,
         reliability_weight=0.75,
-        topic_tags=["financial_markets", "monetary_policy", "fiscal_policy"],
-        max_items=20,
-    ),
-    NewsSource(
-        id="reuters_business",
-        name="Reuters Business",
-        category="news",
-        feed_url="https://feeds.reuters.com/reuters/businessNews",
-        access_type="rss",
-        enabled=True,
-        reliability_weight=0.8,
         topic_tags=["financial_markets", "equities", "risk_sentiment"],
         max_items=20,
     ),
     NewsSource(
-        id="reuters_money",
-        name="Reuters Money & Markets",
+        id="yahoo_econ",
+        name="Yahoo Finance Economy",
         category="news",
-        feed_url="https://feeds.reuters.com/reuters/MostRead",
+        feed_url="https://finance.yahoo.com/rss/2.0/headline?s=%5EIRX&region=US&lang=en-US",
+        access_type="rss",
+        enabled=True,
+        reliability_weight=0.7,
+        topic_tags=["financial_markets", "bonds", "monetary_policy"],
+        max_items=15,
+    ),
+
+    # ── NPR Economy (public radio, cloud-friendly) ────────────────────────
+    NewsSource(
+        id="npr_economy",
+        name="NPR Economy",
+        category="news",
+        feed_url="https://feeds.npr.org/1017/rss.xml",
+        access_type="rss",
+        enabled=True,
+        reliability_weight=0.75,
+        topic_tags=["macro_data", "labor_market", "monetary_policy"],
+        max_items=15,
+    ),
+
+    # ── VOA Business News (public, cloud-friendly) ────────────────────────
+    NewsSource(
+        id="voa_business",
+        name="VOA Business News",
+        category="news",
+        feed_url="https://feeds.voanews.com/voaeconomy",
+        access_type="rss",
+        enabled=True,
+        reliability_weight=0.65,
+        topic_tags=["financial_markets", "risk_sentiment"],
+        max_items=15,
+    ),
+
+    # ── The Conversation Economics (academic, cloud-friendly) ─────────────
+    NewsSource(
+        id="theconversation",
+        name="The Conversation — Economics",
+        category="analysis",
+        feed_url="https://theconversation.com/us/topics/economics-67/articles.atom",
+        access_type="rss",
+        enabled=True,
+        reliability_weight=0.7,
+        topic_tags=["macro_data", "monetary_policy", "growth"],
+        max_items=10,
+    ),
+
+    # ── Project Syndicate (Summers, Rogoff, Stiglitz etc.) ────────────────
+    NewsSource(
+        id="project_syndicate",
+        name="Project Syndicate",
+        category="analysis",
+        feed_url="https://www.project-syndicate.org/rss",
         access_type="rss",
         enabled=True,
         reliability_weight=0.8,
-        topic_tags=["bonds", "financial_markets", "risk_sentiment"],
-        max_items=15,
+        topic_tags=["monetary_policy", "fiscal_policy", "growth"],
+        max_items=10,
     ),
 ]
 
@@ -174,4 +205,7 @@ MACRO_KEYWORDS: dict[str, float] = {
     "financial conditions": 2.5, "credit spread": 2.5, "vix": 2.0,
     "risk sentiment": 2.0, "dollar": 1.5, "risk-off": 2.0,
     "equities": 1.5, "s&p": 1.5, "nasdaq": 1.5, "sector rotation": 2.0,
+    # Economy general
+    "economy": 1.0, "economic": 1.0, "tariff": 2.0, "trade": 1.5,
+    "fiscal": 2.0, "budget": 1.5, "tax": 1.5,
 }

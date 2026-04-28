@@ -19,9 +19,10 @@ from backend.briefing.sources import NewsSource, ENABLED_SOURCES
 
 logger = logging.getLogger("fed_watcher.briefing.fetcher")
 
-FETCH_TIMEOUT = 15.0   # seconds per feed
-MAX_SNIPPET_CHARS = 400
-LOOKBACK_HOURS = 36    # only articles from last 36h
+FETCH_TIMEOUT = 20.0   # seconds per feed
+MAX_SNIPPET_CHARS = 500
+LOOKBACK_HOURS_NEWS = 48     # news feeds: last 48h
+LOOKBACK_HOURS_OFFICIAL = 168  # official govt sources: last 7 days (they publish infrequently)
 
 
 class ArticleData(TypedDict):
@@ -84,10 +85,11 @@ def _parse_date(entry: feedparser.FeedParserDict) -> datetime | None:
     return None
 
 
-def _is_recent(dt: datetime | None) -> bool:
+def _is_recent(dt: datetime | None, official: bool = False) -> bool:
     if dt is None:
         return True  # include if date unknown
-    cutoff = datetime.utcnow() - timedelta(hours=LOOKBACK_HOURS)
+    hours = LOOKBACK_HOURS_OFFICIAL if official else LOOKBACK_HOURS_NEWS
+    cutoff = datetime.utcnow() - timedelta(hours=hours)
     return dt >= cutoff
 
 
@@ -106,6 +108,7 @@ async def _fetch_feed(
         logger.warning("Feed fetch failed [%s]: %s", source.id, exc)
         return []
 
+    is_official = source.category == "official"
     articles: list[ArticleData] = []
     for entry in feed.entries[: source.max_items]:
         url = entry.get("link", "")
@@ -113,7 +116,7 @@ async def _fetch_feed(
             continue
 
         pub_date = _parse_date(entry)
-        if not _is_recent(pub_date):
+        if not _is_recent(pub_date, official=is_official):
             continue
 
         title = entry.get("title", "").strip()
@@ -143,9 +146,10 @@ async def _fetch_feed(
 async def fetch_all_sources() -> list[ArticleData]:
     """Fetch all enabled sources concurrently and return merged article list."""
     headers = {
-        "User-Agent": "FED-WATCHER/1.0 (+https://fed-watcher.vercel.app; macro research aggregator)"
+        "User-Agent": "Mozilla/5.0 (compatible; FedWatcher/1.0; +https://fed-watcher.vercel.app)",
+        "Accept": "application/rss+xml, application/xml, text/xml, */*",
     }
-    async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
+    async with httpx.AsyncClient(headers=headers, follow_redirects=True, verify=False) as client:
         tasks = [_fetch_feed(src, client) for src in ENABLED_SOURCES]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
