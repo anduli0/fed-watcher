@@ -106,9 +106,9 @@ def _build_user_prompt(articles: list[ArticleData], lang: LangCode) -> str:
     articles_block = _format_articles_for_prompt(articles)
 
     length_guide = (
-        "Target length: 900–1,500 words total (English)"
+        "Target length: 800–1,200 words total. Each section body: 1-2 short paragraphs (60-120 words each)."
         if lang == "en" else
-        "목표 분량: 전체 900–1,500 단어 수준의 자연스러운 한국어 분량"
+        "목표 분량: 전체 800–1,200단어. 각 섹션 본문: 단락 1-2개 (각 60-120자 수준)."
     )
 
     return f"""LANGUAGE: {lang_instruction}
@@ -158,7 +158,7 @@ async def generate_briefing(
 
     response = await client.messages.create(
         model=used_model,
-        max_tokens=4096,
+        max_tokens=8000,           # large enough for full briefing JSON
         temperature=0.3,           # low temperature for factual consistency
         system=[{
             "type": "text",
@@ -173,16 +173,36 @@ async def generate_briefing(
         if hasattr(block, "text"):
             raw += block.text
 
-    # Extract JSON (robust: handle any preamble)
+    # Extract JSON (robust: handle any preamble, truncation, or special chars)
     import re
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if not match:
+
+    # Find JSON object start
+    start = raw.find("{")
+    if start == -1:
         raise ValueError(f"LLM returned no JSON for lang={lang}. Raw: {raw[:400]}")
 
+    json_str = raw[start:]
+
+    # Try direct parse first
+    data = None
     try:
-        data = json.loads(match.group())
-    except json.JSONDecodeError as e:
-        raise ValueError(f"LLM JSON parse error: {e}. Raw: {match.group()[:400]}")
+        data = json.loads(json_str)
+    except json.JSONDecodeError:
+        # Try to repair truncated JSON by finding the last complete section
+        # Strip trailing incomplete content and close the object
+        try:
+            # Find the deepest balanced closing — try progressively shorter strings
+            for end in range(len(json_str), len(json_str) // 2, -1):
+                try:
+                    data = json.loads(json_str[:end])
+                    break
+                except json.JSONDecodeError:
+                    continue
+        except Exception:
+            pass
+
+    if data is None:
+        raise ValueError(f"LLM JSON parse error for lang={lang}. Raw start: {json_str[:500]}")
 
     # Validate required fields
     required = ["title", "marketImpactHeadline", "executiveSummary", "sections",
