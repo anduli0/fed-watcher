@@ -77,3 +77,55 @@ export interface Forecast {
   unchanged_streak_days: number;
   change_justification: string | null;
 }
+
+// ── Daily Briefing types ─────────────────────────────────────────────────
+
+export interface BriefingSection {
+  heading: string;
+  body: string;
+  sourceIds: string[];
+}
+
+export interface BriefingSource {
+  id: string;
+  title: string;
+  url: string;
+  publisher: string;
+  published_at: string;
+}
+
+export interface DailyBriefing {
+  id: number;
+  briefing_date: string;          // "2026-04-28"
+  language: "en" | "ko";
+  timezone: string;
+  title: string;
+  market_impact_headline: string;
+  executive_summary: string[];
+  sections: BriefingSection[];
+  what_changed_since_yesterday: string[];
+  fed_watcher_rate_path_signal: string;
+  watch_next: string[];
+  disclaimer: string;
+  source_count: number;
+  article_count: number;
+  model_used: string;
+  status: "draft" | "published" | "failed";
+  generation_finished_at: string | null;
+  created_at: string | null;
+  sources: BriefingSource[];
+  fallback?: boolean;             // true if showing other-language fallback
+  requested_lang?: string;
+}
+
+export interface BriefingListItem {
+  id: number;
+  briefing_date: string;
+  language: "en" | "ko";
+  title: string;
+  market_impact_headline: string;
+  status: string;
+  generation_finished_at: string | null;
+  article_count: number;
+  source_count: number;
+}

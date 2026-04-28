@@ -16,3 +16,4 @@ python-dotenv
 pydantic-settings
 apscheduler
 cryptography
+feedparser

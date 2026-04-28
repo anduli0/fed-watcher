@@ -13,10 +13,22 @@ PUBLISH_KST        = dict(hour=8,  minute=0)
 SHUTDOWN_KST       = dict(hour=8, minute=30)
 INTER_CYCLE_HOURS  = "12,16,20,0"
 DATA_COLLECT_MIN   = 30  # Collect every 30 min — no AI tokens
+BRIEFING_KST       = dict(hour=7, minute=30)  # 07:30 KST daily (22:30 UTC prev day)
 
 TZ = "Asia/Seoul"
 
 scheduler = AsyncIOScheduler(timezone=TZ)
+
+
+async def _run_daily_briefing():
+    """Daily briefing generation — runs at 07:30 KST."""
+    from backend.briefing.pipeline import run_briefing_pipeline
+    logger.info("Daily briefing pipeline triggered by scheduler")
+    try:
+        result = await run_briefing_pipeline()
+        logger.info("Daily briefing pipeline result: %s", result.get("status"))
+    except Exception as exc:
+        logger.error("Daily briefing pipeline error: %s", exc, exc_info=True)
 
 
 def init_scheduler(
@@ -60,10 +72,19 @@ def init_scheduler(
         replace_existing=True,
     )
 
+    # ── Daily Macro News Briefing — 07:30 KST (22:30 UTC prev day) ─────────
+    scheduler.add_job(
+        _run_daily_briefing,
+        CronTrigger(**BRIEFING_KST, timezone=TZ),
+        id="daily_briefing",
+        replace_existing=True,
+    )
+
     # NOTE: graceful_shutdown cron removed — cloud deployment runs 24/7
 
     scheduler.start()
     logger.info(
-        "Scheduler started. Data collect every %d min · Cycles: %s · Publish 08:00 KST",
+        "Scheduler started. Data collect every %d min · Cycles: %s · "
+        "Publish 08:00 KST · Daily Briefing 07:30 KST",
         DATA_COLLECT_MIN, INTER_CYCLE_HOURS,
     )

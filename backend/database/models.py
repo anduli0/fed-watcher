@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 
@@ -121,3 +121,73 @@ class MockTrade(Base):
     rationale = Column(Text)
     created_at = Column(DateTime, default=now_utc)
     run = relationship("RunLog", back_populates="mock_trades")
+
+
+# ── Daily Macro News Briefing tables ────────────────────────────────────────
+
+class DailyBriefing(Base):
+    __tablename__ = "daily_briefing"
+    id = Column(Integer, primary_key=True)
+    briefing_date = Column(String(10), nullable=False)       # "2026-04-28"
+    language = Column(String(5), nullable=False)             # "en" | "ko"
+    timezone = Column(String(50), default="Asia/Seoul")
+    title = Column(String(500))
+    market_impact_headline = Column(String(500))
+    executive_summary_json = Column(Text)                    # JSON array of strings
+    body_json = Column(Text)                                 # Full LLM JSON response
+    sources_json = Column(Text)                              # JSON array of source metadata
+    source_count = Column(Integer, default=0)
+    article_count = Column(Integer, default=0)
+    model_used = Column(String(100))
+    status = Column(String(20), default="draft")             # draft|published|failed
+    generation_started_at = Column(DateTime)
+    generation_finished_at = Column(DateTime)
+    created_at = Column(DateTime, default=now_utc)
+    updated_at = Column(DateTime, default=now_utc)
+    __table_args__ = (
+        UniqueConstraint("briefing_date", "language", name="uq_briefing_date_lang"),
+    )
+    articles = relationship("BriefingArticle", back_populates="briefing", cascade="all, delete-orphan")
+
+
+class NewsArticle(Base):
+    __tablename__ = "news_article"
+    id = Column(Integer, primary_key=True)
+    source_id = Column(String(100))
+    source_name = Column(String(200))
+    title = Column(String(1000))
+    url = Column(String(2000))
+    canonical_url = Column(String(2000), unique=True)
+    author = Column(String(500))
+    published_at = Column(DateTime)
+    fetched_at = Column(DateTime, default=now_utc)
+    snippet = Column(Text)
+    topic_tags_json = Column(Text)
+    relevance_score = Column(Float, default=0.0)
+    impact_score = Column(Float, default=0.0)
+    cluster_id = Column(String(100))
+    created_at = Column(DateTime, default=now_utc)
+    briefings = relationship("BriefingArticle", back_populates="article")
+
+
+class BriefingArticle(Base):
+    __tablename__ = "briefing_article"
+    id = Column(Integer, primary_key=True)
+    briefing_id = Column(Integer, ForeignKey("daily_briefing.id"))
+    article_id = Column(Integer, ForeignKey("news_article.id"))
+    role = Column(String(20), default="primary")             # primary|supporting|background
+    briefing = relationship("DailyBriefing", back_populates="articles")
+    article = relationship("NewsArticle", back_populates="briefings")
+
+
+class PipelineRun(Base):
+    __tablename__ = "pipeline_run"
+    id = Column(Integer, primary_key=True)
+    run_type = Column(String(50))
+    status = Column(String(20))                              # running|completed|failed
+    started_at = Column(DateTime, default=now_utc)
+    finished_at = Column(DateTime)
+    error_message = Column(Text)
+    logs_json = Column(Text)
+    briefing_date = Column(String(10))
+    language = Column(String(5))

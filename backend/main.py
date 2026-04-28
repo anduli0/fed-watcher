@@ -16,6 +16,7 @@ from backend.stabilizer.forecast_stabilizer import stabilize, QUANTIZE_BPS, Stab
 from backend.routes.auth_routes import router as auth_router
 from backend.routes.dashboard_routes import router as dashboard_router
 from backend.routes.admin_routes import router as admin_router
+from backend.routes.briefing_routes import router as briefing_router
 from backend.scheduler.window_manager import init_scheduler, scheduler
 
 logging.basicConfig(
@@ -256,6 +257,7 @@ app.add_middleware(SecurityMiddleware)
 app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
+app.include_router(briefing_router)
 
 
 @app.get("/health")

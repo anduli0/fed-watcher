@@ -1,14 +1,15 @@
 "use client";
 import { useLang } from "@/context/LanguageContext";
 
-export type Tab = "live" | "forecast" | "agents" | "analysis" | "data";
+export type Tab = "live" | "forecast" | "agents" | "analysis" | "data" | "briefing";
 
 const TABS: { id: Tab; en: string; ko: string; icon: string }[] = [
-  { id: "live",     en: "Live",     ko: "실시간",  icon: "⚡" },
-  { id: "forecast", en: "Forecast", ko: "금리예측", icon: "📈" },
-  { id: "agents",   en: "Agents",   ko: "에이전트", icon: "🤖" },
-  { id: "analysis", en: "Analysis", ko: "분석",    icon: "🔬" },
-  { id: "data",     en: "Data",     ko: "데이터",  icon: "📊" },
+  { id: "live",     en: "Live",        ko: "실시간",       icon: "⚡" },
+  { id: "forecast", en: "Forecast",    ko: "금리예측",     icon: "📈" },
+  { id: "agents",   en: "Agents",      ko: "에이전트",     icon: "🤖" },
+  { id: "analysis", en: "Analysis",    ko: "분석",         icon: "🔬" },
+  { id: "data",     en: "Data",        ko: "데이터",       icon: "📊" },
+  { id: "briefing", en: "Daily Brief", ko: "데일리 브리프", icon: "📰" },
 ];
 
 interface Props {

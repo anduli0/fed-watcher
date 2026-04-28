@@ -9,6 +9,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ForecastReport from "@/components/ForecastReport";
 import MacroDataPanel from "@/components/MacroDataPanel";
 import MultiHorizonGauges from "@/components/MultiHorizonGauges";
+import DailyBriefingPage from "@/components/DailyBriefingPage";
 import { useForecast } from "@/hooks/useForecast";
 import { useLang } from "@/context/LanguageContext";
 import { Horizon } from "@/lib/api";
@@ -170,6 +171,11 @@ export default function DashboardPage() {
           <div className="pb-8">
             <MacroDataPanel />
           </div>
+        )}
+
+        {/* ── Tab: Daily Brief ── */}
+        {tab === "briefing" && (
+          <DailyBriefingPage />
         )}
       </div>
 
