@@ -161,6 +161,7 @@ async def trigger_briefing_generation(
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     from backend.briefing.pipeline import run_briefing_pipeline, _running_keys
+    from zoneinfo import ZoneInfo
 
     td = None
     if target_date:
@@ -169,7 +170,11 @@ async def trigger_briefing_generation(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-    date_key = (td or date.today()).isoformat()
+    # Default to KST date
+    if td is None:
+        td = datetime.now(ZoneInfo("Asia/Seoul")).date()
+
+    date_key = td.isoformat()
     if date_key in _running_keys:
         return {"status": "already_running", "date": date_key}
 

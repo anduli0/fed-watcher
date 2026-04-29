@@ -11,7 +11,7 @@ from backend.briefing.sources import MACRO_KEYWORDS
 
 logger = logging.getLogger("fed_watcher.briefing.ranker")
 
-MIN_ARTICLES_FOR_BRIEFING = 5
+MIN_ARTICLES_FOR_BRIEFING = 3   # lowered: Google News alone gives 10+
 TARGET_ARTICLE_COUNT = 30
 
 

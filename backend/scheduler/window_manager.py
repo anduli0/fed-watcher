@@ -21,11 +21,15 @@ scheduler = AsyncIOScheduler(timezone=TZ)
 
 
 async def _run_daily_briefing():
-    """Daily briefing generation — runs at 07:30 KST."""
+    """Daily briefing generation — runs at 07:30 KST. Uses KST date for briefing_date."""
     from backend.briefing.pipeline import run_briefing_pipeline
-    logger.info("Daily briefing pipeline triggered by scheduler")
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    # Use KST date so briefing is labelled with the correct calendar date
+    today_kst = datetime.now(ZoneInfo("Asia/Seoul")).date()
+    logger.info("Daily briefing pipeline triggered for %s (KST)", today_kst)
     try:
-        result = await run_briefing_pipeline()
+        result = await run_briefing_pipeline(target_date=today_kst, force=False)
         logger.info("Daily briefing pipeline result: %s", result.get("status"))
     except Exception as exc:
         logger.error("Daily briefing pipeline error: %s", exc, exc_info=True)

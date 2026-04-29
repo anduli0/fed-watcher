@@ -19,10 +19,10 @@ from backend.briefing.sources import NewsSource, ENABLED_SOURCES
 
 logger = logging.getLogger("fed_watcher.briefing.fetcher")
 
-FETCH_TIMEOUT = 20.0   # seconds per feed
+FETCH_TIMEOUT = 25.0   # seconds per feed
 MAX_SNIPPET_CHARS = 500
-LOOKBACK_HOURS_NEWS = 48     # news feeds: last 48h
-LOOKBACK_HOURS_OFFICIAL = 168  # official govt sources: last 7 days (they publish infrequently)
+LOOKBACK_HOURS_NEWS = 48      # news/google feeds: last 48h
+LOOKBACK_HOURS_OFFICIAL = 168  # official govt: last 7 days (publish infrequently)
 
 
 class ArticleData(TypedDict):
@@ -146,8 +146,13 @@ async def _fetch_feed(
 async def fetch_all_sources() -> list[ArticleData]:
     """Fetch all enabled sources concurrently and return merged article list."""
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; FedWatcher/1.0; +https://fed-watcher.vercel.app)",
-        "Accept": "application/rss+xml, application/xml, text/xml, */*",
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
     }
     async with httpx.AsyncClient(headers=headers, follow_redirects=True, verify=False) as client:
         tasks = [_fetch_feed(src, client) for src in ENABLED_SOURCES]
