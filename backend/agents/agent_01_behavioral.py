@@ -56,11 +56,10 @@ class AgentBehavioral(BaseAgent):
             )
         return body
 
-    def _call_claude(self, ctx: AgentContext) -> AgentResult:
+    async def _call_claude(self, ctx: AgentContext, temperature: float = 1.0) -> AgentResult:
         """Override to set limited_mode on the result."""
-        result = super()._call_claude(ctx)
-        result.limited_mode = bool(ctx.speeches_text) and True  # text-only path
-        # If truly no data at all, limited_mode is still True (we had no image either)
+        result = await super()._call_claude(ctx, temperature)
+        result.limited_mode = True  # always text-only (no image support in CLI mode)
         return result
 
 
