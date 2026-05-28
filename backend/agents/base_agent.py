@@ -6,7 +6,7 @@ import time
 import json
 import re
 import statistics
-import anthropic
+from backend.claude_cli import call_claude
 from backend.config import settings
 
 REASONING_TRUNCATE = 600
@@ -153,7 +153,7 @@ class BaseAgent(ABC):
     self_consistency_n: int = 1           # Run N times and take median (1=disabled)
 
     def __init__(self):
-        self._client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        pass
 
     @abstractmethod
     def _system_prompt(self) -> str: ...
@@ -237,36 +237,7 @@ class BaseAgent(ABC):
             + "\n\n"
             + self._user_message(ctx)
         )
-        kwargs: dict = {
-            "model": settings.MODEL_ID,
-            "max_tokens": 1500 + (self.thinking_budget if self.enable_thinking else 0),
-            "system": [{
-                "type": "text",
-                "text": self._system_prompt(),
-                "cache_control": {"type": "ephemeral"},
-            }],
-            "messages": [{"role": "user", "content": user_msg}],
-        }
-        if self.enable_thinking:
-            kwargs["thinking"] = {"type": "enabled", "budget_tokens": self.thinking_budget}
-            # Thinking requires temperature=1.0
-            kwargs["temperature"] = 1.0
-        else:
-            kwargs["temperature"] = temperature
-
-        try:
-            response = await self._client.messages.create(**kwargs)
-        except anthropic.BadRequestError:
-            # Some models don't support thinking — fall back gracefully
-            kwargs.pop("thinking", None)
-            kwargs["temperature"] = temperature
-            response = await self._client.messages.create(**kwargs)
-
-        # Extract text content (skip thinking blocks)
-        raw = ""
-        for block in response.content:
-            if hasattr(block, "text"):
-                raw += block.text
+        raw = await call_claude(self._system_prompt(), user_msg)
         return self._parse(raw)
 
     def _parse(self, raw: str) -> AgentResult:

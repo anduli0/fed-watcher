@@ -1,5 +1,5 @@
 """
-LLM briefing generation using the existing Anthropic SDK.
+LLM briefing generation using the Claude CLI.
 Generates both EN and KO versions from the same article set.
 """
 from __future__ import annotations
@@ -7,9 +7,8 @@ import json
 import logging
 from typing import Literal
 
-import anthropic
-
 from backend.briefing.fetcher import ArticleData
+from backend.claude_cli import call_claude
 from backend.config import settings
 
 logger = logging.getLogger("fed_watcher.briefing.generator")
@@ -149,29 +148,11 @@ async def generate_briefing(
     Returns the parsed JSON dict from the LLM.
     Raises ValueError if the output fails validation.
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-    used_model = model or settings.MODEL_ID
-
     user_msg = _build_user_prompt(articles, lang)
 
-    logger.info("Generating %s briefing with %d articles via %s", lang.upper(), len(articles), used_model)
+    logger.info("Generating %s briefing with %d articles via claude CLI", lang.upper(), len(articles))
 
-    response = await client.messages.create(
-        model=used_model,
-        max_tokens=8000,           # large enough for full briefing JSON
-        temperature=0.3,           # low temperature for factual consistency
-        system=[{
-            "type": "text",
-            "text": SYSTEM_PROMPT,
-            "cache_control": {"type": "ephemeral"},
-        }],
-        messages=[{"role": "user", "content": user_msg}],
-    )
-
-    raw = ""
-    for block in response.content:
-        if hasattr(block, "text"):
-            raw += block.text
+    raw = await call_claude(SYSTEM_PROMPT, user_msg, timeout=180.0)
 
     # Extract JSON (robust: handle any preamble, truncation, or special chars)
     import re

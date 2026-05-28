@@ -10,7 +10,7 @@ import json
 import random
 import re
 from datetime import datetime
-import anthropic
+from backend.claude_cli import call_claude
 from backend.data import activity_log as AL
 
 from backend.agents.base_agent import (
@@ -27,7 +27,6 @@ from backend.agents.agent_08_political import agent as a8
 from backend.agents.agent_10_consensus import agent as a10
 from backend.agents.regional_agents import REGIONAL_AGENTS
 
-from backend.config import settings
 
 # All agents — 9 specialists + 12 regional
 SPECIALIST_AGENTS: list[BaseAgent] = [a1, a2, a3, a4, a5, a6, a7, a8, a10]
@@ -474,13 +473,10 @@ async def _generate_derivation_report(
 
 Output ONLY the markdown report, no preamble.
 """
-    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     try:
-        resp = await client.messages.create(
-            model=settings.MODEL_ID,
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}],
+        return await call_claude(
+            "You are a Chief Fed analyst. Write concise markdown reports on Fed rate forecasts.",
+            prompt,
         )
-        return resp.content[0].text
     except Exception as e:
         return f"Report generation failed: {e}"

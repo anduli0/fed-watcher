@@ -5,7 +5,7 @@ import uuid, sys
 
 
 class Settings(BaseSettings):
-    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""  # no longer required — Claude CLI handles auth
     FRED_API_KEY: str = ""
     JWT_SECRET: str = ""
     ADMIN_PASSWORD_HASH: str = ""
