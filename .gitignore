@@ -16,3 +16,6 @@ logs/
 .tg_session*
 cloudflared.exe
 cf-tunnel.log
+
+render-status.txt
+render-deployment.txt
