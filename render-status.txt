@@ -1,30 +1,20 @@
-timestamp=2026-05-29T06:59:32.540851
-name=fed-watcher
-url=https://fed-watcher.onrender.com
+timestamp=2026-05-29T07:10:24.059895
+name=fed-watcher-backend
+url=https://fed-watcher-backend-9rgk.onrender.com
 suspended=not_suspended
-new_deploy_id=dep-d8cjhqbeo5us73evd2tg
-final_deploy_status=update_failed
+new_deploy_id=dep-d8cjnk4p3tds73dtehf0
+final_deploy_status=build_failed
 health=OFFLINE
 
 === EVENTS ===
-2026-05-29T06:58:54 deploy_ended: {"deployId": "dep-d8cjhqbeo5us73evd2tg", "deployStatus": "failed", "reason": {"failure": {"evicted": false, "nonZeroExit": 127}}, "status": 4}
-2026-05-29T06:58:33 build_ended: {"buildId": "bld-d8cjhqbeo5us73evd2v0", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T06:57:46 deploy_started: {"deployId": "dep-d8cjhqbeo5us73evd2tg", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T06:57:46 build_started: {"buildId": "bld-d8cjhqbeo5us73evd2v0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T06:52:34 deploy_ended: {"deployId": "dep-d8cjeoq8qa3s73bjk7e0", "deployStatus": "failed", "reason": {"failure": {"evicted": false, "nonZeroExit": 127}}, "status": 4}
-2026-05-29T06:52:13 build_ended: {"buildId": "bld-d8cjeoq8qa3s73bjk7eg", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T06:51:15 deploy_started: {"deployId": "dep-d8cjeoq8qa3s73bjk7e0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T06:51:15 build_started: {"buildId": "bld-d8cjeoq8qa3s73bjk7eg", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T06:45:07 deploy_ended: {"deployId": "dep-d8cjbbpo3t8c73a02qsg", "deployStatus": "failed", "reason": {"failure": {"evicted": false, "nonZeroExit": 127}}, "status": 4}
-2026-05-29T06:44:48 build_ended: {"buildId": "bld-d8cjbbpo3t8c73a02qt0", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T06:43:59 deploy_started: {"deployId": "dep-d8cjbbpo3t8c73a02qsg", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T06:43:59 build_started: {"buildId": "bld-d8cjbbpo3t8c73a02qt0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T06:38:19 deploy_ended: {"deployId": "dep-d8cj82po3t8c73a012ug", "deployStatus": "failed", "reason": {"failure": {"evicted": false, "nonZeroExit": 127}}, "status": 4}
-2026-05-29T06:37:51 build_ended: {"buildId": "bld-d8cj82po3t8c73a012v0", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T06:37:00 deploy_started: {"deployId": "dep-d8cj82po3t8c73a012ug", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T07:10:19 deploy_ended: {"deployId": "dep-d8cjnk4p3tds73dtehf0", "deployStatus": "failed", "reason": {"buildFailed": {"id": "Exited with status 1"}, "failure": {"evicted": false, "nonZeroExit": 1}}, "status": 4}
+2026-05-29T07:10:17 build_ended: {"buildId": "bld-d8cjnk4p3tds73dtehg0", "buildStatus": "failed", "reason": {"buildFailed": {"id": "bld-d8cjnk4p3tds73dtehg0"}, "failure": {"evicted": false, "nonZeroExit": 1}}, "status": 3}
+2026-05-29T07:10:09 deploy_started: {"deployId": "dep-d8cjnk4p3tds73dtehf0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T07:10:08 build_started: {"buildId": "bld-d8cjnk4p3tds73dtehg0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T07:07:22 deploy_ended: {"deployId": "dep-d8cjm81nrd2s73dmg27g", "deployStatus": "failed", "reason": {"buildFailed": {"id": "Exited with status 1"}, "failure": {"evicted": false, "nonZeroExit": 1}}, "status": 4}
+2026-05-29T07:07:21 build_ended: {"buildId": "bld-d8cjm81nrd2s73dmg280", "buildStatus": "failed", "reason": {"buildFailed": {"id": "bld-d8cjm81nrd2s73dmg280"}, "failure": {"evicted": false, "nonZeroExit": 1}}, "status": 3}
+2026-05-29T07:07:13 deploy_started: {"deployId": "dep-d8cjm81nrd2s73dmg27g", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": true, "manual": false, "rollback": false}}
+2026-05-29T07:07:13 build_started: {"buildId": "bld-d8cjm81nrd2s73dmg280", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": true, "manual": false, "rollback": false}}
 
 === DEPLOYS ===
-update_failed | 2026-05-29T06:51:15 | fix: Google News RSS sources + KST timezone for briefing_dat
-update_failed | 2026-05-29T06:43:59 | fix: Google News RSS sources + KST timezone for briefing_dat
-update_failed | 2026-05-29T06:36:59 | fix: Google News RSS sources + KST timezone for briefing_dat
-update_failed | 2026-05-29T01:06:08 | fix: Google News RSS sources + KST timezone for briefing_dat
+build_failed | 2026-05-29T07:07:12 | ci: render deploy status [skip ci]
