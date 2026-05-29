@@ -3,6 +3,9 @@ name: Deploy to Render
 on:
   push:
     branches: [main, master, claude/affectionate-bell-InnQ6]
+    paths-ignore:
+      - 'frontend/**'
+      - '**.md'
   workflow_dispatch:
 
 jobs:

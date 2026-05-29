@@ -2,11 +2,15 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "https://backend-production-7034.up.railway.app/api/$1"
+      "dest": "https://fed-watcher-backend-9rgk.onrender.com/api/$1"
     },
     {
       "src": "/auth/(.*)",
-      "dest": "https://backend-production-7034.up.railway.app/auth/$1"
+      "dest": "https://fed-watcher-backend-9rgk.onrender.com/auth/$1"
+    },
+    {
+      "src": "/admin-secure-panel/api/(.*)",
+      "dest": "https://fed-watcher-backend-9rgk.onrender.com/admin-secure-panel/api/$1"
     },
     {
       "src": "/(.*)",
