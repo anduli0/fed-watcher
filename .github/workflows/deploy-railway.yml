@@ -255,9 +255,13 @@ jobs:
             done
           fi
 
+          # Resolve the service's real URL
+          SVC_URL=$(python3 -c "import json; d=json.load(open('/tmp/svc.json')); s=d.get('service',d); print(s.get('serviceDetails',{}).get('url',''))" 2>/dev/null || echo "")
+          echo "Service URL: $SVC_URL"
+
           echo ""
           echo "=== Final health check ==="
-          HEALTH=$(curl -sf --max-time 30 "https://fed-watcher.onrender.com/health" 2>/dev/null || echo "OFFLINE")
+          HEALTH=$(curl -sf --max-time 30 "$SVC_URL/health" 2>/dev/null || echo "OFFLINE")
           echo "Health: $HEALTH"
 
           echo ""
@@ -265,6 +269,30 @@ jobs:
           curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
             "https://api.render.com/v1/services/$SERVICE_ID/events?limit=15" > /tmp/events.json 2>/dev/null || echo '[]' > /tmp/events.json
           cat /tmp/events.json
+
+          echo ""
+          echo "=== BUILD LOGS (last deploy) ==="
+          OWNER_ID=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/owners?limit=1" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['owner']['id'])" 2>/dev/null || echo "")
+          # Newer Render logs API: filter by owner + resource (service id), build logs
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/logs?ownerId=$OWNER_ID&resource=$SERVICE_ID&limit=100&direction=backward" \
+            > /tmp/logs.json 2>/dev/null || echo '{}' > /tmp/logs.json
+          python3 -c "
+          import json
+          try:
+            d = json.load(open('/tmp/logs.json'))
+            logs = d.get('logs', d) if isinstance(d, dict) else d
+            if isinstance(logs, list):
+              for entry in logs[-80:]:
+                msg = entry.get('message', entry) if isinstance(entry, dict) else entry
+                print(msg)
+            else:
+              print(json.dumps(d)[:2000])
+          except Exception as e:
+            print('log parse error:', e)
+            print(open('/tmp/logs.json').read()[:2000])
+          " | tee /tmp/buildlog.txt
 
           # Write a status summary file (always commit)
           python3 - "$HEALTH" "$FINAL_STATUS" "$DEPLOY_ID" << 'PYEOF'
@@ -305,6 +333,12 @@ jobs:
               lines.append(f"{dep.get('status')} | {dep.get('createdAt','')[:19]} | {dep.get('commit',{}).get('message','')[:60]}")
           except Exception:
             pass
+          lines.append("")
+          lines.append("=== BUILD LOG ===")
+          try:
+            lines.append(open('/tmp/buildlog.txt').read())
+          except Exception as ex:
+            lines.append(f"(no build log: {ex})")
           text = '\n'.join(lines) + '\n'
           open('render-status.txt', 'w').write(text)
           print(text)

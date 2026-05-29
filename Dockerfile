@@ -15,25 +15,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# sgmllib stub (removed in Python 3.11, still needed by feedparser)
-RUN python3 -c "import sgmllib" 2>/dev/null || python3 -c "
-import site, os
-stub = '''import re
-from html.parser import HTMLParser
-class SGMLParseError(Exception): pass
-class SGMLParser(HTMLParser): pass
-entityref = re.compile(r\"&([a-zA-Z][-.a-zA-Z0-9]*)[^-a-zA-Z0-9]\")
-incomplete = re.compile(r\"&[a-zA-Z#]\")
-interesting = re.compile(r\"&|<\")
-shorttag = re.compile(r\"<([a-zA-Z][-.a-zA-Z0-9]*)\/([^\/]*)/\")
-shorttagopen = re.compile(r\"<([a-zA-Z][-.a-zA-Z0-9]*)/\")
-starttagopen = re.compile(r\"<[>a-zA-Z]\")
-endbracket = re.compile(r\"[<>]\")
-'''
-path = os.path.join(site.getsitepackages()[0], 'sgmllib.py')
-open(path, 'w').write(stub)
-print('sgmllib stub installed at', path)
-"
+# sgmllib stub (removed in Python 3.10+, referenced by some feedparser paths).
+# Copy a real stub file into site-packages — avoids fragile inline heredocs.
+COPY docker/sgmllib.py /tmp/sgmllib_stub.py
+RUN python3 -c "import sgmllib" 2>/dev/null \
+    || cp /tmp/sgmllib_stub.py "$(python3 -c 'import site; print(site.getsitepackages()[0])')/sgmllib.py"
 
 # App code
 COPY . .
