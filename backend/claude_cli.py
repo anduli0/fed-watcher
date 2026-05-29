@@ -86,21 +86,29 @@ async def _run_once(system_prompt: str, user_message: str, timeout: float) -> st
     raw = stdout.decode("utf-8", errors="replace")
     err = stderr.decode("utf-8", errors="replace")
 
-    if proc.returncode != 0:
-        # Surface both streams — claude sometimes emits diagnostics on stdout and
-        # exits non-zero with an empty stderr (hard V8 abort / OOM look like this).
-        detail = (err.strip() or raw.strip() or "(no output on stdout/stderr)")[:500]
-        raise RuntimeError(f"claude CLI exited {proc.returncode}: {detail}")
+    # IMPORTANT: `claude -p --output-format json` can exit non-zero (e.g. 1) even
+    # when the request fully succeeded — a Stop hook or post-response cleanup step
+    # in the CLI returns a non-zero code while a valid result JSON is already on
+    # stdout. So parse stdout FIRST and trust a well-formed, non-error result
+    # regardless of the process exit code. Only fall back to treating the exit
+    # code as a failure when there is no usable result.
+    data = None
+    if raw.strip():
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            data = None
 
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"claude CLI JSON parse error: {exc}. Raw: {raw[:300]}")
+    if data is not None:
+        if data.get("is_error"):
+            raise RuntimeError(f"claude CLI error: {data.get('result', '')[:300]}")
+        result = data.get("result", "")
+        if result or data.get("subtype") == "success":
+            return result
+        # Parsed but no result text and not a success — treat as failure below.
 
-    if data.get("is_error"):
-        raise RuntimeError(f"claude CLI error: {data.get('result', '')[:300]}")
-
-    return data.get("result", "")
+    detail = (err.strip() or raw.strip() or "(no output on stdout/stderr)")[:500]
+    raise RuntimeError(f"claude CLI exited {proc.returncode}: {detail}")
 
 
 async def call_claude(system_prompt: str, user_message: str, timeout: float = 120.0) -> str:
