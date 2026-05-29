@@ -227,15 +227,22 @@ jobs:
             "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=5" > /tmp/deploys.json
           cat /tmp/deploys.json
 
-          echo ""
-          echo "=== Triggering fresh deploy (clears cache, picks up new env vars) ==="
-          curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
-            -d '{"clearCache":"clear"}' > /tmp/newdeploy.json
-          cat /tmp/newdeploy.json
-          DEPLOY_ID=$(python3 -c "import json; d=json.load(open('/tmp/newdeploy.json')); print(d.get('id', d.get('deploy',{}).get('id','')))" 2>/dev/null || echo "")
-          echo "New deploy ID: $DEPLOY_ID"
+          LAST_STATUS=$(python3 -c "import json; d=json.load(open('/tmp/deploys.json')); print((d[0].get('deploy',d[0])).get('status','')) if d else print('')" 2>/dev/null || echo "")
+          echo "Last deploy status: $LAST_STATUS"
+
+          DEPLOY_ID=""
+          if [ "$LAST_STATUS" = "live" ]; then
+            echo "=== Service already live -> skipping rebuild, just verifying ==="
+          else
+            echo "=== Triggering fresh deploy (clears cache, picks up new env vars) ==="
+            curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+              -d '{"clearCache":"clear"}' > /tmp/newdeploy.json
+            cat /tmp/newdeploy.json
+            DEPLOY_ID=$(python3 -c "import json; d=json.load(open('/tmp/newdeploy.json')); print(d.get('id', d.get('deploy',{}).get('id','')))" 2>/dev/null || echo "")
+            echo "New deploy ID: $DEPLOY_ID"
+          fi
 
           echo ""
           echo "=== Polling deploy status (up to 10 min) ==="
@@ -263,6 +270,16 @@ jobs:
           echo "=== Final health check ==="
           HEALTH=$(curl -sf --max-time 30 "$SVC_URL/health" 2>/dev/null || echo "OFFLINE")
           echo "Health: $HEALTH"
+
+          echo ""
+          echo "=== Endpoint probes ==="
+          MACRO=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/macro" 2>/dev/null || echo "ERR")
+          BRIEF=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/briefings?limit=1" 2>/dev/null || echo "ERR")
+          DASH=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/dashboard/summary" 2>/dev/null || echo "ERR")
+          echo "  /api/macro -> $MACRO"
+          echo "  /api/briefings -> $BRIEF"
+          echo "  /api/dashboard/summary -> $DASH"
+          PROBES="macro=$MACRO briefings=$BRIEF dashboard=$DASH"
 
           echo ""
           echo "=== Events (build/deploy log) ==="
@@ -295,9 +312,10 @@ jobs:
           " | tee /tmp/buildlog.txt
 
           # Write a status summary file (always commit)
-          python3 - "$HEALTH" "$FINAL_STATUS" "$DEPLOY_ID" << 'PYEOF'
+          python3 - "$HEALTH" "$FINAL_STATUS" "$DEPLOY_ID" "$PROBES" << 'PYEOF'
           import sys, json, datetime
           health, final_status, deploy_id = sys.argv[1], sys.argv[2], sys.argv[3]
+          probes = sys.argv[4] if len(sys.argv) > 4 else ""
           try:
             svc = json.load(open('/tmp/svc.json'))
             svc = svc.get('service', svc)
@@ -311,6 +329,7 @@ jobs:
             f"new_deploy_id={deploy_id}",
             f"final_deploy_status={final_status}",
             f"health={health}",
+            f"probes={probes}",
             "",
             "=== EVENTS ===",
           ]
