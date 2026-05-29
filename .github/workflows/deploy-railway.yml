@@ -173,44 +173,36 @@ jobs:
         run: |
           SERVICE_ID="srv-d8cecvgjs32c738puai0"
 
-          # Get service info
-          SVC_INFO=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$SERVICE_ID" 2>/dev/null || echo '{}')
-
-          # Get deploys
-          DEPLOYS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=5" 2>/dev/null || echo '[]')
-
-          # Health check
+          # Fetch and save raw JSON
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID" > /tmp/svc.json 2>/dev/null || echo '{}' > /tmp/svc.json
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=5" > /tmp/deploys.json 2>/dev/null || echo '[]' > /tmp/deploys.json
           HEALTH=$(curl -sf --max-time 20 "https://fed-watcher.onrender.com/health" 2>/dev/null || echo "OFFLINE")
 
-          # Write all to file
-          python3 << PYEOF
-          import json, os
+          # Parse and write status
+          python3 - "$HEALTH" << 'PYEOF'
+          import sys, json
 
-          svc_info = json.loads("""$SVC_INFO""") if """$SVC_INFO""" != '{}' else {}
-          deploys = json.loads("""$DEPLOYS""") if """$DEPLOYS""" != '[]' else []
-
+          health = sys.argv[1]
+          svc_info = json.load(open('/tmp/svc.json'))
+          deploys = json.load(open('/tmp/deploys.json'))
           svc = svc_info.get('service', svc_info)
 
           lines = [
-            "=== Service ===",
-            f"name: {svc.get('name')}",
-            f"url: {svc.get('serviceDetails',{}).get('url')}",
-            f"suspended: {svc.get('suspended')}",
-            f"health: $HEALTH",
-            "",
-            "=== Deploys ===",
-            f"total: {len(deploys)}",
+            f"name={svc.get('name')}",
+            f"url={svc.get('serviceDetails',{}).get('url')}",
+            f"suspended={svc.get('suspended')}",
+            f"health={health}",
+            f"deploy_count={len(deploys)}",
           ]
           for d in deploys[:5]:
             dep = d.get('deploy', d)
-            lines.append(f"  {dep.get('status')} | {dep.get('createdAt','')[:19]}")
+            lines.append(f"deploy: {dep.get('status')} | {dep.get('createdAt','')[:19]}")
 
-          with open('render-status.txt', 'w') as f:
-            f.write('\n'.join(lines) + '\n')
-
-          print('\n'.join(lines))
+          text = '\n'.join(lines) + '\n'
+          print(text)
+          open('render-status.txt', 'w').write(text)
           PYEOF
 
           git config user.name "github-actions[bot]"
