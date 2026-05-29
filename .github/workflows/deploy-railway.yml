@@ -275,14 +275,56 @@ jobs:
           echo "Health: $HEALTH"
 
           echo ""
-          echo "=== Endpoint probes ==="
-          MACRO=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/macro" 2>/dev/null || echo "ERR")
-          BRIEF=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/briefings?limit=1" 2>/dev/null || echo "ERR")
-          DASH=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/dashboard/summary" 2>/dev/null || echo "ERR")
-          echo "  /api/macro -> $MACRO"
-          echo "  /api/briefings -> $BRIEF"
-          echo "  /api/dashboard/summary -> $DASH"
-          PROBES="macro=$MACRO briefings=$BRIEF dashboard=$DASH"
+          echo "=== Endpoint probes (correct route paths) ==="
+          FC=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/forecast" 2>/dev/null || echo "ERR")
+          BRIEF=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/briefings/latest" 2>/dev/null || echo "ERR")
+          AGENTS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/agents/status" 2>/dev/null || echo "ERR")
+          echo "  /api/forecast -> $FC"
+          echo "  /api/briefings/latest -> $BRIEF"
+          echo "  /api/agents/status -> $AGENTS"
+          PROBES="forecast=$FC briefings=$BRIEF agents=$AGENTS"
+
+          echo ""
+          echo "=== LIVE AI CYCLE VERIFICATION (proves claude CLI / Pro creds) ==="
+          # Snapshot activity log id before triggering
+          BEFORE_ID=$(curl -sf --max-time 20 "$SVC_URL/api/activity" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(max([e['id'] for e in d], default=0))" 2>/dev/null || echo 0)
+          echo "activity id before trigger: $BEFORE_ID"
+
+          echo "Triggering 21-agent cycle..."
+          TRIG=$(curl -s --max-time 30 -X POST "$SVC_URL/api/trigger-cycle" 2>/dev/null || echo "{}")
+          echo "trigger response: $TRIG"
+
+          echo "Polling activity log for agent events (up to ~5 min)..."
+          AI_EVENTS=0
+          AGENT_LINES=""
+          for i in $(seq 1 20); do
+            sleep 15
+            ACT=$(curl -sf --max-time 20 "$SVC_URL/api/activity?after_id=$BEFORE_ID" 2>/dev/null || echo "[]")
+            COUNT=$(echo "$ACT" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+            AGENTCOUNT=$(echo "$ACT" | python3 -c "import sys,json; print(sum(1 for e in json.load(sys.stdin) if e.get('agent')))" 2>/dev/null || echo 0)
+            echo "  [$i] new activity events=$COUNT (agent events=$AGENTCOUNT)"
+            if [ "$AGENTCOUNT" -gt 0 ]; then
+              AI_EVENTS=$AGENTCOUNT
+              AGENT_LINES=$(echo "$ACT" | python3 -c "
+          import sys, json
+          for e in json.load(sys.stdin):
+            if e.get('agent'):
+              print(f\"  {e.get('agent')}: {e.get('message','')[:80]} [{e.get('status')}]\")
+          " 2>/dev/null | head -25)
+            fi
+            # stop once we see a cycle-complete style event or enough agent output
+            DONE=$(echo "$ACT" | python3 -c "import sys,json; print(1 if any('complete' in (e.get('message','').lower()) or 'forecast' in (e.get('message','').lower()) for e in json.load(sys.stdin)) else 0)" 2>/dev/null || echo 0)
+            if [ "$DONE" = "1" ] && [ "$AGENTCOUNT" -gt 5 ]; then echo "  cycle appears complete"; break; fi
+          done
+
+          echo ""
+          echo "=== Forecast after cycle ==="
+          FORECAST_JSON=$(curl -sf --max-time 30 "$SVC_URL/api/forecast" 2>/dev/null || echo "{}")
+          echo "$FORECAST_JSON"
+          echo ""
+          echo "=== Agent status after cycle ==="
+          AGENTS_JSON=$(curl -sf --max-time 30 "$SVC_URL/api/agents/status" 2>/dev/null || echo "[]")
+          echo "$AGENTS_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print('agents reporting:', len(d) if isinstance(d,list) else d)" 2>/dev/null || true
 
           echo ""
           echo "=== Events (build/deploy log) ==="
@@ -313,6 +355,11 @@ jobs:
             print('log parse error:', e)
             print(open('/tmp/logs.json').read()[:2000])
           " | tee /tmp/buildlog.txt
+
+          # Stash AI-cycle findings for the summary
+          echo "$AI_EVENTS" > /tmp/ai_events.txt
+          printf '%s\n' "$AGENT_LINES" > /tmp/agent_lines.txt
+          printf '%s\n' "$FORECAST_JSON" > /tmp/forecast.json
 
           # Write a status summary file (always commit)
           python3 - "$HEALTH" "$FINAL_STATUS" "$DEPLOY_ID" "$PROBES" << 'PYEOF'
@@ -346,6 +393,24 @@ jobs:
               lines.append(f"{ts} {etype}: {json.dumps(details)[:300]}")
           except Exception as ex:
             lines.append(f"events parse error: {ex}")
+          lines.append("")
+          lines.append("=== LIVE AI CYCLE ===")
+          try:
+            lines.append("agent_events=" + open('/tmp/ai_events.txt').read().strip())
+          except Exception:
+            lines.append("agent_events=?")
+          try:
+            al = open('/tmp/agent_lines.txt').read().strip()
+            if al:
+              lines.append("agent output sample:")
+              lines.append(al)
+          except Exception:
+            pass
+          try:
+            fc = json.load(open('/tmp/forecast.json'))
+            lines.append("forecast=" + json.dumps(fc)[:600])
+          except Exception as ex:
+            lines.append(f"forecast parse: {ex}")
           try:
             deploys = json.load(open('/tmp/deploys.json'))
             lines.append("")
