@@ -163,10 +163,13 @@ jobs:
   check-deploy:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
+    needs: deploy
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: claude/affectionate-bell-InnQ6
       - name: Trigger deploy, poll status, write results
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -219,9 +222,9 @@ jobs:
           echo "Health: $HEALTH"
 
           echo ""
-          echo "=== Build logs (last events) ==="
+          echo "=== Events (build/deploy log) ==="
           curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$SERVICE_ID/events?limit=10" > /tmp/events.json 2>/dev/null || echo '[]' > /tmp/events.json
+            "https://api.render.com/v1/services/$SERVICE_ID/events?limit=15" > /tmp/events.json 2>/dev/null || echo '[]' > /tmp/events.json
           cat /tmp/events.json
 
           # Write a status summary file (always commit)
@@ -241,7 +244,28 @@ jobs:
             f"new_deploy_id={deploy_id}",
             f"final_deploy_status={final_status}",
             f"health={health}",
+            "",
+            "=== EVENTS ===",
           ]
+          try:
+            events = json.load(open('/tmp/events.json'))
+            for e in events:
+              ev = e.get('event', e)
+              etype = ev.get('type','?')
+              ts = ev.get('timestamp','')[:19]
+              details = ev.get('details', {})
+              lines.append(f"{ts} {etype}: {json.dumps(details)[:300]}")
+          except Exception as ex:
+            lines.append(f"events parse error: {ex}")
+          try:
+            deploys = json.load(open('/tmp/deploys.json'))
+            lines.append("")
+            lines.append("=== DEPLOYS ===")
+            for d in deploys[:5]:
+              dep = d.get('deploy', d)
+              lines.append(f"{dep.get('status')} | {dep.get('createdAt','')[:19]} | {dep.get('commit',{}).get('message','')[:60]}")
+          except Exception:
+            pass
           text = '\n'.join(lines) + '\n'
           open('render-status.txt', 'w').write(text)
           print(text)
@@ -249,6 +273,7 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin claude/affectionate-bell-InnQ6 || true
           git add render-status.txt
           git commit -m "ci: render deploy status [skip ci]" --allow-empty
           git push origin claude/affectionate-bell-InnQ6 || true
