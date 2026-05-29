@@ -1,2 +1,4 @@
 SERVICE_ID=srv-d8cecvgjs32c738puai0
 URL=https://fed-watcher.onrender.com
+HEALTH=OFFLINE
+MACRO_HTTP=000ERR
