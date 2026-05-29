@@ -125,3 +125,37 @@ jobs:
           git diff --staged --quiet || git commit -m "ci: update Render deployment info [skip ci]"
           git push origin claude/affectionate-bell-InnQ6 || true
           echo "Saved SERVICE_ID=$SERVICE_ID and URL=$URL"
+
+          echo ""
+          echo "=== Health Check (waiting up to 60s for service to wake) ==="
+          HEALTH=""
+          for i in $(seq 1 6); do
+            HEALTH=$(curl -sf --max-time 15 "$URL/health" 2>/dev/null || echo "")
+            if [ -n "$HEALTH" ]; then break; fi
+            echo "Attempt $i: service not ready yet, waiting 10s..."
+            sleep 10
+          done
+          echo "Health response: ${HEALTH:-OFFLINE}"
+
+          echo ""
+          echo "=== /api/macro status ==="
+          MACRO_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL/api/macro" 2>/dev/null || echo "ERR")
+          echo "HTTP $MACRO_STATUS"
+
+          echo ""
+          echo "=== Render deploy status ==="
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=2" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for d in data[:2]:
+            dep = d.get('deploy', d)
+            print(f'  {dep.get(\"status\")} | {dep.get(\"createdAt\",\"\")[:19]}')
+          " 2>/dev/null || echo "Could not fetch"
+
+          # write verification result
+          echo "HEALTH=${HEALTH:-OFFLINE}" >> render-deployment.txt
+          echo "MACRO_HTTP=$MACRO_STATUS" >> render-deployment.txt
+          git add render-deployment.txt
+          git diff --staged --quiet || git commit -m "ci: add verification results [skip ci]"
+          git push origin claude/affectionate-bell-InnQ6 || true
