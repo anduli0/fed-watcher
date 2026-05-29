@@ -1,16 +1,22 @@
-timestamp=2026-05-29T18:17:19.719462
+timestamp=2026-05-29T18:47:36.449209
 name=fed-watcher-backend
 url=https://fed-watcher-backend-9rgk.onrender.com
 suspended=not_suspended
 new_deploy_id=
-final_deploy_status=live
-health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":null,"agent_count":21}
-probes=forecast=200 briefings=502 agents=502 root=502/text/html; charset=utf-8 login=502 adminapi=502
+final_deploy_status=update_in_progress
+agent_tally_ok_err=0 0
+oom_during_cycle=0
+health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T18:17:14.594882","agent_count":21}
+probes=forecast=200 briefings=200 agents=200 root=200/text/html; charset=utf-8 login=200 adminapi=401
 
 === DEPLOY TRIGGER RESPONSE ===
 
 
 === EVENTS ===
+2026-05-29T18:22:20 deploy_ended: {"deployId": "dep-d8cti8vavr4c738lqrf0", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T18:21:32 build_ended: {"buildId": "bld-d8cti8vavr4c738lqrfg", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T18:21:23 deploy_started: {"deployId": "dep-d8cti8vavr4c738lqrf0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T18:21:23 build_started: {"buildId": "bld-d8cti8vavr4c738lqrfg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
 2026-05-29T18:17:17 server_available: {}
 2026-05-29T18:17:06 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-4b8pm", "reason": {"evicted": false, "unhealthy": "Get \"http://10.30.128.164:10000/health\": dial tcp 10.30.128.164:10000: connect: connection refused"}}
 2026-05-29T18:16:20 deploy_ended: {"deployId": "dep-d8ctcu0ma31c73e8u6rg", "deployStatus": "succeeded", "reason": {}, "status": 2}
@@ -26,118 +32,137 @@ probes=forecast=200 briefings=502 agents=502 root=502/text/html; charset=utf-8 l
 2026-05-29T18:02:07 deploy_ended: {"deployId": "dep-d8ct758ma31c73e8qs90", "deployStatus": "succeeded", "reason": {}, "status": 2}
 2026-05-29T18:00:19 build_ended: {"buildId": "bld-d8ct75fa4fgs73fpeid0", "buildStatus": "succeeded", "reason": {}, "status": 2}
 2026-05-29T17:58:33 build_started: {"buildId": "bld-d8ct75fa4fgs73fpeid0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:58:33 deploy_started: {"deployId": "dep-d8ct758ma31c73e8qs90", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:58:32 deploy_ended: {"deployId": "dep-d8ct73vavr4c738lkca0", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:57:43 build_ended: {"buildId": "bld-d8ct73vavr4c738lkcag", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:57:35 deploy_started: {"deployId": "dep-d8ct73vavr4c738lkca0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:57:35 build_started: {"buildId": "bld-d8ct73vavr4c738lkcag", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:57:33 deploy_ended: {"deployId": "dep-d8ct3hva4fgs73fpcb2g", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:55:48 build_ended: {"buildId": "bld-d8ct3hva4fgs73fpcb70", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:53:57 deploy_started: {"deployId": "dep-d8ct3hva4fgs73fpcb2g", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:53:57 build_started: {"buildId": "bld-d8ct3hva4fgs73fpcb70", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:53:57 deploy_ended: {"deployId": "dep-d8ct3fi8qa3s73abjklg", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:52:32 build_ended: {"buildId": "bld-d8ct3fi8qa3s73abjkmg", "buildStatus": "succeeded", "reason": {}, "status": 2}
 
 === LIVE AI CYCLE ===
-agent_events=14
+agent_events=20
 agent output sample:
-System: Data sweep started (no AI tokens) [info]
-  FRED API: Fetching FRED API (api.stlouisfed.org)… [info]
-  Fed Speeches: Fetching Fed Speeches (federalreserve.gov/newsevents)… [info]
-  FOMC Minutes: Fetching FOMC Minutes (federalreserve.gov/monetarypolicy)… [info]
-  Beige Book: Fetching Beige Book (federalreserve.gov/monetarypolicy)… [info]
-  Regional Feds: Fetching Regional Feds (12 district bank websites)… [info]
-  CME FedWatch: Fetching CME FedWatch (cmegroup.com)… [info]
-  FRED API: FRED API → 10 series — DFF=3.62% received [ok]
-  Fed Speeches: Fed Speeches → 8 speeches scraped received [ok]
-  FOMC Minutes: FOMC Minutes → 2 meeting minutes received [ok]
-  Beige Book: Beige Book → 1 report received [ok]
-  Regional Feds: Regional Feds → 1 /12 banks received [ok]
-  CME FedWatch: CME FedWatch → 9 probability lines received [ok]
-  System: Data sweep complete in 2.2s · 8 speeches, 2 minutes, 12 regional [info]
+NLP: NLP analyzing… [info]
+  History: History analyzing… [info]
+  Academic: Academic analyzing… [info]
+  Projections: Projections analyzing… [info]
+  FOMC_Minutes: FOMC_Minutes analyzing… [info]
+  Macro_Data: Macro_Data analyzing… [info]
+  Political_Economy: Political_Economy analyzing… [info]
+  Consensus: Consensus analyzing… [info]
+  Boston_Fed: Boston_Fed analyzing… [info]
+  NewYork_Fed: NewYork_Fed analyzing… [info]
+  Philadelphia_Fed: Philadelphia_Fed analyzing… [info]
+  Cleveland_Fed: Cleveland_Fed analyzing… [info]
+  Richmond_Fed: Richmond_Fed analyzing… [info]
+  Atlanta_Fed: Atlanta_Fed analyzing… [info]
+  Chicago_Fed: Chicago_Fed analyzing… [info]
+  StLouis_Fed: StLouis_Fed analyzing… [info]
+  Minneapolis_Fed: Minneapolis_Fed analyzing… [info]
+  KansasCity_Fed: KansasCity_Fed analyzing… [info]
+  Dallas_Fed: Dallas_Fed analyzing… [info]
+  SanFrancisco_Fed: SanFrancisco_Fed analyzing… [info]
 forecast={"status": "no_forecast", "message": "First forecast publishes at 08:00 KST"}
 
 === DEPLOYS ===
-queued | 2026-05-29T18:10:01 | fix: claude CLI retries + better diagnostics + 256MB heap
+update_in_progress | 2026-05-29T18:21:23 | fix: claude CLI retries + better diagnostics + 256MB heap
 
 A
-build_in_progress | 2026-05-29T18:09:52 | fix: claude CLI retries + better diagnostics + 256MB heap
+live | 2026-05-29T18:10:01 | fix: claude CLI retries + better diagnostics + 256MB heap
 
 A
-live | 2026-05-29T17:57:41 | ci: poll latest deploy until live + probe frontend serving
+deactivated | 2026-05-29T18:09:52 | fix: claude CLI retries + better diagnostics + 256MB heap
+
+A
+deactivated | 2026-05-29T17:57:41 | ci: poll latest deploy until live + probe frontend serving
 
 
 deactivated | 2026-05-29T17:57:35 | feat: serve Next.js frontend from Render backend (unified si
-deactivated | 2026-05-29T17:49:59 | feat: serve Next.js frontend from Render backend (unified si
 
 === BUILD LOG ===
-2026-05-29 18:16:17,142 [httpx] INFO: HTTP Request: GET https://www.kansascityfed.org/research/speeches-and-essays "HTTP/1.1 301 Moved Permanently"
-2026-05-29 18:16:17,143 [httpx] INFO: HTTP Request: GET https://www.dallasfed.org/news/speeches "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,143 [httpx] INFO: HTTP Request: GET https://www.atlantafed.org/news/speeches "HTTP/1.1 301 Moved Permanently"
-2026-05-29 18:16:17,144 [httpx] INFO: HTTP Request: GET https://www.philadelphiafed.org/our-people/speeches "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,145 [httpx] INFO: HTTP Request: GET https://www.chicagofed.org/publications/speeches "HTTP/1.1 404 Not Found"
-2026-05-29 18:16:17,146 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=DFF "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,147 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?series_id=GS10&api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=5&sort_order=desc "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,147 [httpx] INFO: HTTP Request: GET https://www.stlouisfed.org/about-us/speeches-presentations "HTTP/1.1 302 Moved Temporarily"
-2026-05-29 18:16:17,234 [httpx] INFO: HTTP Request: GET https://www.richmondfed.org/press_room/speeches "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,235 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?series_id=PAYEMS&api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=5&sort_order=desc "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,635 [httpx] INFO: HTTP Request: GET https://www.minneapolisfed.org/news-and-events/speeches "HTTP/1.1 404 Not Found"
-2026-05-29 18:16:17,637 [httpx] INFO: HTTP Request: GET https://www.bostonfed.org/news-and-events/speeches.aspx "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,642 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?series_id=UNRATE&api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=5&sort_order=desc "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,642 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?series_id=PCEPI&api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=5&sort_order=desc "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,643 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?series_id=SOFR&api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=5&sort_order=desc "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,643 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=5&sort_order=desc "HTTP/1.1 200 OK"
-2026-05-29 18:16:17,644 [httpx] INFO: HTTP Request: GET https://www.clevelandfed.org/collections/speeches "HTTP/1.1 200 OK"
-INFO:     10.219.25.187:37124 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.187:37132 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 18:16:19,885 [httpx] INFO: HTTP Request: GET https://www.stlouisfed.org/404-error "HTTP/1.1 200 OK"
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-2026-05-29 18:16:20,171 [apscheduler.scheduler] INFO: Scheduler has been shut down
-INFO:     Application shutdown complete.
-INFO:     Finished server process [1]
-[0;32m[1m==> [0m[1mYour service is live 🎉[0m
-[0;32m[1m==> [0m[1m[0m
-[0;32m[1m==> [0m[1m///////////////////////////////////////////////////////////[0m
-[0;32m[1m==> [0m[1m[0m
-[0;32m[1m==> [0m[1mAvailable at your primary URL https://fed-watcher-backend-9rgk.onrender.com[0m
-[0;32m[1m==> [0m[1m[0m
-[0;32m[1m==> [0m[1m///////////////////////////////////////////////////////////[0m
-2026-05-29 18:16:21,433 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/BeigeBook_20260114.pdf "HTTP/1.1 200 OK"
-2026-05-29 18:16:21,436 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260318.pdf "HTTP/1.1 200 OK"
-2026-05-29 18:16:21,438 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=GS2 "HTTP/1.1 200 OK"
-2026-05-29 18:16:21,438 [httpx] INFO: HTTP Request: GET https://www.atlantafed.org/news-and-events/speeches "HTTP/1.1 200 OK"
-INFO:     10.26.17.2:0 - "GET / HTTP/1.1" 200 OK
-2026-05-29 18:16:32,837 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=GS10 "HTTP/1.1 200 OK"
-2026-05-29 18:16:32,838 [httpx] INFO: HTTP Request: GET https://www.kansascityfed.org/research/speeches-and-essays/ "HTTP/1.1 404 Not Found"
-INFO:     10.26.144.1:0 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.187:58200 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 18:17:02,247 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=T10Y2Y "HTTP/1.1 200 OK"
-INFO:     Shutting down
-INFO:     Waiting for connections to close. (CTRL+C to force quit)
-INFO:     10.26.17.2:0 - "GET /api/forecast HTTP/1.1" 200 OK
-INFO:     Waiting for application shutdown.
-2026-05-29 18:17:02,546 [apscheduler.scheduler] INFO: Scheduler has been shut down
-INFO:     Application shutdown complete.
-INFO:     Finished server process [1]
-[entrypoint] Claude credentials restored from env var
-2026-05-29 18:17:12,299 [fed_watcher] INFO: Serving static frontend from /app/frontend/out
-INFO:     Started server process [1]
-INFO:     Waiting for application startup.
-2026-05-29 18:17:12,705 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 18:17:12,705 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 18:17:12,705 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 18:17:12,706 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 18:17:12,706 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 18:17:12,706 [apscheduler.scheduler] INFO: Added job "run_data_collection" to job store "default"
-2026-05-29 18:17:12,706 [apscheduler.scheduler] INFO: Added job "trigger_cycle" to job store "default"
-2026-05-29 18:17:12,706 [apscheduler.scheduler] INFO: Added job "trigger_cycle" to job store "default"
-2026-05-29 18:17:12,706 [apscheduler.scheduler] INFO: Added job "publish_morning_forecast" to job store "default"
-2026-05-29 18:17:12,792 [apscheduler.scheduler] INFO: Added job "_run_daily_briefing" to job store "default"
-2026-05-29 18:17:12,792 [apscheduler.scheduler] INFO: Scheduler started
-2026-05-29 18:17:12,792 [fed_watcher.scheduler] INFO: Scheduler started. Data collect every 30 min · Cycles: 12,16,20,0 · Publish 08:00 KST · Daily Briefing 07:30 KST
-2026-05-29 18:17:12,792 [fed_watcher] INFO: Fed-Watcher started. Model: claude-sonnet-4-6
-2026-05-29 18:17:14,594 [fed_watcher.collector] INFO: [Collector] Starting web data sweep…
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:10000 (Press CTRL+C to quit)
-2026-05-29 18:17:15,205 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=DFF "HTTP/1.1 200 OK"
-2026-05-29 18:17:15,989 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=GS2 "HTTP/1.1 200 OK"
-2026-05-29 18:17:16,119 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=GS10 "HTTP/1.1 200 OK"
-2026-05-29 18:17:16,342 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=T10Y2Y "HTTP/1.1 200 OK"
-2026-05-29 18:17:16,483 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=SOFR "HTTP/1.1 200 OK"
-2026-05-29 18:17:16,712 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=T5YIE "HTTP/1.1 200 OK"
-2026-05-29 18:17:16,803 [fed_watcher.collector] INFO: [Collector] Sweep done in 2.2s. Failures: none
-[WARN] OWNER_MAC not set. Run setup.py to lock this server to your hardware.
-[WARN] Admin panel will be inaccessible until OWNER_MAC is configured.
-INFO:     10.219.25.187:58920 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.187:58928 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:40434 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:40442 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:45788 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:45798 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:36662 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:36672 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:36680 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:60666 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:60672 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:60790 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:60794 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:47542 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:47552 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:47564 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:60690 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:60704 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:53486 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:53490 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:41250 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:41252 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:41254 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:35734 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:35748 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:43874 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:43876 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:53852 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:53854 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:53862 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:45360 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:45368 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:44544 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:44550 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:58274 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:58276 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:58284 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/forecast/horizons HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/forecast/history HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/forecast/report?lang=ko HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/agents/status HTTP/1.1" 200 OK
+INFO:     10.219.24.181:35836 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:35840 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:33314 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:33328 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:52510 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:52524 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:52536 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:49690 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:49696 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:33362 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:33378 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:53304 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:53308 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:53324 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:46220 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:46222 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:55194 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:55210 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:39860 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:39866 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:39874 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.181:33008 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:33024 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.181:53130 - "GET /health HTTP/1.1" 200 OK
 
