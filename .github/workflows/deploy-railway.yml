@@ -166,6 +166,37 @@ jobs:
           echo "Saved SERVICE_ID=$SERVICE_ID and URL=$URL"
 
           echo ""
+          echo "=== Triggering fresh Render deploy (API-created services lack GitHub webhook) ==="
+          DEPLOY_RESP=$(curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+            -d '{"clearCache":"do_not_clear"}')
+          echo "Deploy trigger response: $DEPLOY_RESP"
+          NEW_DEPLOY_ID=$(echo "$DEPLOY_RESP" | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          print(d.get('id', d.get('deploy', {}).get('id', '')))" 2>/dev/null || echo "")
+          echo "New deploy ID: $NEW_DEPLOY_ID"
+
+          echo ""
+          echo "=== Polling deploy status (up to 20 min) ==="
+          FINAL_STATUS="unknown"
+          if [ -n "$NEW_DEPLOY_ID" ]; then
+            for i in $(seq 1 80); do
+              sleep 15
+              STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+                "https://api.render.com/v1/services/$SERVICE_ID/deploys/$NEW_DEPLOY_ID" \
+                | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status', d.get('deploy',{}).get('status','?')))" 2>/dev/null || echo "?")
+              echo "  [$i] status=$STATUS"
+              FINAL_STATUS="$STATUS"
+              case "$STATUS" in
+                live|deactivated) echo "Deploy finished: $STATUS"; break ;;
+                build_failed|update_failed|canceled|pre_deploy_failed) echo "Deploy failed: $STATUS"; break ;;
+              esac
+            done
+          fi
+
+          echo ""
           echo "=== Health Check (waiting up to 60s for service to wake) ==="
           HEALTH=""
           for i in $(seq 1 6); do
@@ -177,24 +208,28 @@ jobs:
           echo "Health response: ${HEALTH:-OFFLINE}"
 
           echo ""
-          echo "=== /api/macro status ==="
-          MACRO_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL/api/macro" 2>/dev/null || echo "ERR")
-          echo "HTTP $MACRO_STATUS"
+          echo "=== Endpoint probes ==="
+          FC=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL/api/forecast" 2>/dev/null || echo "ERR")
+          BRIEF=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL/api/briefings/latest" 2>/dev/null || echo "ERR")
+          AGENTS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL/api/agents/status" 2>/dev/null || echo "ERR")
+          echo "  /api/forecast -> $FC"
+          echo "  /api/briefings/latest -> $BRIEF"
+          echo "  /api/agents/status -> $AGENTS"
 
           echo ""
           echo "=== Render deploy status ==="
           curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=2" | python3 -c "
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=3" | python3 -c "
           import sys, json
           data = json.load(sys.stdin)
-          for d in data[:2]:
+          for d in data[:3]:
             dep = d.get('deploy', d)
-            print(f'  {dep.get(\"status\")} | {dep.get(\"createdAt\",\"\")[:19]}')
+            print(f'  {dep.get(\"status\")} | {dep.get(\"createdAt\",\"\")[:19]} | {dep.get(\"commit\",{}).get(\"message\",\"\")[:50]}')
           " 2>/dev/null || echo "Could not fetch"
 
           # write verification result
           echo "HEALTH=${HEALTH:-OFFLINE}" >> render-deployment.txt
-          echo "MACRO_HTTP=$MACRO_STATUS" >> render-deployment.txt
+          echo "DEPLOY_STATUS=$FINAL_STATUS" >> render-deployment.txt
           git add render-deployment.txt || true
           (git diff --staged --quiet || git commit -m "ci: add verification results [skip ci]") || true
           git push origin claude/affectionate-bell-InnQ6 || true

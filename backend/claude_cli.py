@@ -19,7 +19,7 @@ MAX_CONCURRENT: int = int(os.getenv("CLAUDE_MAX_CONCURRENT", "1"))
 
 # Cap each claude process's V8 heap so a single call can't balloon past the
 # container limit. Tunable via CLAUDE_NODE_MAX_OLD_SPACE_MB (MB).
-_NODE_HEAP_MB: str = os.getenv("CLAUDE_NODE_MAX_OLD_SPACE_MB", "320")
+_NODE_HEAP_MB: str = os.getenv("CLAUDE_NODE_MAX_OLD_SPACE_MB", "192")
 
 _semaphore: Optional[asyncio.Semaphore] = None
 
