@@ -127,6 +127,12 @@ jobs:
           echo "Service ID: $SERVICE_ID"
           if [ -z "$SERVICE_ID" ]; then echo "ERROR: no service id"; exit 1; fi
 
+          # NOTE: a PUT to /env-vars makes Render auto-trigger a redeploy even when
+          # the values are unchanged. Skip it for skip_deploy runs so the AI-cycle
+          # verification isn't interrupted by a container swap.
+          if [ "${{ github.event.inputs.skip_deploy }}" = "true" ]; then
+            echo "=== skip_deploy=true -> NOT updating env vars (avoids auto-redeploy) ==="
+          else
           echo "=== Setting environment variables ==="
           ENV_VARS=$(python3 -c "
           import json, os
@@ -148,6 +154,7 @@ jobs:
             -H "Authorization: Bearer $RENDER_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$ENV_VARS"
+          fi
 
           echo "=== Getting service URL ==="
           INFO=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
