@@ -38,5 +38,8 @@ print('sgmllib stub installed at', path)
 # App code
 COPY . .
 
+# Ensure entrypoint is executable and uses LF line endings (defensive against Windows checkouts)
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
+
 EXPOSE 8000
-CMD ["/app/docker-entrypoint.sh"]
+CMD ["/bin/sh", "/app/docker-entrypoint.sh"]
