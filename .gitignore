@@ -17,5 +17,3 @@ logs/
 cloudflared.exe
 cf-tunnel.log
 
-render-status.txt
-render-deployment.txt

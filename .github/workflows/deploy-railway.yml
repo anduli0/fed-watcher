@@ -160,8 +160,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           echo "SERVICE_ID=$SERVICE_ID" > render-deployment.txt
           echo "URL=$URL" >> render-deployment.txt
-          git add render-deployment.txt
-          git diff --staged --quiet || git commit -m "ci: update Render deployment info [skip ci]"
+          git add render-deployment.txt || true
+          (git diff --staged --quiet || git commit -m "ci: update Render deployment info [skip ci]") || true
           git push origin claude/affectionate-bell-InnQ6 || true
           echo "Saved SERVICE_ID=$SERVICE_ID and URL=$URL"
 
@@ -195,8 +195,8 @@ jobs:
           # write verification result
           echo "HEALTH=${HEALTH:-OFFLINE}" >> render-deployment.txt
           echo "MACRO_HTTP=$MACRO_STATUS" >> render-deployment.txt
-          git add render-deployment.txt
-          git diff --staged --quiet || git commit -m "ci: add verification results [skip ci]"
+          git add render-deployment.txt || true
+          (git diff --staged --quiet || git commit -m "ci: add verification results [skip ci]") || true
           git push origin claude/affectionate-bell-InnQ6 || true
   
   check-deploy:
