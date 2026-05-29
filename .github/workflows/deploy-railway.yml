@@ -1,4 +1,4 @@
-name: Build & Push Docker Image
+name: Build & Deploy to Render
 
 on:
   push:
@@ -32,3 +32,107 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
+
+  deploy-render:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Create or update Render service
+        id: render_setup
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          CLAUDE_CREDENTIALS: ${{ secrets.CLAUDE_CREDENTIALS }}
+        run: |
+          # Find existing service
+          SERVICES=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services?limit=20")
+
+          SERVICE_ID=$(echo "$SERVICES" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for item in data:
+            svc = item.get('service', {})
+            if 'fed-watcher' in svc.get('name','').lower():
+              print(svc['id'])
+              break
+          " 2>/dev/null || true)
+
+          if [ -z "$SERVICE_ID" ]; then
+            echo "Creating new Render service..."
+            RESPONSE=$(curl -sf -X POST "https://api.render.com/v1/services" \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "type": "web_service",
+                "name": "fed-watcher-backend",
+                "serviceDetails": {
+                  "env": "docker",
+                  "dockerImage": "ghcr.io/anduli0/fed-watcher:latest",
+                  "plan": "free",
+                  "region": "oregon",
+                  "healthCheckPath": "/health"
+                }
+              }')
+            SERVICE_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+          fi
+
+          echo "service_id=$SERVICE_ID" >> $GITHUB_OUTPUT
+          echo "Service ID: $SERVICE_ID"
+
+      - name: Set environment variables on Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          CLAUDE_CREDENTIALS: ${{ secrets.CLAUDE_CREDENTIALS }}
+        run: |
+          SERVICE_ID="${{ steps.render_setup.outputs.service_id }}"
+
+          python3 << 'PYEOF'
+          import os, json, urllib.request
+
+          service_id = os.environ["SERVICE_ID"] if "SERVICE_ID" in os.environ else ""
+          # read from file written by previous step
+          import subprocess
+          result = subprocess.run(["bash", "-c", "cat $GITHUB_OUTPUT | grep service_id | cut -d= -f2"], capture_output=True, text=True)
+          service_id = result.stdout.strip()
+          PYEOF
+
+          SERVICE_ID="${{ steps.render_setup.outputs.service_id }}"
+
+          ENV_VARS=$(python3 -c "
+          import json, os
+          vars = [
+            {'key': 'ALLOWED_IPS',         'value': '*'},
+            {'key': 'DEV_MODE',             'value': 'false'},
+            {'key': 'JWT_SECRET',           'value': os.environ['JWT_SECRET']},
+            {'key': 'ADMIN_PASSWORD_HASH',  'value': os.environ['ADMIN_PASSWORD_HASH']},
+            {'key': 'FRED_API_KEY',         'value': os.environ['FRED_API_KEY']},
+          ]
+          creds = os.environ.get('CLAUDE_CREDENTIALS','')
+          if creds:
+            vars.append({'key': 'CLAUDE_CREDENTIALS', 'value': creds})
+          print(json.dumps(vars))
+          ")
+
+          curl -sf -X PUT "https://api.render.com/v1/services/$SERVICE_ID/env-vars" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$ENV_VARS"
+
+          echo "Environment variables set."
+
+      - name: Get Render service URL
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          SERVICE_ID="${{ steps.render_setup.outputs.service_id }}"
+          INFO=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID")
+          URL=$(echo "$INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('serviceDetails',{}).get('url','(deploying...)'))" 2>/dev/null || echo "(deploying...)")
+          echo "Render service URL: $URL"
