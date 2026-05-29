@@ -1,16 +1,22 @@
-timestamp=2026-05-29T17:35:35.427221
+timestamp=2026-05-29T17:55:43.453850
 name=fed-watcher-backend
 url=https://fed-watcher-backend-9rgk.onrender.com
 suspended=not_suspended
 new_deploy_id=
 final_deploy_status=unknown
-health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T17:24:19.699002","agent_count":21}
+health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T17:34:47.071753","agent_count":21}
 probes=forecast=200 briefings=200 agents=200
 
 === DEPLOY TRIGGER RESPONSE ===
 
 
 === EVENTS ===
+2026-05-29T17:53:57 deploy_started: {"deployId": "dep-d8ct3hva4fgs73fpcb2g", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:53:57 build_started: {"buildId": "bld-d8ct3hva4fgs73fpcb70", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:53:57 deploy_ended: {"deployId": "dep-d8ct3fi8qa3s73abjklg", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:52:32 build_ended: {"buildId": "bld-d8ct3fi8qa3s73abjkmg", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:49:51 deploy_started: {"deployId": "dep-d8ct3fi8qa3s73abjklg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "c904417ee1a46075a66433dc8a6b784e8273679f", "rollback": false}}
+2026-05-29T17:49:51 build_started: {"buildId": "bld-d8ct3fi8qa3s73abjkmg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "c904417ee1a46075a66433dc8a6b784e8273679f", "rollback": false}}
 2026-05-29T17:35:04 server_available: {}
 2026-05-29T17:34:37 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-9xdwt", "reason": {"evicted": false, "unhealthy": "Get \"http://10.29.206.62:10000/health\": dial tcp 10.29.206.62:10000: connect: connection refused"}}
 2026-05-29T17:33:34 deploy_ended: {"deployId": "dep-d8csprva4fgs73fp6r80", "deployStatus": "succeeded", "reason": {}, "status": 2}
@@ -20,12 +26,6 @@ probes=forecast=200 briefings=200 agents=200
 2026-05-29T17:30:50 deploy_ended: {"deployId": "dep-d8cspr0g4nts73dachug", "deployStatus": "succeeded", "reason": {}, "status": 2}
 2026-05-29T17:29:24 build_ended: {"buildId": "bld-d8cspr0g4nts73dachv0", "buildStatus": "succeeded", "reason": {}, "status": 2}
 2026-05-29T17:29:17 deploy_started: {"deployId": "dep-d8cspr0g4nts73dachug", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T17:29:17 build_started: {"buildId": "bld-d8cspr0g4nts73dachv0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T17:25:27 deploy_ended: {"deployId": "dep-d8csm9v19i4c7386769g", "deployStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T17:23:57 build_ended: {"buildId": "bld-d8csma783ths73bva6sg", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T17:23:48 deploy_started: {"deployId": "dep-d8csm9v19i4c7386769g", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T17:23:48 build_started: {"buildId": "bld-d8csma783ths73bva6sg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T17:23:48 deploy_ended: {"deployId": "dep-d8csm90jo6nc739fq2m0", "deployStatus": "succeeded", "reason": {}, "status": 2}
 
 === LIVE AI CYCLE ===
 agent_events=20
@@ -53,91 +53,91 @@ NLP: NLP analyzing… [info]
 forecast={"status": "no_forecast", "message": "First forecast publishes at 08:00 KST"}
 
 === DEPLOYS ===
-queued | 2026-05-29T17:29:19 | ci: force fresh Render deploy in check-deploy + log raw depl
-update_in_progress | 2026-05-29T17:29:16 | fix: reduce Node heap cap to 192MB and add explicit Render d
-live | 2026-05-29T17:21:44 | fix: reduce Node heap cap to 192MB and add explicit Render d
-deactivated | 2026-05-29T17:21:41 | fix: reduce Node heap cap to 192MB and add explicit Render d
-deactivated | 2026-05-29T08:06:34 | fix: prevent OOM on 512MB host — serialize claude CLI calls 
+queued | 2026-05-29T17:49:59 | feat: serve Next.js frontend from Render backend (unified si
+build_in_progress | 2026-05-29T17:49:50 | feat: serve Next.js frontend from Render backend (unified si
+live | 2026-05-29T17:29:19 | ci: force fresh Render deploy in check-deploy + log raw depl
+deactivated | 2026-05-29T17:29:16 | fix: reduce Node heap cap to 192MB and add explicit Render d
+deactivated | 2026-05-29T17:21:44 | fix: reduce Node heap cap to 192MB and add explicit Render d
 
 === BUILD LOG ===
-2026-05-29 17:33:15,857 [httpx] INFO: HTTP Request: GET https://www.dallasfed.org/news/speeches "HTTP/1.1 200 OK"
-2026-05-29 17:33:16,165 [httpx] INFO: HTTP Request: GET https://www.stlouisfed.org/about-us/speeches-presentations "HTTP/1.1 302 Moved Temporarily"
-2026-05-29 17:33:16,251 [httpx] INFO: HTTP Request: GET https://www.chicagofed.org/publications/speeches "HTTP/1.1 404 Not Found"
-2026-05-29 17:33:16,253 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/publications/beige-book-default.htm "HTTP/1.1 200 OK"
-2026-05-29 17:33:16,254 [httpx] INFO: HTTP Request: GET https://www.atlantafed.org/news/speeches "HTTP/1.1 301 Moved Permanently"
-2026-05-29 17:33:16,255 [httpx] INFO: HTTP Request: GET https://www.frbsf.org/our-district/press/presidents-speeches "HTTP/1.1 301 Moved Permanently"
-2026-05-29 17:33:16,256 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=GS2 "HTTP/1.1 200 OK"
-2026-05-29 17:33:16,257 [httpx] INFO: HTTP Request: GET https://www.richmondfed.org/press_room/speeches "HTTP/1.1 200 OK"
-2026-05-29 17:33:16,860 [httpx] INFO: HTTP Request: GET https://www.bostonfed.org/news-and-events/speeches.aspx "HTTP/1.1 200 OK"
-2026-05-29 17:33:17,967 [httpx] INFO: HTTP Request: GET https://www.minneapolisfed.org/news-and-events/speeches "HTTP/1.1 404 Not Found"
-2026-05-29 17:33:17,968 [httpx] INFO: HTTP Request: GET https://www.philadelphiafed.org/our-people/speeches "HTTP/1.1 200 OK"
-2026-05-29 17:33:17,969 [httpx] INFO: HTTP Request: GET https://www.kansascityfed.org/research/speeches-and-essays "HTTP/1.1 301 Moved Permanently"
-2026-05-29 17:33:18,053 [httpx] INFO: HTTP Request: GET https://www.clevelandfed.org/collections/speeches "HTTP/1.1 200 OK"
-INFO:     10.219.27.82:48118 - "GET /health HTTP/1.1" 200 OK
+#19 9.304 Downloading websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (184 kB)
+#19 9.307    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 184.6/184.6 kB 252.5 MB/s eta 0:00:00
+#19 9.316 Downloading certifi-2026.5.20-py3-none-any.whl (134 kB)
+#19 9.318    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.1/134.1 kB 325.4 MB/s eta 0:00:00
+#19 9.328 Downloading pandas-3.0.3-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (11.3 MB)
+#19 9.375    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.3/11.3 MB 254.5 MB/s eta 0:00:00
+#19 9.385 Downloading passlib-1.7.4-py2.py3-none-any.whl (525 kB)
+#19 9.388    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 525.6/525.6 kB 332.2 MB/s eta 0:00:00
+#19 9.397 Downloading python_jose-3.5.0-py2.py3-none-any.whl (34 kB)
+#19 9.407 Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
+#19 9.417 Downloading uvicorn-0.48.0-py3-none-any.whl (71 kB)
+#19 9.420    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.4/71.4 kB 166.3 MB/s eta 0:00:00
+#19 9.429 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+#19 9.440 Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)
+#19 9.443    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 kB 188.5 MB/s eta 0:00:00
+#19 9.453 Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.9 MB)
+#19 9.531    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.9/16.9 MB 260.0 MB/s eta 0:00:00
+#19 9.541 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+#19 9.543    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 337.2 MB/s eta 0:00:00
+#19 9.553 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+#19 9.562 Downloading pycparser-3.0-py3-none-any.whl (48 kB)
+#19 9.564    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.2/48.2 kB 269.6 MB/s eta 0:00:00
+#19 9.753 Building wheels for collected packages: sgmllib3k
+#19 9.754   Building wheel for sgmllib3k (setup.py): started
+#19 9.974   Building wheel for sgmllib3k (setup.py): finished with status 'done'
+#19 9.974   Created wheel for sgmllib3k: filename=sgmllib3k-1.0.0-py3-none-any.whl size=6090 sha256=cb170962fcbf51027d2e432a0ffb5707ac5b062e87c73bb40b1ed6e5f66eb1a7
+#19 9.975   Stored in directory: /tmp/pip-ephem-wheel-cache-pgr02_nm/wheels/3b/25/2a/105d6a15df6914f4d15047691c6c28f9052cc1173e40285d03
+#19 9.976 Successfully built sgmllib3k
+#19 10.30 Installing collected packages: sgmllib3k, passlib, websockets, uvloop, tzlocal, typing-extensions, soupsieve, sniffio, six, pyyaml, python-dotenv, pypdfium2, pycparser, pyasn1, Pillow, numpy, jiter, idna, httptools, h11, greenlet, feedparser, docstring-parser, distro, click, charset-normalizer, certifi, bcrypt, asyncpg, annotated-types, annotated-doc, aiosqlite, uvicorn, typing-inspection, sqlalchemy, rsa, python-dateutil, pyee, pydantic-core, httpcore, ecdsa, cffi, beautifulsoup4, apscheduler, anyio, watchfiles, starlette, python-jose, pydantic, playwright, pandas, httpx, cryptography, pydantic-settings, pdfminer.six, fredapi, fastapi, anthropic, pdfplumber
+INFO:     10.219.26.67:58372 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.26.67:58376 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.26.67:58390 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.26.67:38974 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.82:52060 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.82:52072 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.82:52082 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 17:33:32,964 [httpx] INFO: HTTP Request: GET https://www.atlantafed.org/news-and-events/speeches "HTTP/1.1 200 OK"
-2026-05-29 17:33:33,051 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=GS10 "HTTP/1.1 200 OK"
-2026-05-29 17:33:33,052 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/BeigeBook_20260114.pdf "HTTP/1.1 200 OK"
-2026-05-29 17:33:33,054 [httpx] INFO: HTTP Request: GET https://www.frbsf.org/news-and-media/speeches/ "HTTP/1.1 200 OK"
-INFO:     10.219.27.121:33894 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 17:33:33,654 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=T10Y2Y "HTTP/1.1 200 OK"
-INFO:     10.219.27.121:33898 - "GET /health HTTP/1.1" 200 OK
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-2026-05-29 17:33:34,024 [apscheduler.scheduler] INFO: Scheduler has been shut down
-INFO:     Application shutdown complete.
-INFO:     Finished server process [1]
-[0;32m[1m==> [0m[1mYour service is live 🎉[0m
-[0;32m[1m==> [0m[1m[0m
-[0;32m[1m==> [0m[1m///////////////////////////////////////////////////////////[0m
-[0;32m[1m==> [0m[1m[0m
-[0;32m[1m==> [0m[1mAvailable at your primary URL https://fed-watcher-backend-9rgk.onrender.com[0m
-[0;32m[1m==> [0m[1m[0m
-[0;32m[1m==> [0m[1m///////////////////////////////////////////////////////////[0m
-2026-05-29 17:34:05,552 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=SOFR "HTTP/1.1 200 OK"
-2026-05-29 17:34:05,553 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260318.pdf "HTTP/1.1 200 OK"
-INFO:     10.30.75.4:0 - "GET / HTTP/1.1" 401 Unauthorized
-INFO:     10.219.27.121:55762 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.121:36112 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 17:34:05,726 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=T5YIE "HTTP/1.1 200 OK"
+#19 22.22 Successfully installed Pillow-12.2.0 aiosqlite-0.22.1 annotated-doc-0.0.4 annotated-types-0.7.0 anthropic-0.105.2 anyio-4.13.0 apscheduler-3.11.2 asyncpg-0.31.0 bcrypt-4.0.1 beautifulsoup4-4.14.3 certifi-2026.5.20 cffi-2.0.0 charset-normalizer-3.4.7 click-8.4.1 cryptography-48.0.0 distro-1.9.0 docstring-parser-0.18.0 ecdsa-0.19.2 fastapi-0.136.3 feedparser-6.0.12 fredapi-0.5.2 greenlet-3.5.1 h11-0.16.0 httpcore-1.0.9 httptools-0.8.0 httpx-0.28.1 idna-3.17 jiter-0.15.0 numpy-2.4.6 pandas-3.0.3 passlib-1.7.4 pdfminer.six-20251230 pdfplumber-0.11.9 playwright-1.60.0 pyasn1-0.6.3 pycparser-3.0 pydantic-2.13.4 pydantic-core-2.46.4 pydantic-settings-2.14.1 pyee-13.0.1 pypdfium2-5.8.0 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 python-jose-3.5.0 pyyaml-6.0.3 rsa-4.9.1 sgmllib3k-1.0.0 six-1.17.0 sniffio-1.3.1 soupsieve-2.8.4 sqlalchemy-2.0.50 starlette-1.2.0 typing-extensions-4.15.0 typing-inspection-0.4.2 tzlocal-5.3.1 uvicorn-0.48.0 uvloop-0.22.1 watchfiles-1.2.0 websockets-16.0
+#19 22.22 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
+#19 22.32 
+#19 22.32 [notice] A new release of pip is available: 24.0 -> 26.1.1
+#19 22.32 [notice] To update, run: pip install --upgrade pip
+#19 DONE 23.4s
+
+#20 [stage-1  7/11] COPY docker/sgmllib.py /tmp/sgmllib_stub.py
+#20 DONE 0.1s
+
+#21 [stage-1  8/11] RUN python3 -c "import sgmllib" 2>/dev/null     || cp /tmp/sgmllib_stub.py "$(python3 -c 'import site; print(site.getsitepackages()[0])')/sgmllib.py"
+#21 DONE 0.1s
+
+#22 [stage-1  9/11] COPY . .
+#22 DONE 0.1s
+
+#23 [stage-1 10/11] COPY --from=frontend-build /fe/out /app/frontend/out
+#23 DONE 0.1s
+
+#24 [stage-1 11/11] RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
+#24 DONE 0.1s
+
+#25 exporting to image
+#25 exporting layers
+INFO:     10.219.26.67:38984 - "GET /health HTTP/1.1" 200 OK
+#25 exporting layers 3.5s done
+#25 exporting manifest sha256:20f9e9d7c54f83140ed6bc251ef3c5090617f7001e2697ed7514c2081f4cdd5d done
+#25 exporting config sha256:b0dde0c7778ee658ed443137cea9d2b31bab86cc5a803f6adb9481ae0f84f36a done
+#25 pushing layers
+INFO:     10.219.26.67:54098 - "GET /health HTTP/1.1" 200 OK
+#25 pushing layers 5.0s done
+#25 pushing manifest for image-registry-v2.aws-us-west-2-3.internal.render.com/srv-d8cjm7pnrd2s73dmg1q0:bld-d8ct3hva4fgs73fpcb70@sha256:20f9e9d7c54f83140ed6bc251ef3c5090617f7001e2697ed7514c2081f4cdd5d
+#25 pushing manifest for image-registry-v2.aws-us-west-2-3.internal.render.com/srv-d8cjm7pnrd2s73dmg1q0:bld-d8ct3hva4fgs73fpcb70@sha256:20f9e9d7c54f83140ed6bc251ef3c5090617f7001e2697ed7514c2081f4cdd5d 0.2s done
+#25 DONE 8.7s
+
+#26 exporting cache to registry
+#26 preparing build cache for export
+INFO:     10.219.26.67:54110 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.26.67:36422 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.26.67:36436 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.26.67:36440 - "GET /health HTTP/1.1" 200 OK
+#26 sending cache export
+INFO:     10.219.26.67:48826 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.121:50578 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 17:34:20,396 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260429.pdf "HTTP/1.1 200 OK"
-[entrypoint] Claude credentials restored from env var
-INFO:     Started server process [1]
-INFO:     Waiting for application startup.
-2026-05-29 17:34:45,080 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 17:34:45,081 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 17:34:45,081 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 17:34:45,081 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 17:34:45,081 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-05-29 17:34:45,082 [apscheduler.scheduler] INFO: Added job "run_data_collection" to job store "default"
-2026-05-29 17:34:45,082 [apscheduler.scheduler] INFO: Added job "trigger_cycle" to job store "default"
-2026-05-29 17:34:45,161 [apscheduler.scheduler] INFO: Added job "trigger_cycle" to job store "default"
-2026-05-29 17:34:45,162 [apscheduler.scheduler] INFO: Added job "publish_morning_forecast" to job store "default"
-2026-05-29 17:34:45,162 [apscheduler.scheduler] INFO: Added job "_run_daily_briefing" to job store "default"
-2026-05-29 17:34:45,162 [apscheduler.scheduler] INFO: Scheduler started
-2026-05-29 17:34:45,162 [fed_watcher.scheduler] INFO: Scheduler started. Data collect every 30 min · Cycles: 12,16,20,0 · Publish 08:00 KST · Daily Briefing 07:30 KST
-2026-05-29 17:34:45,162 [fed_watcher] INFO: Fed-Watcher started. Model: claude-sonnet-4-6
-2026-05-29 17:34:47,071 [fed_watcher.collector] INFO: [Collector] Starting web data sweep…
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:10000 (Press CTRL+C to quit)
-[WARN] OWNER_MAC not set. Run setup.py to lock this server to your hardware.
-[WARN] Admin panel will be inaccessible until OWNER_MAC is configured.
-INFO:     127.0.0.1:55142 - "HEAD / HTTP/1.1" 401 Unauthorized
-2026-05-29 17:34:48,001 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm "HTTP/1.1 200 OK"
-2026-05-29 17:34:48,792 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260128.pdf "HTTP/1.1 200 OK"
-INFO:     10.219.27.121:50708 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.121:50714 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 17:35:04,483 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260318.pdf "HTTP/1.1 200 OK"
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.121:35678 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/agents/status HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/forecast/report?lang=ko HTTP/1.1" 200 OK
-INFO:     10.30.75.4:0 - "GET /api/forecast/history HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/forecast/horizons HTTP/1.1" 200 OK
-2026-05-29 17:35:18,425 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260429.pdf "HTTP/1.1 200 OK"
+INFO:     10.26.144.1:0 - "GET /api/forecast HTTP/1.1" 200 OK
 
