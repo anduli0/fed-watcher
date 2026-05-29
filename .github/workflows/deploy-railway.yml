@@ -8,8 +8,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
+      - uses: actions/checkout@v4
       - name: Setup Render service and env vars
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -113,15 +116,12 @@ jobs:
           " 2>/dev/null || echo "(deploying...)")
           echo "Render service URL: $URL"
 
-          echo "=== Saving service info to repo variable ==="
-          curl -s -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/anduli0/fed-watcher/actions/variables" \
-            -d "{\"name\":\"RENDER_SERVICE_ID\",\"value\":\"$SERVICE_ID\"}" || true
-          curl -s -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/anduli0/fed-watcher/actions/variables" \
-            -d "{\"name\":\"RENDER_URL\",\"value\":\"$URL\"}" || true
+          echo "=== Saving service info to file ==="
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          echo "SERVICE_ID=$SERVICE_ID" > render-deployment.txt
+          echo "URL=$URL" >> render-deployment.txt
+          git add render-deployment.txt
+          git diff --staged --quiet || git commit -m "ci: update Render deployment info [skip ci]"
+          git push origin claude/affectionate-bell-InnQ6 || true
           echo "Saved SERVICE_ID=$SERVICE_ID and URL=$URL"
