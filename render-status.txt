@@ -1,0 +1,25 @@
+timestamp=2026-05-29T06:45:45.961404
+name=fed-watcher
+url=https://fed-watcher.onrender.com
+suspended=not_suspended
+new_deploy_id=dep-d8cjbbpo3t8c73a02qsg
+final_deploy_status=update_failed
+health=OFFLINE
+
+=== EVENTS ===
+2026-05-29T06:45:07 deploy_ended: {"deployId": "dep-d8cjbbpo3t8c73a02qsg", "deployStatus": "failed", "reason": {"failure": {"evicted": false, "nonZeroExit": 127}}, "status": 4}
+2026-05-29T06:44:48 build_ended: {"buildId": "bld-d8cjbbpo3t8c73a02qt0", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T06:43:59 deploy_started: {"deployId": "dep-d8cjbbpo3t8c73a02qsg", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T06:43:59 build_started: {"buildId": "bld-d8cjbbpo3t8c73a02qt0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T06:38:19 deploy_ended: {"deployId": "dep-d8cj82po3t8c73a012ug", "deployStatus": "failed", "reason": {"failure": {"evicted": false, "nonZeroExit": 127}}, "status": 4}
+2026-05-29T06:37:51 build_ended: {"buildId": "bld-d8cj82po3t8c73a012v0", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T06:37:00 deploy_started: {"deployId": "dep-d8cj82po3t8c73a012ug", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T06:36:59 build_started: {"buildId": "bld-d8cj82po3t8c73a012v0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T01:07:36 deploy_ended: {"deployId": "dep-d8ced00js32c738puaog", "deployStatus": "failed", "reason": {"failure": {"evicted": false, "nonZeroExit": 127}}, "status": 4}
+2026-05-29T01:07:14 build_ended: {"buildId": "bld-d8ced00js32c738puap0", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T01:06:08 deploy_started: {"deployId": "dep-d8ced00js32c738puaog", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": true, "manual": false, "rollback": false}}
+2026-05-29T01:06:08 build_started: {"buildId": "bld-d8ced00js32c738puap0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": true, "manual": false, "rollback": false}}
+
+=== DEPLOYS ===
+update_failed | 2026-05-29T06:36:59 | fix: Google News RSS sources + KST timezone for briefing_dat
+update_failed | 2026-05-29T01:06:08 | fix: Google News RSS sources + KST timezone for briefing_dat
