@@ -1,143 +1,145 @@
-timestamp=2026-05-29T17:55:43.453850
+timestamp=2026-05-29T18:06:44.935409
 name=fed-watcher-backend
 url=https://fed-watcher-backend-9rgk.onrender.com
 suspended=not_suspended
 new_deploy_id=
-final_deploy_status=unknown
-health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T17:34:47.071753","agent_count":21}
-probes=forecast=200 briefings=200 agents=200
+final_deploy_status=live
+health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T18:00:55.867399","agent_count":21}
+probes=forecast=200 briefings=200 agents=200 root=200/text/html; charset=utf-8 login=200 adminapi=401
 
 === DEPLOY TRIGGER RESPONSE ===
 
 
 === EVENTS ===
+2026-05-29T18:02:07 deploy_ended: {"deployId": "dep-d8ct758ma31c73e8qs90", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T18:00:19 build_ended: {"buildId": "bld-d8ct75fa4fgs73fpeid0", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:58:33 build_started: {"buildId": "bld-d8ct75fa4fgs73fpeid0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:58:33 deploy_started: {"deployId": "dep-d8ct758ma31c73e8qs90", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:58:32 deploy_ended: {"deployId": "dep-d8ct73vavr4c738lkca0", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:57:43 build_ended: {"buildId": "bld-d8ct73vavr4c738lkcag", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:57:35 deploy_started: {"deployId": "dep-d8ct73vavr4c738lkca0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:57:35 build_started: {"buildId": "bld-d8ct73vavr4c738lkcag", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:57:33 deploy_ended: {"deployId": "dep-d8ct3hva4fgs73fpcb2g", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:55:48 build_ended: {"buildId": "bld-d8ct3hva4fgs73fpcb70", "buildStatus": "succeeded", "reason": {}, "status": 2}
 2026-05-29T17:53:57 deploy_started: {"deployId": "dep-d8ct3hva4fgs73fpcb2g", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
 2026-05-29T17:53:57 build_started: {"buildId": "bld-d8ct3hva4fgs73fpcb70", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
 2026-05-29T17:53:57 deploy_ended: {"deployId": "dep-d8ct3fi8qa3s73abjklg", "deployStatus": "succeeded", "reason": {}, "status": 2}
 2026-05-29T17:52:32 build_ended: {"buildId": "bld-d8ct3fi8qa3s73abjkmg", "buildStatus": "succeeded", "reason": {}, "status": 2}
 2026-05-29T17:49:51 deploy_started: {"deployId": "dep-d8ct3fi8qa3s73abjklg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "c904417ee1a46075a66433dc8a6b784e8273679f", "rollback": false}}
-2026-05-29T17:49:51 build_started: {"buildId": "bld-d8ct3fi8qa3s73abjkmg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "c904417ee1a46075a66433dc8a6b784e8273679f", "rollback": false}}
-2026-05-29T17:35:04 server_available: {}
-2026-05-29T17:34:37 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-9xdwt", "reason": {"evicted": false, "unhealthy": "Get \"http://10.29.206.62:10000/health\": dial tcp 10.29.206.62:10000: connect: connection refused"}}
-2026-05-29T17:33:34 deploy_ended: {"deployId": "dep-d8csprva4fgs73fp6r80", "deployStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T17:32:48 build_ended: {"buildId": "bld-d8csprv19i4c738699n0", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T17:30:51 deploy_started: {"deployId": "dep-d8csprva4fgs73fp6r80", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T17:30:51 build_started: {"buildId": "bld-d8csprv19i4c738699n0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T17:30:50 deploy_ended: {"deployId": "dep-d8cspr0g4nts73dachug", "deployStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T17:29:24 build_ended: {"buildId": "bld-d8cspr0g4nts73dachv0", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T17:29:17 deploy_started: {"deployId": "dep-d8cspr0g4nts73dachug", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
 
 === LIVE AI CYCLE ===
 agent_events=20
 agent output sample:
-NLP: NLP analyzing… [info]
-  History: History analyzing… [info]
-  Academic: Academic analyzing… [info]
-  Projections: Projections analyzing… [info]
-  FOMC_Minutes: FOMC_Minutes analyzing… [info]
-  Macro_Data: Macro_Data analyzing… [info]
-  Political_Economy: Political_Economy analyzing… [info]
-  Consensus: Consensus analyzing… [info]
-  Boston_Fed: Boston_Fed analyzing… [info]
-  NewYork_Fed: NewYork_Fed analyzing… [info]
-  Philadelphia_Fed: Philadelphia_Fed analyzing… [info]
-  Cleveland_Fed: Cleveland_Fed analyzing… [info]
-  Richmond_Fed: Richmond_Fed analyzing… [info]
-  Atlanta_Fed: Atlanta_Fed analyzing… [info]
-  Chicago_Fed: Chicago_Fed analyzing… [info]
-  StLouis_Fed: StLouis_Fed analyzing… [info]
-  Minneapolis_Fed: Minneapolis_Fed analyzing… [info]
-  KansasCity_Fed: KansasCity_Fed analyzing… [info]
-  Dallas_Fed: Dallas_Fed analyzing… [info]
-  SanFrancisco_Fed: SanFrancisco_Fed analyzing… [info]
+Macro_Data: Macro_Data failed: claude CLI exited 1:  [error]
+  Political_Economy: Political_Economy failed: claude CLI exited 1:  [error]
+  Consensus: Consensus failed: claude CLI exited 1:  [error]
+  Boston_Fed: Boston_Fed failed: claude CLI exited 1:  [error]
+  NewYork_Fed: NewYork_Fed failed: claude CLI exited 1:  [error]
+  Philadelphia_Fed: Philadelphia_Fed failed: claude CLI exited 1:  [error]
+  Cleveland_Fed: Cleveland_Fed failed: claude CLI exited 1:  [error]
+  Richmond_Fed: Richmond_Fed failed: claude CLI exited 1:  [error]
+  Atlanta_Fed: Atlanta_Fed failed: claude CLI exited 1:  [error]
+  Chicago_Fed: Chicago_Fed failed: claude CLI exited 1:  [error]
+  StLouis_Fed: StLouis_Fed failed: claude CLI exited 1:  [error]
+  Minneapolis_Fed: Minneapolis_Fed failed: claude CLI exited 1:  [error]
+  KansasCity_Fed: KansasCity_Fed failed: claude CLI exited 1:  [error]
+  Dallas_Fed: Dallas_Fed failed: claude CLI exited 1:  [error]
+  SanFrancisco_Fed: SanFrancisco_Fed failed: claude CLI exited 1:  [error]
+  Chief: 6M forecast → NEUTRAL +0 bps (conf 0%) [info]
+  Chief: 12M forecast → NEUTRAL +0 bps (conf 0%) [info]
+  Chief: 3Y forecast → NEUTRAL +0 bps (conf 0%) [info]
+  Chief: 10Y forecast → NEUTRAL +0 bps (conf 0%) [info]
+  Chief: Chief synthesizing derivation report (EN + KO)… [info]
 forecast={"status": "no_forecast", "message": "First forecast publishes at 08:00 KST"}
 
 === DEPLOYS ===
-queued | 2026-05-29T17:49:59 | feat: serve Next.js frontend from Render backend (unified si
-build_in_progress | 2026-05-29T17:49:50 | feat: serve Next.js frontend from Render backend (unified si
-live | 2026-05-29T17:29:19 | ci: force fresh Render deploy in check-deploy + log raw depl
-deactivated | 2026-05-29T17:29:16 | fix: reduce Node heap cap to 192MB and add explicit Render d
-deactivated | 2026-05-29T17:21:44 | fix: reduce Node heap cap to 192MB and add explicit Render d
+queued | 2026-05-29T17:57:41 | ci: poll latest deploy until live + probe frontend serving
+
+
+update_in_progress | 2026-05-29T17:57:35 | feat: serve Next.js frontend from Render backend (unified si
+live | 2026-05-29T17:49:59 | feat: serve Next.js frontend from Render backend (unified si
+deactivated | 2026-05-29T17:49:50 | feat: serve Next.js frontend from Render backend (unified si
+deactivated | 2026-05-29T17:29:19 | ci: force fresh Render deploy in check-deploy + log raw depl
 
 === BUILD LOG ===
-#19 9.304 Downloading websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (184 kB)
-#19 9.307    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 184.6/184.6 kB 252.5 MB/s eta 0:00:00
-#19 9.316 Downloading certifi-2026.5.20-py3-none-any.whl (134 kB)
-#19 9.318    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.1/134.1 kB 325.4 MB/s eta 0:00:00
-#19 9.328 Downloading pandas-3.0.3-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (11.3 MB)
-#19 9.375    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.3/11.3 MB 254.5 MB/s eta 0:00:00
-#19 9.385 Downloading passlib-1.7.4-py2.py3-none-any.whl (525 kB)
-#19 9.388    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 525.6/525.6 kB 332.2 MB/s eta 0:00:00
-#19 9.397 Downloading python_jose-3.5.0-py2.py3-none-any.whl (34 kB)
-#19 9.407 Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
-#19 9.417 Downloading uvicorn-0.48.0-py3-none-any.whl (71 kB)
-#19 9.420    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.4/71.4 kB 166.3 MB/s eta 0:00:00
-#19 9.429 Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
-#19 9.440 Downloading charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)
-#19 9.443    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 214.1/214.1 kB 188.5 MB/s eta 0:00:00
-#19 9.453 Downloading numpy-2.4.6-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (16.9 MB)
-#19 9.531    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 16.9/16.9 MB 260.0 MB/s eta 0:00:00
-#19 9.541 Downloading python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
-#19 9.543    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 337.2 MB/s eta 0:00:00
-#19 9.553 Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
-#19 9.562 Downloading pycparser-3.0-py3-none-any.whl (48 kB)
-#19 9.564    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.2/48.2 kB 269.6 MB/s eta 0:00:00
-#19 9.753 Building wheels for collected packages: sgmllib3k
-#19 9.754   Building wheel for sgmllib3k (setup.py): started
-#19 9.974   Building wheel for sgmllib3k (setup.py): finished with status 'done'
-#19 9.974   Created wheel for sgmllib3k: filename=sgmllib3k-1.0.0-py3-none-any.whl size=6090 sha256=cb170962fcbf51027d2e432a0ffb5707ac5b062e87c73bb40b1ed6e5f66eb1a7
-#19 9.975   Stored in directory: /tmp/pip-ephem-wheel-cache-pgr02_nm/wheels/3b/25/2a/105d6a15df6914f4d15047691c6c28f9052cc1173e40285d03
-#19 9.976 Successfully built sgmllib3k
-#19 10.30 Installing collected packages: sgmllib3k, passlib, websockets, uvloop, tzlocal, typing-extensions, soupsieve, sniffio, six, pyyaml, python-dotenv, pypdfium2, pycparser, pyasn1, Pillow, numpy, jiter, idna, httptools, h11, greenlet, feedparser, docstring-parser, distro, click, charset-normalizer, certifi, bcrypt, asyncpg, annotated-types, annotated-doc, aiosqlite, uvicorn, typing-inspection, sqlalchemy, rsa, python-dateutil, pyee, pydantic-core, httpcore, ecdsa, cffi, beautifulsoup4, apscheduler, anyio, watchfiles, starlette, python-jose, pydantic, playwright, pandas, httpx, cryptography, pydantic-settings, pdfminer.six, fredapi, fastapi, anthropic, pdfplumber
-INFO:     10.219.26.67:58372 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.26.67:58376 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.26.67:58390 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.26.67:38974 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-#19 22.22 Successfully installed Pillow-12.2.0 aiosqlite-0.22.1 annotated-doc-0.0.4 annotated-types-0.7.0 anthropic-0.105.2 anyio-4.13.0 apscheduler-3.11.2 asyncpg-0.31.0 bcrypt-4.0.1 beautifulsoup4-4.14.3 certifi-2026.5.20 cffi-2.0.0 charset-normalizer-3.4.7 click-8.4.1 cryptography-48.0.0 distro-1.9.0 docstring-parser-0.18.0 ecdsa-0.19.2 fastapi-0.136.3 feedparser-6.0.12 fredapi-0.5.2 greenlet-3.5.1 h11-0.16.0 httpcore-1.0.9 httptools-0.8.0 httpx-0.28.1 idna-3.17 jiter-0.15.0 numpy-2.4.6 pandas-3.0.3 passlib-1.7.4 pdfminer.six-20251230 pdfplumber-0.11.9 playwright-1.60.0 pyasn1-0.6.3 pycparser-3.0 pydantic-2.13.4 pydantic-core-2.46.4 pydantic-settings-2.14.1 pyee-13.0.1 pypdfium2-5.8.0 python-dateutil-2.9.0.post0 python-dotenv-1.2.2 python-jose-3.5.0 pyyaml-6.0.3 rsa-4.9.1 sgmllib3k-1.0.0 six-1.17.0 sniffio-1.3.1 soupsieve-2.8.4 sqlalchemy-2.0.50 starlette-1.2.0 typing-extensions-4.15.0 typing-inspection-0.4.2 tzlocal-5.3.1 uvicorn-0.48.0 uvloop-0.22.1 watchfiles-1.2.0 websockets-16.0
-#19 22.22 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv
-#19 22.32 
-#19 22.32 [notice] A new release of pip is available: 24.0 -> 26.1.1
-#19 22.32 [notice] To update, run: pip install --upgrade pip
-#19 DONE 23.4s
-
-#20 [stage-1  7/11] COPY docker/sgmllib.py /tmp/sgmllib_stub.py
-#20 DONE 0.1s
-
-#21 [stage-1  8/11] RUN python3 -c "import sgmllib" 2>/dev/null     || cp /tmp/sgmllib_stub.py "$(python3 -c 'import site; print(site.getsitepackages()[0])')/sgmllib.py"
-#21 DONE 0.1s
-
-#22 [stage-1  9/11] COPY . .
-#22 DONE 0.1s
-
-#23 [stage-1 10/11] COPY --from=frontend-build /fe/out /app/frontend/out
-#23 DONE 0.1s
-
-#24 [stage-1 11/11] RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
-#24 DONE 0.1s
-
-#25 exporting to image
-#25 exporting layers
-INFO:     10.219.26.67:38984 - "GET /health HTTP/1.1" 200 OK
-#25 exporting layers 3.5s done
-#25 exporting manifest sha256:20f9e9d7c54f83140ed6bc251ef3c5090617f7001e2697ed7514c2081f4cdd5d done
-#25 exporting config sha256:b0dde0c7778ee658ed443137cea9d2b31bab86cc5a803f6adb9481ae0f84f36a done
-#25 pushing layers
-INFO:     10.219.26.67:54098 - "GET /health HTTP/1.1" 200 OK
-#25 pushing layers 5.0s done
-#25 pushing manifest for image-registry-v2.aws-us-west-2-3.internal.render.com/srv-d8cjm7pnrd2s73dmg1q0:bld-d8ct3hva4fgs73fpcb70@sha256:20f9e9d7c54f83140ed6bc251ef3c5090617f7001e2697ed7514c2081f4cdd5d
-#25 pushing manifest for image-registry-v2.aws-us-west-2-3.internal.render.com/srv-d8cjm7pnrd2s73dmg1q0:bld-d8ct3hva4fgs73fpcb70@sha256:20f9e9d7c54f83140ed6bc251ef3c5090617f7001e2697ed7514c2081f4cdd5d 0.2s done
-#25 DONE 8.7s
-
-#26 exporting cache to registry
-#26 preparing build cache for export
-INFO:     10.219.26.67:54110 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:56546 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:56548 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.26.67:36422 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.26.67:36436 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.26.67:36440 - "GET /health HTTP/1.1" 200 OK
-#26 sending cache export
-INFO:     10.219.26.67:48826 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:34238 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:34248 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:46820 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:46830 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:41486 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:41490 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:41504 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:47020 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:47032 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:34826 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/forecast HTTP/1.1" 200 OK
+INFO:     10.219.24.119:34836 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:38272 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:38282 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:38292 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:33474 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:33488 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:55332 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:55346 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:41428 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:41434 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:41446 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:39060 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:39062 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:38698 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:38700 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:58276 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:58288 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:58290 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:59314 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:59316 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:47044 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:47048 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:36148 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:36162 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:36168 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:35694 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:35700 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:43058 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:43068 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:36714 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:36718 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:36724 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:58798 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:58814 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:57666 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:57682 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:53310 - "GET /health HTTP/1.1" 200 OK
+[0;32m[1m==> [0m[1mDetected service running on port 10000[0m
+[0;32m[1m==> [0m[1mDocs on specifying a port: https://render.com/docs/web-services#port-binding[0m
+INFO:     10.219.24.119:53314 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:53316 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:36410 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:36416 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:60772 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:60788 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.24.119:41400 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:41410 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:41426 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.24.119:60850 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/forecast HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/agents/status HTTP/1.1" 200 OK
 
