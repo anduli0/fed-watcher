@@ -282,22 +282,25 @@ jobs:
           DEPLOY_RESP_RAW=$(cat /tmp/newdeploy.json)
 
           echo ""
-          echo "=== Polling deploy status (up to 10 min) ==="
+          echo "=== Polling service's latest deploy until live (up to ~18 min) ==="
+          # The deploy POST sometimes returns an empty body (no id) even though the
+          # deploy is created, so poll the service's most-recent deploy by status
+          # rather than a specific id. This makes us actually wait for the build to
+          # finish before capturing status (important now the Docker build also
+          # compiles the frontend and takes several minutes).
           FINAL_STATUS="unknown"
-          if [ -n "$DEPLOY_ID" ]; then
-            for i in $(seq 1 40); do
-              sleep 15
-              STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-                "https://api.render.com/v1/services/$SERVICE_ID/deploys/$DEPLOY_ID" \
-                | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status', d.get('deploy',{}).get('status','?')))" 2>/dev/null || echo "?")
-              echo "  [$i] status=$STATUS"
-              FINAL_STATUS="$STATUS"
-              case "$STATUS" in
-                live|deactivated) break ;;
-                build_failed|update_failed|canceled|pre_deploy_failed) break ;;
-              esac
-            done
-          fi
+          for i in $(seq 1 72); do
+            sleep 15
+            STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=1" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print((d[0].get('deploy',d[0])).get('status','?')) if d else print('?')" 2>/dev/null || echo "?")
+            echo "  [$i] latest deploy status=$STATUS"
+            FINAL_STATUS="$STATUS"
+            case "$STATUS" in
+              live) break ;;
+              build_failed|update_failed|canceled|pre_deploy_failed) break ;;
+            esac
+          done
 
           # Resolve the service's real URL
           SVC_URL=$(python3 -c "import json; d=json.load(open('/tmp/svc.json')); s=d.get('service',d); print(s.get('serviceDetails',{}).get('url',''))" 2>/dev/null || echo "")
@@ -313,10 +316,18 @@ jobs:
           FC=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/forecast" 2>/dev/null || echo "ERR")
           BRIEF=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/briefings/latest" 2>/dev/null || echo "ERR")
           AGENTS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/api/agents/status" 2>/dev/null || echo "ERR")
+          # Frontend probes (unified deploy): / and /login/ should serve HTML 200
+          ROOT_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/" 2>/dev/null || echo "ERR")
+          ROOT_CT=$(curl -s -o /dev/null -w '%{content_type}' --max-time 30 "$SVC_URL/" 2>/dev/null || echo "ERR")
+          LOGIN_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/login/" 2>/dev/null || echo "ERR")
+          ADMIN_API=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$SVC_URL/admin-secure-panel/api/status" 2>/dev/null || echo "ERR")
           echo "  /api/forecast -> $FC"
           echo "  /api/briefings/latest -> $BRIEF"
           echo "  /api/agents/status -> $AGENTS"
-          PROBES="forecast=$FC briefings=$BRIEF agents=$AGENTS"
+          echo "  / (frontend) -> $ROOT_CODE ($ROOT_CT)"
+          echo "  /login/ (frontend) -> $LOGIN_CODE"
+          echo "  /admin-secure-panel/api/status (should be 401) -> $ADMIN_API"
+          PROBES="forecast=$FC briefings=$BRIEF agents=$AGENTS root=$ROOT_CODE/$ROOT_CT login=$LOGIN_CODE adminapi=$ADMIN_API"
 
           echo ""
           echo "=== LIVE AI CYCLE VERIFICATION (proves claude CLI / Pro creds) ==="
