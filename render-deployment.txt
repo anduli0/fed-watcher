@@ -1,4 +1,2 @@
-SERVICE_ID=srv-d8cecvgjs32c738puai0
-URL=https://fed-watcher.onrender.com
-HEALTH=OFFLINE
-MACRO_HTTP=000ERR
+SERVICE_ID=srv-d8cjm7pnrd2s73dmg1q0
+URL=https://fed-watcher-backend-9rgk.onrender.com
