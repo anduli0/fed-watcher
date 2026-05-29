@@ -10,7 +10,16 @@ import tempfile
 from typing import Optional
 
 CLAUDE_BIN: str = shutil.which("claude") or "claude"
-MAX_CONCURRENT: int = 4
+
+# Each `claude -p` invocation is a full Claude Code (Node.js) process using
+# several hundred MB of RAM. On memory-constrained hosts (e.g. Render free tier
+# = 512 MB) running several at once triggers the OOM killer. Default to fully
+# serialized calls; raise via CLAUDE_MAX_CONCURRENT on a larger instance.
+MAX_CONCURRENT: int = int(os.getenv("CLAUDE_MAX_CONCURRENT", "1"))
+
+# Cap each claude process's V8 heap so a single call can't balloon past the
+# container limit. Tunable via CLAUDE_NODE_MAX_OLD_SPACE_MB (MB).
+_NODE_HEAP_MB: str = os.getenv("CLAUDE_NODE_MAX_OLD_SPACE_MB", "320")
 
 _semaphore: Optional[asyncio.Semaphore] = None
 
@@ -35,6 +44,14 @@ async def call_claude(system_prompt: str, user_message: str, timeout: float = 12
             f.write(system_prompt)
             sp_file = f.name
 
+        # Constrain the child claude process's Node heap to avoid OOM kills.
+        child_env = dict(os.environ)
+        existing_node_opts = child_env.get("NODE_OPTIONS", "")
+        if "max-old-space-size" not in existing_node_opts:
+            child_env["NODE_OPTIONS"] = (
+                f"{existing_node_opts} --max-old-space-size={_NODE_HEAP_MB}".strip()
+            )
+
         try:
             proc = await asyncio.create_subprocess_exec(
                 CLAUDE_BIN, "-p",
@@ -44,6 +61,7 @@ async def call_claude(system_prompt: str, user_message: str, timeout: float = 12
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd="/tmp",  # run outside git repo so stop-hook exits early
+                env=child_env,
             )
             try:
                 stdout, stderr = await asyncio.wait_for(
