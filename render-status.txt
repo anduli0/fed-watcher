@@ -1,10 +1,10 @@
-timestamp=2026-05-29T19:09:26.448231
+timestamp=2026-05-29T19:38:38.376537
 name=fed-watcher-backend
 url=https://fed-watcher-backend-9rgk.onrender.com
 suspended=not_suspended
 new_deploy_id=
-final_deploy_status=live
-agent_tally_ok_err=5 15
+final_deploy_status=queued
+agent_tally_ok_err=0 0
 oom_during_cycle=0
 health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T18:52:29.235746","agent_count":21}
 probes=forecast=200 briefings=200 agents=200 root=200/text/html; charset=utf-8 login=200 adminapi=401
@@ -13,6 +13,14 @@ probes=forecast=200 briefings=200 agents=200 root=200/text/html; charset=utf-8 l
 
 
 === EVENTS ===
+2026-05-29T19:14:34 deploy_ended: {"deployId": "dep-d8cu9k0ma31c73e9embg", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T19:13:46 build_ended: {"buildId": "bld-d8cu9kda6d2c73fmmru0", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T19:13:38 deploy_started: {"deployId": "dep-d8cu9k0ma31c73e9embg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T19:13:38 build_started: {"buildId": "bld-d8cu9kda6d2c73fmmru0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T19:13:36 deploy_ended: {"deployId": "dep-d8cu9i0jo6nc739h2di0", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T19:12:08 build_ended: {"buildId": "bld-d8cu9i0jo6nc739h2dk0", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T19:11:04 deploy_started: {"deployId": "dep-d8cu9i0jo6nc739h2di0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "8763957879959f09ad206375b879cbab41564baf", "rollback": false}}
+2026-05-29T19:11:04 build_started: {"buildId": "bld-d8cu9i0jo6nc739h2dk0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "8763957879959f09ad206375b879cbab41564baf", "rollback": false}}
 2026-05-29T18:52:49 server_available: {}
 2026-05-29T18:52:20 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-tttbq", "reason": {"evicted": false, "unhealthy": "Get \"http://10.28.10.1:10000/health\": dial tcp 10.28.10.1:10000: connect: connection refused"}}
 2026-05-29T18:51:13 deploy_ended: {"deployId": "dep-d8ctvfq8qa3s73f4fks0", "deployStatus": "succeeded", "reason": {}, "status": 2}
@@ -35,41 +43,35 @@ probes=forecast=200 briefings=200 agents=200 root=200/text/html; charset=utf-8 l
 2026-05-29T18:11:10 build_ended: {"buildId": "bld-d8ctcs0jo6nc739gbncg", "buildStatus": "succeeded", "reason": {}, "status": 2}
 2026-05-29T18:09:53 build_started: {"buildId": "bld-d8ctcs0jo6nc739gbncg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "6368585d676cd2dfeafab7554b6148a7f91b68b9", "rollback": false}}
 2026-05-29T18:09:52 deploy_started: {"deployId": "dep-d8ctcs0jo6nc739gbnc0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "6368585d676cd2dfeafab7554b6148a7f91b68b9", "rollback": false}}
-2026-05-29T18:02:07 deploy_ended: {"deployId": "dep-d8ct758ma31c73e8qs90", "deployStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T18:00:19 build_ended: {"buildId": "bld-d8ct75fa4fgs73fpeid0", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T17:58:33 build_started: {"buildId": "bld-d8ct75fa4fgs73fpeid0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T17:58:33 deploy_started: {"deployId": "dep-d8ct758ma31c73e8qs90", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T17:58:32 deploy_ended: {"deployId": "dep-d8ct73vavr4c738lkca0", "deployStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T17:57:43 build_ended: {"buildId": "bld-d8ct73vavr4c738lkcag", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T17:57:35 deploy_started: {"deployId": "dep-d8ct73vavr4c738lkca0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T17:57:35 build_started: {"buildId": "bld-d8ct73vavr4c738lkcag", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
 
 === LIVE AI CYCLE ===
 agent_events=20
 agent output sample:
-Macro_Data: Macro_Data failed: claude CLI exited 1: {"type":"result","subtype":"success","i [error]
-  Political_Economy: Political_Economy failed: claude CLI exited 1: {"type":"result","subtype":"succe [error]
-  Consensus: Consensus failed: claude CLI exited 1: {"type":"result","subtype":"success","i [error]
-  Boston_Fed: Boston_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success","i [error]
-  NewYork_Fed: NewYork_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success","i [error]
-  Philadelphia_Fed: Philadelphia_Fed failed: claude CLI exited 1: {"type":"result","subtype":"succes [error]
-  Cleveland_Fed: Cleveland_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success", [error]
-  Richmond_Fed: Richmond_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success"," [error]
-  Atlanta_Fed: Atlanta_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success","i [error]
-  Chicago_Fed: Chicago_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success","i [error]
-  StLouis_Fed: StLouis_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success","i [error]
-  Minneapolis_Fed: Minneapolis_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success [error]
-  KansasCity_Fed: KansasCity_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success" [error]
-  Dallas_Fed: Dallas_Fed failed: claude CLI exited 1: {"type":"result","subtype":"success","i [error]
-  SanFrancisco_Fed: SanFrancisco_Fed failed: claude CLI exited 1: {"type":"result","subtype":"succes [error]
-  Chief: 6M forecast → NEUTRAL +0 bps (conf 0%) [info]
-  Chief: 12M forecast → NEUTRAL +0 bps (conf 0%) [info]
-  Chief: 3Y forecast → NEUTRAL +0 bps (conf 0%) [info]
-  Chief: 10Y forecast → NEUTRAL +0 bps (conf 0%) [info]
-  Chief: Chief synthesizing derivation report (EN + KO)… [info]
+NLP: NLP analyzing… [info]
+  History: History analyzing… [info]
+  Academic: Academic analyzing… [info]
+  Projections: Projections analyzing… [info]
+  FOMC_Minutes: FOMC_Minutes analyzing… [info]
+  Macro_Data: Macro_Data analyzing… [info]
+  Political_Economy: Political_Economy analyzing… [info]
+  Consensus: Consensus analyzing… [info]
+  Boston_Fed: Boston_Fed analyzing… [info]
+  NewYork_Fed: NewYork_Fed analyzing… [info]
+  Philadelphia_Fed: Philadelphia_Fed analyzing… [info]
+  Cleveland_Fed: Cleveland_Fed analyzing… [info]
+  Richmond_Fed: Richmond_Fed analyzing… [info]
+  Atlanta_Fed: Atlanta_Fed analyzing… [info]
+  Chicago_Fed: Chicago_Fed analyzing… [info]
+  StLouis_Fed: StLouis_Fed analyzing… [info]
+  Minneapolis_Fed: Minneapolis_Fed analyzing… [info]
+  KansasCity_Fed: KansasCity_Fed analyzing… [info]
+  Dallas_Fed: Dallas_Fed analyzing… [info]
+  SanFrancisco_Fed: SanFrancisco_Fed analyzing… [info]
 forecast={"status": "no_forecast", "message": "First forecast publishes at 08:00 KST"}
 
 === DEPLOYS ===
+queued | 2026-05-29T19:11:13 | fix: trust claude -p result JSON even when it exits non-zero
+update_in_progress | 2026-05-29T19:11:04 | fix: trust claude -p result JSON even when it exits non-zero
 live | 2026-05-29T18:49:35 | fix: claude CLI retries + better diagnostics + 256MB heap
 
 A
@@ -79,92 +81,86 @@ A
 deactivated | 2026-05-29T18:10:01 | fix: claude CLI retries + better diagnostics + 256MB heap
 
 A
-deactivated | 2026-05-29T18:09:52 | fix: claude CLI retries + better diagnostics + 256MB heap
-
-A
-deactivated | 2026-05-29T17:57:41 | ci: poll latest deploy until live + probe frontend serving
-
-
 
 === BUILD LOG ===
-INFO:     10.219.24.239:52030 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:52040 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:58286 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:58294 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:51296 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:06:15,429 [fed_watcher.claude_cli] ERROR: claude CLI failed after 3 attempts: claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":7915,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 Invalid authentication credentials","stop_reason":"stop_sequence","session_id":"569dd459-448d-42f3-aa
-INFO:     10.219.24.239:51298 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:49760 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:06:24,640 [fed_watcher.claude_cli] WARNING: claude CLI attempt 1/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3625,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 3.0s
-INFO:     10.219.24.239:49762 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:49770 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:58720 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:06:35,738 [fed_watcher.claude_cli] WARNING: claude CLI attempt 2/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3034,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 6.0s
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:58724 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:35618 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:35632 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:06:49,930 [fed_watcher.claude_cli] ERROR: claude CLI failed after 3 attempts: claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3008,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 Invalid authentication credentials","stop_reason":"stop_sequence","session_id":"f32f0ea4-88e0-49e4-b2
-INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:37600 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:06:58,639 [fed_watcher.claude_cli] WARNING: claude CLI attempt 1/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3350,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 3.0s
-INFO:     10.219.24.239:37610 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:37616 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:47298 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:47314 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:07:10,540 [fed_watcher.claude_cli] WARNING: claude CLI attempt 2/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3297,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 6.0s
-INFO:     10.219.24.239:51070 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:51076 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:46130 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:07:25,741 [fed_watcher.claude_cli] ERROR: claude CLI failed after 3 attempts: claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3541,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 Invalid authentication credentials","stop_reason":"stop_sequence","session_id":"fc21b89f-9ab8-40ab-89
-INFO:     10.219.24.239:46144 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:46160 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:49784 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:07:34,537 [fed_watcher.claude_cli] WARNING: claude CLI attempt 1/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3844,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 3.0s
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:49796 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:34758 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:07:45,631 [fed_watcher.claude_cli] WARNING: claude CLI attempt 2/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":2886,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 6.0s
-INFO:     10.219.24.239:34766 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:39800 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:39814 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:39826 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:08:00,429 [fed_watcher.claude_cli] ERROR: claude CLI failed after 3 attempts: claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3872,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 Invalid authentication credentials","stop_reason":"stop_sequence","session_id":"e04ed860-96ee-483f-ab
-INFO:     10.219.24.239:36810 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:36818 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:08:09,639 [fed_watcher.claude_cli] WARNING: claude CLI attempt 1/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3885,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 3.0s
-INFO:     10.219.24.239:54264 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:54270 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:08:21,040 [fed_watcher.claude_cli] WARNING: claude CLI attempt 2/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3176,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 6.0s
-INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:34754 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:34768 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:34772 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:52894 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:08:35,732 [fed_watcher.claude_cli] ERROR: claude CLI failed after 3 attempts: claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3244,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 Invalid authentication credentials","stop_reason":"stop_sequence","session_id":"5ac75fed-a7ca-495b-b3
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.24.239:52908 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:46960 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:08:44,629 [fed_watcher.claude_cli] WARNING: claude CLI attempt 1/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3417,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 3.0s
-INFO:     10.219.24.239:46972 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:50026 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-2026-05-29 19:08:56,238 [fed_watcher.claude_cli] WARNING: claude CLI attempt 2/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3160,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 6.0s
-INFO:     10.219.24.239:50034 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:50046 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:44966 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:44976 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-2026-05-29 19:09:10,438 [fed_watcher.claude_cli] ERROR: claude CLI failed after 3 attempts: claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3232,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 Invalid authentication credentials","stop_reason":"stop_sequence","session_id":"8f1c74bf-d40b-40ce-99
-INFO:     10.219.24.239:57180 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 19:09:18,443 [fed_watcher.claude_cli] WARNING: claude CLI attempt 1/3 failed (claude CLI exited 1: {"type":"result","subtype":"success","is_error":true,"api_error_status":401,"duration_ms":3108,"duration_api_ms":0,"num_turns":1,"result":"Failed to authenticate. API Error: 401 I); retrying in 3.0s
-INFO:     10.219.24.239:57184 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.24.239:56376 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:54020 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:54032 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:33984 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:33992 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:34006 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:44506 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:44518 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:37602 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:37616 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:55238 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:55254 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:55264 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:42854 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:42862 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:33016 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:33030 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:45142 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:45158 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:45172 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:44896 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:44906 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:34460 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:34468 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:43372 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:43374 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:43376 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:33718 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:33732 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:34944 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:34952 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:39058 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:39074 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:39076 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:38434 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:38450 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:45100 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:45102 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:47484 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:47492 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:47504 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:45926 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:45932 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:55114 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:55128 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:44746 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:44752 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:44762 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:43382 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:43396 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:48092 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:48098 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:49890 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:49904 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:49920 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:36532 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:36544 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:32994 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:32998 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:43992 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/activity?after_id=63 HTTP/1.1" 200 OK
+INFO:     10.219.25.125:44006 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:44008 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:60296 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.125:60302 - "GET /health HTTP/1.1" 200 OK
 
