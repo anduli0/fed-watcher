@@ -1,56 +1,61 @@
-name: Check Render Status
+name: Verify Render Deployment
 
 on:
   workflow_dispatch:
 
 jobs:
-  check:
+  verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Render service status
+      - name: Check health endpoint
+        run: |
+          echo "=== Health Check ==="
+          RESP=$(curl -sf --max-time 30 https://fed-watcher.onrender.com/health || echo "FAILED")
+          echo "Response: $RESP"
+
+      - name: Check API endpoints
+        run: |
+          echo ""
+          echo "=== /api/macro ==="
+          curl -sf --max-time 30 https://fed-watcher.onrender.com/api/macro | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
+
+          echo ""
+          echo "=== /api/briefings (latest) ==="
+          curl -sf --max-time 30 "https://fed-watcher.onrender.com/api/briefings?limit=1" | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
+
+      - name: Check Render deploy status
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
-          echo "=== Services ==="
+          echo ""
+          echo "=== Render Deploy Status ==="
           curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services?limit=10" | python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          for item in data:
-            svc = item.get('service', {})
-            name = svc.get('name', '')
-            status = svc.get('suspended', 'unknown')
-            url = svc.get('serviceDetails', {}).get('url', 'no url')
-            sid = svc.get('id', '')
-            print(f'Name: {name}')
-            print(f'ID: {sid}')
-            print(f'URL: {url}')
-            print(f'Suspended: {status}')
-            print()
-          "
-          
-          echo "=== Health Check ==="
-          SERVICE_ID=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services?limit=10" | python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          for item in data:
-            svc = item.get('service', {})
-            if 'fed-watcher' in svc.get('name','').lower():
-              print(svc['id'])
-              break
-          ")
-          
-          if [ -n "$SERVICE_ID" ]; then
-            echo "Service ID: $SERVICE_ID"
-            DEPLOYS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-              "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=3")
-            echo "Latest deploys:"
-            echo "$DEPLOYS" | python3 -c "
+            "https://api.render.com/v1/services/srv-d8cecvgjs32c738puai0/deploys?limit=3" | python3 -c "
           import sys, json
           data = json.load(sys.stdin)
           for d in data[:3]:
             dep = d.get('deploy', d)
-            print(f'  Status: {dep.get(\"status\")} | Created: {dep.get(\"createdAt\")} | Commit: {dep.get(\"commit\",{}).get(\"message\",\"\")}')
-            "
-          fi
+            print(f'  Status: {dep.get(\"status\")} | {dep.get(\"createdAt\", \"\")[:19]}')
+            print(f'  Commit: {dep.get(\"commit\",{}).get(\"message\",\"\")}')
+            print()
+          " || echo "Could not fetch deploy status"
+
+      - name: Write results to file
+        run: |
+          {
+            echo "HEALTH=$(curl -sf --max-time 20 https://fed-watcher.onrender.com/health 2>/dev/null || echo 'OFFLINE')"
+            echo "MACRO_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://fed-watcher.onrender.com/api/macro)"
+          } > /tmp/verify_results.txt
+          cat /tmp/verify_results.txt
+
+      - uses: actions/checkout@v4
+      - name: Commit verify results
+        run: |
+          HEALTH=$(curl -sf --max-time 20 https://fed-watcher.onrender.com/health 2>/dev/null || echo 'OFFLINE')
+          MACRO=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://fed-watcher.onrender.com/api/macro 2>/dev/null || echo 'ERR')
+          echo "$(date -u): health=$HEALTH macro_status=$MACRO" > render-verify.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add render-verify.txt
+          git commit -m "ci: render verification result [skip ci]" || true
+          git push origin claude/affectionate-bell-InnQ6 || true
