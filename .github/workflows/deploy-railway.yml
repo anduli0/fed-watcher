@@ -159,3 +159,42 @@ jobs:
           git add render-deployment.txt
           git diff --staged --quiet || git commit -m "ci: add verification results [skip ci]"
           git push origin claude/affectionate-bell-InnQ6 || true
+  
+  check-deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check Render deploy status
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          SERVICE_ID="srv-d8cecvgjs32c738puai0"
+          
+          echo "=== Service info ==="
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID" | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          svc = d.get('service', d)
+          print('Name:', svc.get('name'))
+          print('URL:', svc.get('serviceDetails', {}).get('url'))
+          print('Suspended:', svc.get('suspended'))
+          print('Type:', svc.get('type'))
+          "
+          
+          echo ""
+          echo "=== Recent deploys ==="
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=5" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          print('Total deploys:', len(data))
+          for d in data[:5]:
+            dep = d.get('deploy', d)
+            print(f'  status={dep.get(\"status\")} created={dep.get(\"createdAt\",\"\")[:19]}')
+            print(f'  commit={dep.get(\"commit\",{}).get(\"message\",\"N/A\")}')
+          "
+          
+          echo ""
+          echo "=== Health check ==="
+          curl -sv --max-time 30 "https://fed-watcher.onrender.com/health" 2>&1 | tail -20
