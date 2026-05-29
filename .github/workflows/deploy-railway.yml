@@ -269,18 +269,17 @@ jobs:
           echo "Last deploy status: $LAST_STATUS"
 
           DEPLOY_ID=""
-          if [ "$LAST_STATUS" = "live" ]; then
-            echo "=== Service already live -> skipping rebuild, just verifying ==="
-          else
-            echo "=== Triggering fresh deploy (clears cache, picks up new env vars) ==="
-            curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
-              -H "Content-Type: application/json" \
-              "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
-              -d '{"clearCache":"clear"}' > /tmp/newdeploy.json
-            cat /tmp/newdeploy.json
-            DEPLOY_ID=$(python3 -c "import json; d=json.load(open('/tmp/newdeploy.json')); print(d.get('id', d.get('deploy',{}).get('id','')))" 2>/dev/null || echo "")
-            echo "New deploy ID: $DEPLOY_ID"
-          fi
+          echo "=== Triggering fresh deploy with latest commit (always, to pick up new code) ==="
+          curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+            -d '{"clearCache":"clear"}' > /tmp/newdeploy.json
+          echo "--- raw deploy response ---"
+          cat /tmp/newdeploy.json
+          echo ""
+          DEPLOY_ID=$(python3 -c "import json; d=json.load(open('/tmp/newdeploy.json')); print(d.get('id', d.get('deploy',{}).get('id','')))" 2>/dev/null || echo "")
+          echo "New deploy ID: $DEPLOY_ID"
+          DEPLOY_RESP_RAW=$(cat /tmp/newdeploy.json)
 
           echo ""
           echo "=== Polling deploy status (up to 10 min) ==="
@@ -416,8 +415,14 @@ jobs:
             f"health={health}",
             f"probes={probes}",
             "",
-            "=== EVENTS ===",
+            "=== DEPLOY TRIGGER RESPONSE ===",
           ]
+          try:
+            lines.append(open('/tmp/newdeploy.json').read().strip()[:500])
+          except Exception:
+            lines.append("(none)")
+          lines.append("")
+          lines.append("=== EVENTS ===")
           try:
             events = json.load(open('/tmp/events.json'))
             for e in events:
