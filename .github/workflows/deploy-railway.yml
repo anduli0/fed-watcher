@@ -112,3 +112,16 @@ jobs:
           print(svc.get('serviceDetails', {}).get('url', '(deploying...)'))
           " 2>/dev/null || echo "(deploying...)")
           echo "Render service URL: $URL"
+
+          echo "=== Saving service info to repo variable ==="
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/anduli0/fed-watcher/actions/variables" \
+            -d "{\"name\":\"RENDER_SERVICE_ID\",\"value\":\"$SERVICE_ID\"}" || true
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/anduli0/fed-watcher/actions/variables" \
+            -d "{\"name\":\"RENDER_URL\",\"value\":\"$URL\"}" || true
+          echo "Saved SERVICE_ID=$SERVICE_ID and URL=$URL"
