@@ -1,140 +1,119 @@
-timestamp=2026-05-29T08:03:04.908363
+timestamp=2026-05-29T08:13:03.486761
 name=fed-watcher-backend
 url=https://fed-watcher-backend-9rgk.onrender.com
 suspended=not_suspended
 new_deploy_id=
 final_deploy_status=unknown
-health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T07:53:02.733180","agent_count":21}
+health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T07:58:55.503232","agent_count":21}
 probes=forecast=200 briefings=200 agents=200
 
 === EVENTS ===
+2026-05-29T08:09:32 server_available: {}
+2026-05-29T08:09:10 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-sskw6", "reason": {"evicted": false, "unhealthy": "Get \"http://10.27.251.20:10000/health\": dial tcp 10.27.251.20:10000: connect: connection refused"}}
+2026-05-29T08:08:36 deploy_ended: {"deployId": "dep-d8cki2dgepls73d8u400", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T08:07:56 build_ended: {"buildId": "bld-d8cki2geakhs73clvgd0", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T08:06:48 deploy_started: {"deployId": "dep-d8cki2dgepls73d8u400", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T08:06:48 build_started: {"buildId": "bld-d8cki2geakhs73clvgd0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T08:06:48 deploy_ended: {"deployId": "dep-d8ckhfv7f7vs73eqggd0", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T08:05:57 build_ended: {"buildId": "bld-d8ckhfv7f7vs73eqggdg", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T08:05:19 deploy_started: {"deployId": "dep-d8ckhfv7f7vs73eqggd0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "885e389336787d56e333f10bc52f18ceb6784337", "rollback": false}}
+2026-05-29T08:05:19 build_started: {"buildId": "bld-d8ckhfv7f7vs73eqggdg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "885e389336787d56e333f10bc52f18ceb6784337", "rollback": false}}
 2026-05-29T07:59:04 server_available: {}
 2026-05-29T07:58:26 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-svgmn", "reason": {"evicted": false, "oomKilled": {"memoryLimit": "512Mi"}}}
 2026-05-29T07:53:04 server_available: {}
 2026-05-29T07:52:54 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-svgmn", "reason": {"evicted": false, "oomKilled": {"memoryLimit": "512Mi"}}}
 2026-05-29T07:38:44 server_available: {}
-2026-05-29T07:38:21 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-svgmn", "reason": {"evicted": false, "oomKilled": {"memoryLimit": "512Mi"}}}
-2026-05-29T07:30:24 server_available: {}
-2026-05-29T07:30:11 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-svgmn", "reason": {"evicted": false, "oomKilled": {"memoryLimit": "512Mi"}}}
-2026-05-29T07:29:24 server_available: {}
-2026-05-29T07:28:15 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-svgmn", "reason": {"evicted": false, "unhealthy": "Get \"http://10.25.67.88:10000/health\": dial tcp 10.25.67.88:10000: connect: connection refused"}}
-2026-05-29T07:27:25 deploy_ended: {"deployId": "dep-d8cjv6cvikkc73bqpa00", "deployStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T07:26:59 build_ended: {"buildId": "bld-d8cjv6cvikkc73bqpa0g", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T07:26:18 deploy_started: {"deployId": "dep-d8cjv6cvikkc73bqpa00", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "47da4098f28ad862c75dcec7b42b09fe5e01cd5b", "rollback": false}}
-2026-05-29T07:26:18 build_started: {"buildId": "bld-d8cjv6cvikkc73bqpa0g", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "47da4098f28ad862c75dcec7b42b09fe5e01cd5b", "rollback": false}}
-2026-05-29T07:18:28 deploy_ended: {"deployId": "dep-d8cjq9q8qa3s73bjptl0", "deployStatus": "succeeded", "reason": {}, "status": 2}
 
 === LIVE AI CYCLE ===
-agent_events=20
-agent output sample:
-NLP: NLP analyzing… [info]
-  History: History analyzing… [info]
-  Academic: Academic analyzing… [info]
-  Projections: Projections analyzing… [info]
-  FOMC_Minutes: FOMC_Minutes analyzing… [info]
-  Macro_Data: Macro_Data analyzing… [info]
-  Political_Economy: Political_Economy analyzing… [info]
-  Consensus: Consensus analyzing… [info]
-  Boston_Fed: Boston_Fed analyzing… [info]
-  NewYork_Fed: NewYork_Fed analyzing… [info]
-  Philadelphia_Fed: Philadelphia_Fed analyzing… [info]
-  Cleveland_Fed: Cleveland_Fed analyzing… [info]
-  Richmond_Fed: Richmond_Fed analyzing… [info]
-  Atlanta_Fed: Atlanta_Fed analyzing… [info]
-  Chicago_Fed: Chicago_Fed analyzing… [info]
-  StLouis_Fed: StLouis_Fed analyzing… [info]
-  Minneapolis_Fed: Minneapolis_Fed analyzing… [info]
-  KansasCity_Fed: KansasCity_Fed analyzing… [info]
-  Dallas_Fed: Dallas_Fed analyzing… [info]
-  SanFrancisco_Fed: SanFrancisco_Fed analyzing… [info]
+agent_events=0
 forecast={"status": "no_forecast", "message": "First forecast publishes at 08:00 KST"}
 
 === DEPLOYS ===
+update_in_progress | 2026-05-29T08:05:19 | fix: prevent OOM on 512MB host — serialize claude CLI calls 
 live | 2026-05-29T07:26:17 | fix: point frontend Vercel proxy to live Render backend; ski
 deactivated | 2026-05-29T07:15:51 | fix: Docker build parse error — replace inline sgmllib hered
 deactivated | 2026-05-29T07:13:20 | fix: Docker build parse error — replace inline sgmllib hered
 build_failed | 2026-05-29T07:10:08 | ci: render deploy status [skip ci]
-build_failed | 2026-05-29T07:07:12 | ci: render deploy status [skip ci]
 
 === BUILD LOG ===
+2026-05-29 08:09:16,049 [apscheduler.scheduler] INFO: Added job "publish_morning_forecast" to job store "default"
+2026-05-29 08:09:16,049 [apscheduler.scheduler] INFO: Added job "_run_daily_briefing" to job store "default"
+2026-05-29 08:09:16,049 [apscheduler.scheduler] INFO: Scheduler started
+2026-05-29 08:09:16,049 [fed_watcher.scheduler] INFO: Scheduler started. Data collect every 30 min · Cycles: 12,16,20,0 · Publish 08:00 KST · Daily Briefing 07:30 KST
+2026-05-29 08:09:16,049 [fed_watcher] INFO: Fed-Watcher started. Model: claude-sonnet-4-6
+2026-05-29 08:09:17,551 [fed_watcher.collector] INFO: [Collector] Starting web data sweep…
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:10000 (Press CTRL+C to quit)
-2026-05-29 07:58:55,712 [fed_watcher.collector] INFO: [Collector] Sweep done in 0.2s. Failures: none
+2026-05-29 08:09:17,899 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/beige-book-default.htm "HTTP/1.1 302 Found"
+2026-05-29 08:09:17,920 [httpx] INFO: HTTP Request: GET http://www.federalreserve.gov/monetarypolicy/publications/beige-book-default.htm "HTTP/1.1 301 Moved Permanently"
+2026-05-29 08:09:17,998 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm "HTTP/1.1 200 OK"
+2026-05-29 08:09:18,549 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/publications/beige-book-default.htm "HTTP/1.1 200 OK"
+2026-05-29 08:09:18,958 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260128.pdf "HTTP/1.1 200 OK"
+2026-05-29 08:09:18,965 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/BeigeBook_20260114.pdf "HTTP/1.1 200 OK"
 [WARN] OWNER_MAC not set. Run setup.py to lock this server to your hardware.
 [WARN] Admin panel will be inaccessible until OWNER_MAC is configured.
-INFO:     10.219.27.180:59538 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:59542 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46556 - "HEAD / HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:46558 - "HEAD / HTTP/1.1" 401 Unauthorized
+INFO:     10.219.25.254:56688 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:55630 - "GET /health HTTP/1.1" 200 OK
+2026-05-29 08:10:02,558 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260318.pdf "HTTP/1.1 200 OK"
+INFO:     10.219.25.254:57870 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:57156 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.17.2:0 - "GET /api/activity?after_id=36 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:59544 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:56232 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:35080 - "GET /health HTTP/1.1" 200 OK
+2026-05-29 08:10:15,497 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260429.pdf "HTTP/1.1 200 OK"
 INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:56236 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:50730 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:50736 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:41914 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:41918 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:41934 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:42222 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:42236 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:59684 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:59700 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:60190 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:60200 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:42934 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:42944 - "GET /health HTTP/1.1" 200 OK
+2026-05-29 08:10:29,752 [fed_watcher.collector] INFO: [Collector] Sweep done in 72.2s. Failures: none
+INFO:     10.219.25.254:35218 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:35234 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:42908 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.25.254:42918 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:59678 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:59686 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:59696 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.25.254:56976 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.17.2:0 - "GET /api/activity?after_id=36 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:60204 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:37582 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:56986 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:47832 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:37584 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:53148 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:53154 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:37920 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:37928 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:37940 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:49324 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:47848 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:42794 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:42808 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:42822 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:49340 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:34626 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:34640 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:56576 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:56592 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:33410 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:48042 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:48052 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:33422 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:37780 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:37794 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:37810 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.25.254:40264 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.17.2:0 - "GET /api/activity?after_id=36 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:48062 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:48642 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:40278 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:48262 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:48644 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:50112 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:50114 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:48272 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:51878 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:51892 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:51902 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:42816 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:42820 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:42828 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:40210 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:32856 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:32868 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:43108 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.25.254:43120 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:53206 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:53220 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.25.254:53226 - "GET /health HTTP/1.1" 200 OK
 INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:40222 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:48616 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:48620 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:45162 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:45164 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=36 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:45176 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:34692 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.30.75.4:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:34706 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:56378 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:56380 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:54796 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:54804 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:54810 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:51586 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.27.180:51596 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:57426 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.27.180:57440 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/forecast HTTP/1.1" 200 OK
+INFO:     10.219.25.254:50166 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/agents/status HTTP/1.1" 200 OK
 
