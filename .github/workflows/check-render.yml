@@ -1,0 +1,56 @@
+name: Check Render Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Render service status
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          echo "=== Services ==="
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services?limit=10" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for item in data:
+            svc = item.get('service', {})
+            name = svc.get('name', '')
+            status = svc.get('suspended', 'unknown')
+            url = svc.get('serviceDetails', {}).get('url', 'no url')
+            sid = svc.get('id', '')
+            print(f'Name: {name}')
+            print(f'ID: {sid}')
+            print(f'URL: {url}')
+            print(f'Suspended: {status}')
+            print()
+          "
+          
+          echo "=== Health Check ==="
+          SERVICE_ID=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services?limit=10" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for item in data:
+            svc = item.get('service', {})
+            if 'fed-watcher' in svc.get('name','').lower():
+              print(svc['id'])
+              break
+          ")
+          
+          if [ -n "$SERVICE_ID" ]; then
+            echo "Service ID: $SERVICE_ID"
+            DEPLOYS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=3")
+            echo "Latest deploys:"
+            echo "$DEPLOYS" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for d in data[:3]:
+            dep = d.get('deploy', d)
+            print(f'  Status: {dep.get(\"status\")} | Created: {dep.get(\"createdAt\")} | Commit: {dep.get(\"commit\",{}).get(\"message\",\"\")}')
+            "
+          fi
