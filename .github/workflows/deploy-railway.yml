@@ -37,7 +37,6 @@ jobs:
           echo "=== Checking existing services ==="
           SERVICES=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
             "https://api.render.com/v1/services?limit=20")
-          echo "Services: $SERVICES"
 
           SERVICE_ID=$(echo "$SERVICES" | python3 -c "
           import sys, json
@@ -49,9 +48,43 @@ jobs:
               break
           " 2>/dev/null || true)
 
+          # If a service exists, check whether its last deploy went live.
+          # The original service was created as a Python buildpack (master had no
+          # Dockerfile at creation) and is permanently broken (exit 127). A buildpack
+          # service can't be converted to Docker via API, so delete and recreate.
+          NEEDS_RECREATE="no"
+          if [ -n "$SERVICE_ID" ]; then
+            LAST_STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=1" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print((d[0].get('deploy',d[0])).get('status','')) if d else print('')" 2>/dev/null || echo "")
+            RUNTIME=$(echo "$SERVICES" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for item in data:
+            svc = item.get('service', {})
+            if 'fed-watcher' in svc.get('name','').lower():
+              sd = svc.get('serviceDetails', {})
+              print(sd.get('env') or sd.get('runtime') or '?')
+              break
+          " 2>/dev/null || echo "?")
+            echo "Existing service $SERVICE_ID: last_deploy=$LAST_STATUS runtime=$RUNTIME"
+            case "$LAST_STATUS" in
+              build_failed|update_failed|canceled|pre_deploy_failed|deactivated)
+                echo "Last deploy failed ($LAST_STATUS) -> deleting to recreate cleanly as Docker"
+                curl -s -X DELETE -H "Authorization: Bearer $RENDER_API_KEY" \
+                  "https://api.render.com/v1/services/$SERVICE_ID" -o /dev/null -w "delete HTTP %{http_code}\n"
+                SERVICE_ID=""
+                sleep 5
+                ;;
+              *)
+                echo "Last deploy status '$LAST_STATUS' is live or in-progress -> keeping service"
+                ;;
+            esac
+          fi
+
           if [ -z "$SERVICE_ID" ]; then
-            echo "=== Creating new Render service ==="
-            CREATE_RESP=$(curl -sf -X POST "https://api.render.com/v1/services" \
+            echo "=== Creating new Render service (Docker, master branch) ==="
+            CREATE_RESP=$(curl -s -X POST "https://api.render.com/v1/services" \
               -H "Authorization: Bearer $RENDER_API_KEY" \
               -H "Content-Type: application/json" \
               -d "{
@@ -59,47 +92,32 @@ jobs:
                 \"name\": \"fed-watcher-backend\",
                 \"ownerId\": \"$OWNER_ID\",
                 \"repo\": \"https://github.com/anduli0/fed-watcher\",
+                \"branch\": \"master\",
                 \"autoDeploy\": \"yes\",
                 \"serviceDetails\": {
                   \"env\": \"docker\",
                   \"plan\": \"free\",
                   \"region\": \"oregon\",
-                  \"branch\": \"claude/affectionate-bell-InnQ6\",
-                  \"dockerfilePath\": \"./Dockerfile\",
                   \"healthCheckPath\": \"/health\",
-                  \"startCommand\": \"/app/docker-entrypoint.sh\"
+                  \"dockerfilePath\": \"./Dockerfile\",
+                  \"envSpecificDetails\": {
+                    \"dockerfilePath\": \"./Dockerfile\",
+                    \"dockerContext\": \".\"
+                  }
                 }
               }")
             echo "Create response: $CREATE_RESP"
             SERVICE_ID=$(echo "$CREATE_RESP" | python3 -c "
           import sys, json
           data = json.load(sys.stdin)
-          # response might be wrapped under 'service' key
           if 'service' in data:
             data = data['service']
-          print(data['id'])
-          ")
+          print(data.get('id',''))
+          " 2>/dev/null || echo "")
           fi
 
           echo "Service ID: $SERVICE_ID"
-
-          echo "=== Patching service: branch + Docker runtime + clear start command ==="
-          # Render was deploying 'master' (no Dockerfile -> buildpack -> wrong start cmd -> exit 127).
-          # Force the deploy branch to the one that has the Dockerfile, and clear the
-          # start-command override so the Dockerfile CMD runs.
-          curl -s -X PATCH \
-            "https://api.render.com/v1/services/$SERVICE_ID" \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "branch": "claude/affectionate-bell-InnQ6",
-              "serviceDetails": {
-                "envSpecificDetails": {
-                  "dockerfilePath": "./Dockerfile",
-                  "dockerCommand": ""
-                }
-              }
-            }' | python3 -c "import sys,json; d=json.load(sys.stdin); s=d.get('service',d); print('  branch=', s.get('branch'), 'runtime=', s.get('serviceDetails',{}).get('env') or s.get('serviceDetails',{}).get('runtime'))" 2>/dev/null || echo "  (patch response not JSON)"
+          if [ -z "$SERVICE_ID" ]; then echo "ERROR: no service id"; exit 1; fi
 
           echo "=== Setting environment variables ==="
           ENV_VARS=$(python3 -c "
@@ -193,7 +211,10 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set +e
-          SERVICE_ID="srv-d8cecvgjs32c738puai0"
+          # Read the (possibly freshly recreated) service id written by the deploy job
+          git pull --rebase origin claude/affectionate-bell-InnQ6 || true
+          SERVICE_ID=$(grep '^SERVICE_ID=' render-deployment.txt | cut -d= -f2)
+          echo "Service ID from deploy job: $SERVICE_ID"
 
           echo "=== Current service info ==="
           curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
