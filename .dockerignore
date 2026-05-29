@@ -4,6 +4,7 @@
 *.db-wal
 frontend/node_modules
 frontend/.next
+frontend/out
 __pycache__
 **/__pycache__
 *.pyc

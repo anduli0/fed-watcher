@@ -278,3 +278,21 @@ async def internal_shutdown(request: Request):
         raise HTTPException(403, "Admin access required")
     asyncio.create_task(graceful_shutdown())
     return {"status": "shutting_down"}
+
+
+# --- Serve the statically-exported Next.js frontend (unified single-service deploy) ---
+# The Docker image copies the `next export` output to /app/frontend/out. Mounted LAST,
+# so every API router/route registered above takes precedence; all other paths (HTML
+# pages and /_next/* assets) are served as static files. SecurityMiddleware treats these
+# non-/api, non-/auth paths as a public shell (client-side handles login redirects).
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+_FRONTEND_DIR = os.getenv(
+    "FRONTEND_DIST",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "out"),
+)
+if os.path.isdir(_FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=_FRONTEND_DIR, html=True), name="frontend")
+    logger.info(f"Serving static frontend from {_FRONTEND_DIR}")
+else:
+    logger.warning(f"Frontend dist not found at {_FRONTEND_DIR}; UI will not be served")

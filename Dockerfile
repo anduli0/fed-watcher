@@ -1,3 +1,13 @@
+# --- Stage 1: build the Next.js frontend as a static export ---
+FROM node:22-slim AS frontend-build
+WORKDIR /fe
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+ENV NEXT_OUTPUT_EXPORT=true
+RUN npm run build
+
+# --- Stage 2: Python backend (also serves the exported frontend) ---
 FROM python:3.11-slim
 
 # System deps
@@ -23,6 +33,9 @@ RUN python3 -c "import sgmllib" 2>/dev/null \
 
 # App code
 COPY . .
+
+# Statically-exported frontend from stage 1 (served by FastAPI at /app/frontend/out)
+COPY --from=frontend-build /fe/out /app/frontend/out
 
 # Ensure entrypoint is executable and uses LF line endings (defensive against Windows checkouts)
 RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
