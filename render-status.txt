@@ -1,119 +1,143 @@
-timestamp=2026-05-29T08:13:03.486761
+timestamp=2026-05-29T17:35:35.427221
 name=fed-watcher-backend
 url=https://fed-watcher-backend-9rgk.onrender.com
 suspended=not_suspended
 new_deploy_id=
 final_deploy_status=unknown
-health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T07:58:55.503232","agent_count":21}
+health={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":"2026-05-29T17:24:19.699002","agent_count":21}
 probes=forecast=200 briefings=200 agents=200
 
+=== DEPLOY TRIGGER RESPONSE ===
+
+
 === EVENTS ===
-2026-05-29T08:09:32 server_available: {}
-2026-05-29T08:09:10 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-sskw6", "reason": {"evicted": false, "unhealthy": "Get \"http://10.27.251.20:10000/health\": dial tcp 10.27.251.20:10000: connect: connection refused"}}
-2026-05-29T08:08:36 deploy_ended: {"deployId": "dep-d8cki2dgepls73d8u400", "deployStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T08:07:56 build_ended: {"buildId": "bld-d8cki2geakhs73clvgd0", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T08:06:48 deploy_started: {"deployId": "dep-d8cki2dgepls73d8u400", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T08:06:48 build_started: {"buildId": "bld-d8cki2geakhs73clvgd0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
-2026-05-29T08:06:48 deploy_ended: {"deployId": "dep-d8ckhfv7f7vs73eqggd0", "deployStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T08:05:57 build_ended: {"buildId": "bld-d8ckhfv7f7vs73eqggdg", "buildStatus": "succeeded", "reason": {}, "status": 2}
-2026-05-29T08:05:19 deploy_started: {"deployId": "dep-d8ckhfv7f7vs73eqggd0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "885e389336787d56e333f10bc52f18ceb6784337", "rollback": false}}
-2026-05-29T08:05:19 build_started: {"buildId": "bld-d8ckhfv7f7vs73eqggdg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "newCommit": "885e389336787d56e333f10bc52f18ceb6784337", "rollback": false}}
-2026-05-29T07:59:04 server_available: {}
-2026-05-29T07:58:26 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-svgmn", "reason": {"evicted": false, "oomKilled": {"memoryLimit": "512Mi"}}}
-2026-05-29T07:53:04 server_available: {}
-2026-05-29T07:52:54 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-svgmn", "reason": {"evicted": false, "oomKilled": {"memoryLimit": "512Mi"}}}
-2026-05-29T07:38:44 server_available: {}
+2026-05-29T17:35:04 server_available: {}
+2026-05-29T17:34:37 server_failed: {"instanceID": "srv-d8cjm7pnrd2s73dmg1q0-9xdwt", "reason": {"evicted": false, "unhealthy": "Get \"http://10.29.206.62:10000/health\": dial tcp 10.29.206.62:10000: connect: connection refused"}}
+2026-05-29T17:33:34 deploy_ended: {"deployId": "dep-d8csprva4fgs73fp6r80", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:32:48 build_ended: {"buildId": "bld-d8csprv19i4c738699n0", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:30:51 deploy_started: {"deployId": "dep-d8csprva4fgs73fp6r80", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:30:51 build_started: {"buildId": "bld-d8csprv19i4c738699n0", "trigger": {"clearCache": true, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:30:50 deploy_ended: {"deployId": "dep-d8cspr0g4nts73dachug", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:29:24 build_ended: {"buildId": "bld-d8cspr0g4nts73dachv0", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:29:17 deploy_started: {"deployId": "dep-d8cspr0g4nts73dachug", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:29:17 build_started: {"buildId": "bld-d8cspr0g4nts73dachv0", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:25:27 deploy_ended: {"deployId": "dep-d8csm9v19i4c7386769g", "deployStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:23:57 build_ended: {"buildId": "bld-d8csma783ths73bva6sg", "buildStatus": "succeeded", "reason": {}, "status": 2}
+2026-05-29T17:23:48 deploy_started: {"deployId": "dep-d8csm9v19i4c7386769g", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:23:48 build_started: {"buildId": "bld-d8csma783ths73bva6sg", "trigger": {"clearCache": false, "deployedByRender": false, "envUpdated": false, "firstBuild": false, "manual": false, "rollback": false, "user": {"email": "minkyu494@gmail.com", "id": "usr-d8c0vg9o3t8c73at7ftg"}}}
+2026-05-29T17:23:48 deploy_ended: {"deployId": "dep-d8csm90jo6nc739fq2m0", "deployStatus": "succeeded", "reason": {}, "status": 2}
 
 === LIVE AI CYCLE ===
-agent_events=0
+agent_events=20
+agent output sample:
+NLP: NLP analyzing… [info]
+  History: History analyzing… [info]
+  Academic: Academic analyzing… [info]
+  Projections: Projections analyzing… [info]
+  FOMC_Minutes: FOMC_Minutes analyzing… [info]
+  Macro_Data: Macro_Data analyzing… [info]
+  Political_Economy: Political_Economy analyzing… [info]
+  Consensus: Consensus analyzing… [info]
+  Boston_Fed: Boston_Fed analyzing… [info]
+  NewYork_Fed: NewYork_Fed analyzing… [info]
+  Philadelphia_Fed: Philadelphia_Fed analyzing… [info]
+  Cleveland_Fed: Cleveland_Fed analyzing… [info]
+  Richmond_Fed: Richmond_Fed analyzing… [info]
+  Atlanta_Fed: Atlanta_Fed analyzing… [info]
+  Chicago_Fed: Chicago_Fed analyzing… [info]
+  StLouis_Fed: StLouis_Fed analyzing… [info]
+  Minneapolis_Fed: Minneapolis_Fed analyzing… [info]
+  KansasCity_Fed: KansasCity_Fed analyzing… [info]
+  Dallas_Fed: Dallas_Fed analyzing… [info]
+  SanFrancisco_Fed: SanFrancisco_Fed analyzing… [info]
 forecast={"status": "no_forecast", "message": "First forecast publishes at 08:00 KST"}
 
 === DEPLOYS ===
-update_in_progress | 2026-05-29T08:05:19 | fix: prevent OOM on 512MB host — serialize claude CLI calls 
-live | 2026-05-29T07:26:17 | fix: point frontend Vercel proxy to live Render backend; ski
-deactivated | 2026-05-29T07:15:51 | fix: Docker build parse error — replace inline sgmllib hered
-deactivated | 2026-05-29T07:13:20 | fix: Docker build parse error — replace inline sgmllib hered
-build_failed | 2026-05-29T07:10:08 | ci: render deploy status [skip ci]
+queued | 2026-05-29T17:29:19 | ci: force fresh Render deploy in check-deploy + log raw depl
+update_in_progress | 2026-05-29T17:29:16 | fix: reduce Node heap cap to 192MB and add explicit Render d
+live | 2026-05-29T17:21:44 | fix: reduce Node heap cap to 192MB and add explicit Render d
+deactivated | 2026-05-29T17:21:41 | fix: reduce Node heap cap to 192MB and add explicit Render d
+deactivated | 2026-05-29T08:06:34 | fix: prevent OOM on 512MB host — serialize claude CLI calls 
 
 === BUILD LOG ===
-2026-05-29 08:09:16,049 [apscheduler.scheduler] INFO: Added job "publish_morning_forecast" to job store "default"
-2026-05-29 08:09:16,049 [apscheduler.scheduler] INFO: Added job "_run_daily_briefing" to job store "default"
-2026-05-29 08:09:16,049 [apscheduler.scheduler] INFO: Scheduler started
-2026-05-29 08:09:16,049 [fed_watcher.scheduler] INFO: Scheduler started. Data collect every 30 min · Cycles: 12,16,20,0 · Publish 08:00 KST · Daily Briefing 07:30 KST
-2026-05-29 08:09:16,049 [fed_watcher] INFO: Fed-Watcher started. Model: claude-sonnet-4-6
-2026-05-29 08:09:17,551 [fed_watcher.collector] INFO: [Collector] Starting web data sweep…
+2026-05-29 17:33:15,857 [httpx] INFO: HTTP Request: GET https://www.dallasfed.org/news/speeches "HTTP/1.1 200 OK"
+2026-05-29 17:33:16,165 [httpx] INFO: HTTP Request: GET https://www.stlouisfed.org/about-us/speeches-presentations "HTTP/1.1 302 Moved Temporarily"
+2026-05-29 17:33:16,251 [httpx] INFO: HTTP Request: GET https://www.chicagofed.org/publications/speeches "HTTP/1.1 404 Not Found"
+2026-05-29 17:33:16,253 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/publications/beige-book-default.htm "HTTP/1.1 200 OK"
+2026-05-29 17:33:16,254 [httpx] INFO: HTTP Request: GET https://www.atlantafed.org/news/speeches "HTTP/1.1 301 Moved Permanently"
+2026-05-29 17:33:16,255 [httpx] INFO: HTTP Request: GET https://www.frbsf.org/our-district/press/presidents-speeches "HTTP/1.1 301 Moved Permanently"
+2026-05-29 17:33:16,256 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=GS2 "HTTP/1.1 200 OK"
+2026-05-29 17:33:16,257 [httpx] INFO: HTTP Request: GET https://www.richmondfed.org/press_room/speeches "HTTP/1.1 200 OK"
+2026-05-29 17:33:16,860 [httpx] INFO: HTTP Request: GET https://www.bostonfed.org/news-and-events/speeches.aspx "HTTP/1.1 200 OK"
+2026-05-29 17:33:17,967 [httpx] INFO: HTTP Request: GET https://www.minneapolisfed.org/news-and-events/speeches "HTTP/1.1 404 Not Found"
+2026-05-29 17:33:17,968 [httpx] INFO: HTTP Request: GET https://www.philadelphiafed.org/our-people/speeches "HTTP/1.1 200 OK"
+2026-05-29 17:33:17,969 [httpx] INFO: HTTP Request: GET https://www.kansascityfed.org/research/speeches-and-essays "HTTP/1.1 301 Moved Permanently"
+2026-05-29 17:33:18,053 [httpx] INFO: HTTP Request: GET https://www.clevelandfed.org/collections/speeches "HTTP/1.1 200 OK"
+INFO:     10.219.27.82:48118 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.27.82:52060 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.27.82:52072 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.27.82:52082 - "GET /health HTTP/1.1" 200 OK
+2026-05-29 17:33:32,964 [httpx] INFO: HTTP Request: GET https://www.atlantafed.org/news-and-events/speeches "HTTP/1.1 200 OK"
+2026-05-29 17:33:33,051 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=GS10 "HTTP/1.1 200 OK"
+2026-05-29 17:33:33,052 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/BeigeBook_20260114.pdf "HTTP/1.1 200 OK"
+2026-05-29 17:33:33,054 [httpx] INFO: HTTP Request: GET https://www.frbsf.org/news-and-media/speeches/ "HTTP/1.1 200 OK"
+INFO:     10.219.27.121:33894 - "GET /health HTTP/1.1" 200 OK
+2026-05-29 17:33:33,654 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=T10Y2Y "HTTP/1.1 200 OK"
+INFO:     10.219.27.121:33898 - "GET /health HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-05-29 17:33:34,024 [apscheduler.scheduler] INFO: Scheduler has been shut down
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1]
+[0;32m[1m==> [0m[1mYour service is live 🎉[0m
+[0;32m[1m==> [0m[1m[0m
+[0;32m[1m==> [0m[1m///////////////////////////////////////////////////////////[0m
+[0;32m[1m==> [0m[1m[0m
+[0;32m[1m==> [0m[1mAvailable at your primary URL https://fed-watcher-backend-9rgk.onrender.com[0m
+[0;32m[1m==> [0m[1m[0m
+[0;32m[1m==> [0m[1m///////////////////////////////////////////////////////////[0m
+2026-05-29 17:34:05,552 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=SOFR "HTTP/1.1 200 OK"
+2026-05-29 17:34:05,553 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260318.pdf "HTTP/1.1 200 OK"
+INFO:     10.30.75.4:0 - "GET / HTTP/1.1" 401 Unauthorized
+INFO:     10.219.27.121:55762 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.27.121:36112 - "GET /health HTTP/1.1" 200 OK
+2026-05-29 17:34:05,726 [httpx] INFO: HTTP Request: GET https://api.stlouisfed.org/fred/series/observations?api_key=de3a16a3873f498d0e73acb789b5f909&file_type=json&limit=1&sort_order=desc&series_id=T5YIE "HTTP/1.1 200 OK"
+INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
+INFO:     10.219.27.121:50578 - "GET /health HTTP/1.1" 200 OK
+2026-05-29 17:34:20,396 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260429.pdf "HTTP/1.1 200 OK"
+[entrypoint] Claude credentials restored from env var
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+2026-05-29 17:34:45,080 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-29 17:34:45,081 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-29 17:34:45,081 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-29 17:34:45,081 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-29 17:34:45,081 [apscheduler.scheduler] INFO: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-29 17:34:45,082 [apscheduler.scheduler] INFO: Added job "run_data_collection" to job store "default"
+2026-05-29 17:34:45,082 [apscheduler.scheduler] INFO: Added job "trigger_cycle" to job store "default"
+2026-05-29 17:34:45,161 [apscheduler.scheduler] INFO: Added job "trigger_cycle" to job store "default"
+2026-05-29 17:34:45,162 [apscheduler.scheduler] INFO: Added job "publish_morning_forecast" to job store "default"
+2026-05-29 17:34:45,162 [apscheduler.scheduler] INFO: Added job "_run_daily_briefing" to job store "default"
+2026-05-29 17:34:45,162 [apscheduler.scheduler] INFO: Scheduler started
+2026-05-29 17:34:45,162 [fed_watcher.scheduler] INFO: Scheduler started. Data collect every 30 min · Cycles: 12,16,20,0 · Publish 08:00 KST · Daily Briefing 07:30 KST
+2026-05-29 17:34:45,162 [fed_watcher] INFO: Fed-Watcher started. Model: claude-sonnet-4-6
+2026-05-29 17:34:47,071 [fed_watcher.collector] INFO: [Collector] Starting web data sweep…
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:10000 (Press CTRL+C to quit)
-2026-05-29 08:09:17,899 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/beige-book-default.htm "HTTP/1.1 302 Found"
-2026-05-29 08:09:17,920 [httpx] INFO: HTTP Request: GET http://www.federalreserve.gov/monetarypolicy/publications/beige-book-default.htm "HTTP/1.1 301 Moved Permanently"
-2026-05-29 08:09:17,998 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm "HTTP/1.1 200 OK"
-2026-05-29 08:09:18,549 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/publications/beige-book-default.htm "HTTP/1.1 200 OK"
-2026-05-29 08:09:18,958 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260128.pdf "HTTP/1.1 200 OK"
-2026-05-29 08:09:18,965 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/BeigeBook_20260114.pdf "HTTP/1.1 200 OK"
 [WARN] OWNER_MAC not set. Run setup.py to lock this server to your hardware.
 [WARN] Admin panel will be inaccessible until OWNER_MAC is configured.
-INFO:     127.0.0.1:46556 - "HEAD / HTTP/1.1" 401 Unauthorized
-INFO:     127.0.0.1:46558 - "HEAD / HTTP/1.1" 401 Unauthorized
-INFO:     10.219.25.254:56688 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:55630 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 08:10:02,558 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260318.pdf "HTTP/1.1 200 OK"
-INFO:     10.219.25.254:57870 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:57156 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=36 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:35080 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 08:10:15,497 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260429.pdf "HTTP/1.1 200 OK"
+INFO:     127.0.0.1:55142 - "HEAD / HTTP/1.1" 401 Unauthorized
+2026-05-29 17:34:48,001 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm "HTTP/1.1 200 OK"
+2026-05-29 17:34:48,792 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260128.pdf "HTTP/1.1 200 OK"
+INFO:     10.219.27.121:50708 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.219.27.121:50714 - "GET /health HTTP/1.1" 200 OK
+2026-05-29 17:35:04,483 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260318.pdf "HTTP/1.1 200 OK"
 INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:42934 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:42944 - "GET /health HTTP/1.1" 200 OK
-2026-05-29 08:10:29,752 [fed_watcher.collector] INFO: [Collector] Sweep done in 72.2s. Failures: none
-INFO:     10.219.25.254:35218 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:35234 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:42908 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:42918 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:59678 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:59686 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:59696 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:56976 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=36 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:56986 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:47832 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:47848 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:42794 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:42808 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:42822 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:56576 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:56592 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:33410 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:33422 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:37780 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:37794 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:37810 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:40264 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=36 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:40278 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:48262 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:48272 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:51878 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:51892 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:51902 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:32856 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:32868 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:43108 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.219.25.254:43120 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:53206 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:53220 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.219.25.254:53226 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.17.2:0 - "GET /api/activity?after_id=14 HTTP/1.1" 200 OK
-INFO:     10.30.75.4:0 - "GET /api/forecast HTTP/1.1" 200 OK
-INFO:     10.219.25.254:50166 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.26.144.1:0 - "GET /api/agents/status HTTP/1.1" 200 OK
+INFO:     10.219.27.121:35678 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/agents/status HTTP/1.1" 200 OK
+INFO:     10.26.17.2:0 - "GET /api/forecast/report?lang=ko HTTP/1.1" 200 OK
+INFO:     10.30.75.4:0 - "GET /api/forecast/history HTTP/1.1" 200 OK
+INFO:     10.26.144.1:0 - "GET /api/forecast/horizons HTTP/1.1" 200 OK
+2026-05-29 17:35:18,425 [httpx] INFO: HTTP Request: GET https://www.federalreserve.gov/monetarypolicy/files/fomcminutes20260429.pdf "HTTP/1.1 200 OK"
 
