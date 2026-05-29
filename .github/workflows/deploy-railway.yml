@@ -163,38 +163,58 @@ jobs:
   check-deploy:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
     steps:
-      - name: Check Render deploy status
+      - uses: actions/checkout@v4
+      - name: Check Render deploy status and write results
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           SERVICE_ID="srv-d8cecvgjs32c738puai0"
-          
-          echo "=== Service info ==="
-          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$SERVICE_ID" | python3 -c "
-          import sys, json
-          d = json.load(sys.stdin)
-          svc = d.get('service', d)
-          print('Name:', svc.get('name'))
-          print('URL:', svc.get('serviceDetails', {}).get('url'))
-          print('Suspended:', svc.get('suspended'))
-          print('Type:', svc.get('type'))
-          "
-          
-          echo ""
-          echo "=== Recent deploys ==="
-          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=5" | python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          print('Total deploys:', len(data))
-          for d in data[:5]:
+
+          # Get service info
+          SVC_INFO=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID" 2>/dev/null || echo '{}')
+
+          # Get deploys
+          DEPLOYS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=5" 2>/dev/null || echo '[]')
+
+          # Health check
+          HEALTH=$(curl -sf --max-time 20 "https://fed-watcher.onrender.com/health" 2>/dev/null || echo "OFFLINE")
+
+          # Write all to file
+          python3 << PYEOF
+          import json, os
+
+          svc_info = json.loads("""$SVC_INFO""") if """$SVC_INFO""" != '{}' else {}
+          deploys = json.loads("""$DEPLOYS""") if """$DEPLOYS""" != '[]' else []
+
+          svc = svc_info.get('service', svc_info)
+
+          lines = [
+            "=== Service ===",
+            f"name: {svc.get('name')}",
+            f"url: {svc.get('serviceDetails',{}).get('url')}",
+            f"suspended: {svc.get('suspended')}",
+            f"health: $HEALTH",
+            "",
+            "=== Deploys ===",
+            f"total: {len(deploys)}",
+          ]
+          for d in deploys[:5]:
             dep = d.get('deploy', d)
-            print(f'  status={dep.get(\"status\")} created={dep.get(\"createdAt\",\"\")[:19]}')
-            print(f'  commit={dep.get(\"commit\",{}).get(\"message\",\"N/A\")}')
-          "
-          
-          echo ""
-          echo "=== Health check ==="
-          curl -sv --max-time 30 "https://fed-watcher.onrender.com/health" 2>&1 | tail -20
+            lines.append(f"  {dep.get('status')} | {dep.get('createdAt','')[:19]}")
+
+          with open('render-status.txt', 'w') as f:
+            f.write('\n'.join(lines) + '\n')
+
+          print('\n'.join(lines))
+          PYEOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add render-status.txt
+          git diff --staged --quiet || git commit -m "ci: render deploy status [skip ci]"
+          git push origin claude/affectionate-bell-InnQ6 || true
