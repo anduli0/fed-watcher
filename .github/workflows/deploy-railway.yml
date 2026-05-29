@@ -167,46 +167,88 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Check Render deploy status and write results
+      - name: Trigger deploy, poll status, write results
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
+          set +e
           SERVICE_ID="srv-d8cecvgjs32c738puai0"
 
-          # Fetch and save raw JSON
+          echo "=== Current service info ==="
           curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$SERVICE_ID" > /tmp/svc.json 2>/dev/null || echo '{}' > /tmp/svc.json
+            "https://api.render.com/v1/services/$SERVICE_ID" > /tmp/svc.json
+          cat /tmp/svc.json
+
+          echo ""
+          echo "=== Existing deploys ==="
           curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=5" > /tmp/deploys.json 2>/dev/null || echo '[]' > /tmp/deploys.json
-          HEALTH=$(curl -sf --max-time 20 "https://fed-watcher.onrender.com/health" 2>/dev/null || echo "OFFLINE")
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=5" > /tmp/deploys.json
+          cat /tmp/deploys.json
 
-          # Parse and write status
-          python3 - "$HEALTH" << 'PYEOF'
-          import sys, json
+          echo ""
+          echo "=== Triggering fresh deploy (clears cache, picks up new env vars) ==="
+          curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+            -d '{"clearCache":"clear"}' > /tmp/newdeploy.json
+          cat /tmp/newdeploy.json
+          DEPLOY_ID=$(python3 -c "import json; d=json.load(open('/tmp/newdeploy.json')); print(d.get('id', d.get('deploy',{}).get('id','')))" 2>/dev/null || echo "")
+          echo "New deploy ID: $DEPLOY_ID"
 
-          health = sys.argv[1]
-          svc_info = json.load(open('/tmp/svc.json'))
-          deploys = json.load(open('/tmp/deploys.json'))
-          svc = svc_info.get('service', svc_info)
+          echo ""
+          echo "=== Polling deploy status (up to 10 min) ==="
+          FINAL_STATUS="unknown"
+          if [ -n "$DEPLOY_ID" ]; then
+            for i in $(seq 1 40); do
+              sleep 15
+              STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+                "https://api.render.com/v1/services/$SERVICE_ID/deploys/$DEPLOY_ID" \
+                | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status', d.get('deploy',{}).get('status','?')))" 2>/dev/null || echo "?")
+              echo "  [$i] status=$STATUS"
+              FINAL_STATUS="$STATUS"
+              case "$STATUS" in
+                live|deactivated) break ;;
+                build_failed|update_failed|canceled|pre_deploy_failed) break ;;
+              esac
+            done
+          fi
 
+          echo ""
+          echo "=== Final health check ==="
+          HEALTH=$(curl -sf --max-time 30 "https://fed-watcher.onrender.com/health" 2>/dev/null || echo "OFFLINE")
+          echo "Health: $HEALTH"
+
+          echo ""
+          echo "=== Build logs (last events) ==="
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/events?limit=10" > /tmp/events.json 2>/dev/null || echo '[]' > /tmp/events.json
+          cat /tmp/events.json
+
+          # Write a status summary file (always commit)
+          python3 - "$HEALTH" "$FINAL_STATUS" "$DEPLOY_ID" << 'PYEOF'
+          import sys, json, datetime
+          health, final_status, deploy_id = sys.argv[1], sys.argv[2], sys.argv[3]
+          try:
+            svc = json.load(open('/tmp/svc.json'))
+            svc = svc.get('service', svc)
+          except Exception:
+            svc = {}
           lines = [
+            f"timestamp={datetime.datetime.utcnow().isoformat()}",
             f"name={svc.get('name')}",
             f"url={svc.get('serviceDetails',{}).get('url')}",
             f"suspended={svc.get('suspended')}",
+            f"new_deploy_id={deploy_id}",
+            f"final_deploy_status={final_status}",
             f"health={health}",
-            f"deploy_count={len(deploys)}",
           ]
-          for d in deploys[:5]:
-            dep = d.get('deploy', d)
-            lines.append(f"deploy: {dep.get('status')} | {dep.get('createdAt','')[:19]}")
-
           text = '\n'.join(lines) + '\n'
-          print(text)
           open('render-status.txt', 'w').write(text)
+          print(text)
           PYEOF
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add render-status.txt
-          git diff --staged --quiet || git commit -m "ci: render deploy status [skip ci]"
+          git commit -m "ci: render deploy status [skip ci]" --allow-empty
           git push origin claude/affectionate-bell-InnQ6 || true
