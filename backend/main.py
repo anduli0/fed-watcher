@@ -236,6 +236,7 @@ async def lifespan(app: FastAPI):
     _restore_admin_weights()
     init_scheduler(trigger_cycle, publish_morning_forecast, graceful_shutdown, run_data_collection)
     asyncio.create_task(run_data_collection())
+        asyncio.create_task(trigger_cycle("startup"))
     logger.info("Fed-Watcher started. Model: %s", settings.MODEL_ID)
     yield
     try:
