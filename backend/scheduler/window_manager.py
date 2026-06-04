@@ -23,10 +23,21 @@ scheduler = AsyncIOScheduler(timezone=TZ)
 async def _run_daily_briefing():
     """Daily briefing generation — runs at 07:30 KST. Uses KST date for briefing_date."""
     from backend.briefing.pipeline import run_briefing_pipeline
+    from backend.claude_cli import verify_auth
     from datetime import datetime
     from zoneinfo import ZoneInfo
     # Use KST date so briefing is labelled with the correct calendar date
     today_kst = datetime.now(ZoneInfo("Asia/Seoul")).date()
+
+    ok, detail = await verify_auth()
+    if not ok:
+        logger.error(
+            "Daily briefing skipped for %s — Claude CLI not authenticated: %s. "
+            "Set CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in the environment.",
+            today_kst, detail,
+        )
+        return
+
     logger.info("Daily briefing pipeline triggered for %s (KST)", today_kst)
     try:
         result = await run_briefing_pipeline(target_date=today_kst, force=False)
