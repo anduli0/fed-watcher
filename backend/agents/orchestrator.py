@@ -7,6 +7,7 @@ Orchestrator with:
 """
 import asyncio
 import json
+import os
 import random
 import re
 from datetime import datetime
@@ -30,7 +31,17 @@ from backend.agents.regional_agents import REGIONAL_AGENTS
 
 # All agents — 9 specialists + 12 regional
 SPECIALIST_AGENTS: list[BaseAgent] = [a1, a2, a3, a4, a5, a6, a7, a8, a10]
-ALL_AGENTS: list[BaseAgent] = SPECIALIST_AGENTS + REGIONAL_AGENTS
+
+# LITE_MODE: run only the 9 specialist agents and skip the 12 regional Feds.
+# Halves the number of serialized `claude -p` calls per cycle → much shorter
+# cycles (and lower cumulative memory pressure) so a 512 MB / free host can
+# finish without timing out or being cut off. Pure env toggle: set LITE_MODE=true
+# on a small box; remove it (or set false) to restore the full 21-agent
+# committee — no code change or re-upload needed to switch back.
+_LITE_MODE: bool = os.getenv("LITE_MODE", "").strip().lower() in ("1", "true", "yes", "on")
+ALL_AGENTS: list[BaseAgent] = (
+    SPECIALIST_AGENTS if _LITE_MODE else SPECIALIST_AGENTS + REGIONAL_AGENTS
+)
 # Pre-built O(1) lookup (populated after _AGENT_BY_ID function definition below)
 _AGENT_BY_ID: dict[int, BaseAgent] = {}
 
