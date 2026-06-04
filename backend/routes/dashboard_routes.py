@@ -88,7 +88,14 @@ async def get_derivation_report(lang: str = "ko", db: AsyncSession = Depends(get
 async def get_forecast(db: AsyncSession = Depends(get_db)):
     forecast = await crud.get_latest_published_forecast(db)
     if not forecast:
-        return {"status": "no_forecast", "message": "First forecast publishes at 08:00 KST"}
+        from backend.claude_cli import last_auth_status
+        auth_ok, _ = last_auth_status()
+        if auth_ok is False:
+            msg = ("Forecast engine is not authenticated — an operator must set "
+                   "CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY on the backend.")
+        else:
+            msg = "Generating the first forecast — check back in a few minutes."
+        return {"status": "no_forecast", "message": msg}
     return {
         "published_at": forecast.published_at,
         "published_delta_bps": forecast.published_delta,
