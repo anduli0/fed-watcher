@@ -48,8 +48,28 @@ async def trigger_cycle(cycle_type: str = "scheduled"):
     from backend.stabilizer.change_justifier import justify_change
     from backend.mock_trading.feedback_loop import get_negative_examples, generate_feedback
     from backend.database import crud
+    from backend.claude_cli import verify_auth
+    from backend.data import activity_log as AL
 
     logger.info("Starting cycle: %s", cycle_type)
+
+    # ── Auth preflight ──────────────────────────────────────────────────────
+    # One tiny claude ping before dispatching 21 agents. If credentials are
+    # missing/expired the whole cycle would otherwise produce 21×(retries)
+    # doomed 401 calls and an all-zero "forecast". Fail fast with a clear,
+    # actionable message instead.
+    ok, detail = await verify_auth()
+    if not ok:
+        AL.emit("system", "System",
+                f"Cycle '{cycle_type}' aborted — Claude CLI not authenticated",
+                "#E53E3E", "error")
+        logger.error(
+            "Cycle '%s' aborted: Claude CLI auth check failed: %s\n"
+            "  → Fix: set CLAUDE_CODE_OAUTH_TOKEN (run `claude setup-token` locally) "
+            "or ANTHROPIC_API_KEY in the deployment environment.",
+            cycle_type, detail,
+        )
+        return
 
     # Ensure we have data — collect now if cache is empty
     snapshot = get_latest_snapshot()
@@ -230,12 +250,62 @@ def _restore_admin_weights():
         logger.info("Restored %d admin weight overrides from disk", len(weights))
 
 
+# ── Startup warm-up: produce a forecast + briefing immediately on boot ───────
+# Without this the dashboard stays empty until the next scheduled KST cycle
+# (12:30/16:30/20:30/00:30/05:00). Runs in the background so the HTTP server
+# (and Render's /health check) comes up instantly. Disable with
+# RUN_CYCLE_ON_STARTUP=false.
+STARTUP_WARMUP_DELAY = float(os.getenv("STARTUP_WARMUP_DELAY", "8"))
+
+
+async def _startup_warmup():
+    from backend.claude_cli import verify_auth, auth_mode
+
+    # Let the server finish binding so health checks pass before heavy work.
+    await asyncio.sleep(STARTUP_WARMUP_DELAY)
+
+    # Always collect fresh data first (no AI tokens needed).
+    await run_data_collection()
+
+    ok, detail = await verify_auth()
+    if not ok:
+        logger.error(
+            "\n" + "=" * 74 +
+            "\n  Claude CLI is NOT authenticated — forecasts & briefings cannot run."
+            "\n  Detail     : %s"
+            "\n  Auth mode  : %s"
+            "\n  → Fix: set ONE of these in the deployment environment, then redeploy:"
+            "\n       CLAUDE_CODE_OAUTH_TOKEN  (run `claude setup-token` locally — recommended)"
+            "\n       ANTHROPIC_API_KEY        (a pay-per-token Anthropic API key)"
+            "\n" + "=" * 74,
+            detail, auth_mode(),
+        )
+        return
+
+    logger.info("Claude CLI authenticated (mode=%s). Running startup cycle + briefing…", auth_mode())
+    try:
+        await trigger_cycle("startup")
+    except Exception as e:
+        logger.error("Startup cycle failed: %s", e, exc_info=True)
+    try:
+        from backend.briefing.pipeline import run_briefing_pipeline
+        from datetime import datetime as _dt
+        from zoneinfo import ZoneInfo
+        today_kst = _dt.now(ZoneInfo("Asia/Seoul")).date()
+        await run_briefing_pipeline(target_date=today_kst, force=False)
+    except Exception as e:
+        logger.error("Startup briefing failed: %s", e, exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
     _restore_admin_weights()
     init_scheduler(trigger_cycle, publish_morning_forecast, graceful_shutdown, run_data_collection)
-    asyncio.create_task(run_data_collection())
+    if os.getenv("RUN_CYCLE_ON_STARTUP", "true").lower() in ("1", "true", "yes", "on"):
+        asyncio.create_task(_startup_warmup())
+    else:
+        asyncio.create_task(run_data_collection())
     logger.info("Fed-Watcher started. Model: %s", settings.MODEL_ID)
     yield
     try:
@@ -263,12 +333,19 @@ app.include_router(briefing_router)
 @app.get("/health")
 async def health():
     from backend.data.collector import get_latest_snapshot
+    from backend.claude_cli import last_auth_status, auth_mode
     snap = get_latest_snapshot()
+    auth_ok, auth_detail = last_auth_status()  # cached — never spawns a process
     return {
         "status": "ok",
         "model": settings.MODEL_ID,
         "data_last_collected": snap.get("collected_at"),
         "agent_count": 21,
+        "claude_auth": {
+            "ok": auth_ok,            # null until the first cycle/startup check runs
+            "mode": auth_mode(),
+            "detail": auth_detail,
+        },
     }
 
 

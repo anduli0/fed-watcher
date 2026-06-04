@@ -14,6 +14,40 @@ logger = logging.getLogger("fed_watcher.claude_cli")
 
 CLAUDE_BIN: str = shutil.which("claude") or "claude"
 
+
+class ClaudeAuthError(RuntimeError):
+    """The claude CLI ran but could not authenticate (HTTP 401/403).
+
+    This is NOT a transient failure — retrying with the same (missing/expired)
+    credentials will always fail, so it is raised separately so callers can
+    fail fast instead of burning the retry budget. The fix is operational:
+    provide a valid credential to the environment (see ``auth_mode``).
+    """
+
+
+# Candidate credential file locations the bundled `claude` CLI reads.
+_CRED_FILES = (
+    "/root/.claude/.credentials.json",
+    os.path.expanduser("~/.claude/.credentials.json"),
+)
+
+
+def auth_mode() -> str:
+    """Describe which credential the child `claude` process will *likely* use.
+
+    Diagnostic only — the managed Claude Code harness can also inject auth with
+    none of these present, so a return of ``"none"`` does not prove auth is
+    unavailable. Use :func:`verify_auth` for the authoritative answer.
+    """
+    if os.getenv("CLAUDE_CODE_OAUTH_TOKEN"):
+        return "oauth_token (CLAUDE_CODE_OAUTH_TOKEN)"
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return "api_key (ANTHROPIC_API_KEY)"
+    for p in _CRED_FILES:
+        if os.path.exists(p):
+            return f"credentials_file ({p})"
+    return "none"
+
 # Each `claude -p` invocation is a full Claude Code (Node.js) process using
 # several hundred MB of RAM. On memory-constrained hosts (e.g. Render free tier
 # = 512 MB) running several at once triggers the OOM killer. Default to fully
@@ -32,6 +66,16 @@ _MAX_RETRIES: int = int(os.getenv("CLAUDE_MAX_RETRIES", "2"))
 _RETRY_BASE_DELAY: float = float(os.getenv("CLAUDE_RETRY_DELAY", "3.0"))
 
 _semaphore: Optional[asyncio.Semaphore] = None
+
+# Cached result of the most recent verify_auth() ping so /health and the cycle
+# gate can read auth status without spawning a fresh claude process every time.
+_last_auth_ok: Optional[bool] = None
+_last_auth_detail: str = "not checked yet"
+
+
+def last_auth_status() -> tuple[Optional[bool], str]:
+    """(ok, detail) from the most recent verify_auth() call. ok=None = unchecked."""
+    return _last_auth_ok, _last_auth_detail
 
 
 def _sem() -> asyncio.Semaphore:
@@ -101,7 +145,14 @@ async def _run_once(system_prompt: str, user_message: str, timeout: float) -> st
 
     if data is not None:
         if data.get("is_error"):
-            raise RuntimeError(f"claude CLI error: {data.get('result', '')[:300]}")
+            msg = str(data.get("result", ""))[:300]
+            api_err = data.get("api_error_status")
+            low = msg.lower()
+            if api_err in (401, 403) or "authenticate" in low or "401" in low or "403" in low:
+                raise ClaudeAuthError(
+                    f"claude CLI auth failed (api_error_status={api_err}): {msg}"
+                )
+            raise RuntimeError(f"claude CLI error: {msg}")
         result = data.get("result", "")
         if result or data.get("subtype") == "success":
             return result
@@ -122,6 +173,10 @@ async def call_claude(system_prompt: str, user_message: str, timeout: float = 12
         for attempt in range(_MAX_RETRIES + 1):
             try:
                 return await _run_once(system_prompt, user_message, timeout)
+            except ClaudeAuthError:
+                # Bad/expired/missing credentials never recover by retrying —
+                # surface immediately so the caller can fail the whole cycle fast.
+                raise
             except RuntimeError as exc:
                 last_exc = exc
                 if attempt < _MAX_RETRIES:
@@ -138,3 +193,25 @@ async def call_claude(system_prompt: str, user_message: str, timeout: float = 12
                     )
         assert last_exc is not None
         raise last_exc
+
+
+async def verify_auth(timeout: float = 30.0) -> tuple[bool, str]:
+    """Single tiny `claude -p` ping to confirm the CLI can authenticate.
+
+    Returns ``(ok, detail)``. ``ok`` is True only when a live call succeeds.
+    On failure ``detail`` explains why (auth vs transient) so callers can log a
+    precise, actionable message and skip dispatching a doomed multi-agent cycle.
+    """
+    global _last_auth_ok, _last_auth_detail
+    try:
+        out = await _run_once(
+            "You are a health probe. Reply with the single word: OK.",
+            "ping",
+            timeout,
+        )
+        _last_auth_ok, _last_auth_detail = True, (out.strip()[:60] or "ok")
+    except ClaudeAuthError as e:
+        _last_auth_ok, _last_auth_detail = False, f"AUTH: {e}"
+    except Exception as e:  # timeout / OOM / CLI crash — transient, not auth
+        _last_auth_ok, _last_auth_detail = False, f"TRANSIENT: {str(e)[:200]}"
+    return _last_auth_ok, _last_auth_detail
