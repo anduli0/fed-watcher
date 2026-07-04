@@ -59,6 +59,18 @@
    ```
    (푸시 실패 시 2s/4s/8s/16s 백오프로 최대 4회 재시도)
 
-6. **보고는 간결하게** — 한 줄 요약(변경된 핵심 수치)만 남기고 종료.
+6. **Gucci Intelligence 클라우드 미러 갱신**
+   - **아티팩트 URL (고정):** `https://claude.ai/code/artifact/1cb77b8f-c5f0-498e-bea1-026c555be548`
+   - **favicon: 👜 (변경 금지)**
+   - GitHub Actions(`fetch-gucci.yml`, 6시간마다)가 사용자 PC의 Tailscale funnel에서
+     `gucci-mirror/`로 데이터를 커밋해 둔다 (PC가 꺼져 있으면 기존 데이터 유지).
+   - 브랜치 pull 후 `gucci-mirror/`에 새 커밋이 있으면:
+     ```bash
+     python3 gucci-cloud/build.py
+     ```
+     실행 후 Artifact 도구로 `gucci-cloud/artifact.html`을 위 고정 URL에 재배포한다.
+   - 미러 변경이 없으면 재배포하지 않는다 (동일 데이터 재배포 금지).
+
+7. **보고는 간결하게** — 한 줄 요약(변경된 핵심 수치)만 남기고 종료.
    사용자에게 질문하지 말 것. 데이터 일부를 못 구하면 이전 값을 유지하고
    `sub`/`asof`에 기준일을 정직하게 남긴다.

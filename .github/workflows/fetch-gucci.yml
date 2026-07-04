@@ -2,6 +2,8 @@ name: Mirror Gucci Intelligence
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 1,7,13,19 * * *'   # every 6h; syncs whenever the PC/funnel is online
   push:
     branches: [claude/mobile-offline-functionality-h7k7bm]
     paths:
@@ -81,10 +83,21 @@ jobs:
           echo "== fetch log =="; cat "$OUT/_fetch_log.txt" || true
           du -sh "$OUT"
 
-      - name: Commit mirror back to branch
+      - name: Commit mirror back to branch (only if the fetch got valid data)
         run: |
+          # PC/funnel offline -> curl wrote empty/error files; keep the last good mirror.
+          if ! python3 -c "import json,sys; d=json.load(open('gucci-mirror/api/summary.json')); sys.exit(0 if d.get('date') else 1)" 2>/dev/null; then
+            echo "summary.json invalid or missing -> source offline, keeping previous mirror"
+            git checkout -- gucci-mirror 2>/dev/null || true
+            git clean -fd gucci-mirror 2>/dev/null || true
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add gucci-mirror
-          git commit -m "chore: gucci-intelligence site mirror [skip ci]" || echo "nothing to commit"
+          if git diff --cached --quiet; then
+            echo "mirror unchanged"
+            exit 0
+          fi
+          git commit -m "chore: gucci-intelligence site mirror [skip ci]"
           git push origin claude/mobile-offline-functionality-h7k7bm
