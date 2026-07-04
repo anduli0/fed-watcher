@@ -3,7 +3,7 @@ name: Mirror Gucci Intelligence
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 1,7,13,19 * * *'   # every 6h; syncs whenever the PC/funnel is online
+    - cron: '47 22,3,8,13 * * *'   # 07:47/12:47/17:47/22:47 KST — lands ~13min before each dashboard refresh
   push:
     branches: [claude/mobile-offline-functionality-h7k7bm]
     paths:

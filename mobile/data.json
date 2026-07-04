@@ -1,6 +1,6 @@
 {
   "updated_at_kst": "2026-07-04 16:05",
-  "next_update_kst": "2026-07-04 22:30",
+  "next_update_kst": "2026-07-05 08:00",
   "policy_rate": {
     "target": "3.50–3.75%",
     "note": "6월 17일 FOMC 동결 (Warsh 의장 첫 회의)"
@@ -18,20 +18,80 @@
   "hawk_dove_score": 72,
   "stance": "hawkish",
   "horizons": {
-    "6m": { "signal": "hawkish", "delta_bps": 25, "confidence": 0.62, "note": "점도표 중앙값 3.8% → 연내 1회 인상 시사" },
-    "12m": { "signal": "hawkish", "delta_bps": 25, "confidence": 0.52, "note": "인플레 재가속 지속 시 추가 인상 리스크" },
-    "3y": { "signal": "neutral", "delta_bps": -25, "confidence": 0.40, "note": "중립금리(≈3%)로 점진 수렴 전망" },
-    "10y": { "signal": "neutral", "delta_bps": -50, "confidence": 0.30, "note": "장기 균형금리 경로, 불확실성 큼" }
+    "6m": {
+      "signal": "hawkish",
+      "delta_bps": 25,
+      "confidence": 0.62,
+      "note": "점도표 중앙값 3.8% → 연내 1회 인상 시사"
+    },
+    "12m": {
+      "signal": "hawkish",
+      "delta_bps": 25,
+      "confidence": 0.52,
+      "note": "인플레 재가속 지속 시 추가 인상 리스크"
+    },
+    "3y": {
+      "signal": "neutral",
+      "delta_bps": -25,
+      "confidence": 0.4,
+      "note": "중립금리(≈3%)로 점진 수렴 전망"
+    },
+    "10y": {
+      "signal": "neutral",
+      "delta_bps": -50,
+      "confidence": 0.3,
+      "note": "장기 균형금리 경로, 불확실성 큼"
+    }
   },
   "macro": [
-    { "label": "기준금리", "value": "3.50–3.75%", "sub": "6/17 동결", "tone": "neutral" },
-    { "label": "CPI (전년비)", "value": "4.2%", "sub": "5월 · 4월 3.8%에서 상승", "tone": "hawk" },
-    { "label": "코어 PCE (전년비)", "value": "3.4%", "sub": "5월 · 2023년 10월 이후 최고", "tone": "hawk" },
-    { "label": "실업률", "value": "4.2%", "sub": "6월 · 참가율 하락 착시(61.5%)", "tone": "neutral" },
-    { "label": "비농업 고용", "value": "+5.7만", "sub": "6월 · 예상 하회, 고용 둔화", "tone": "dove" },
-    { "label": "미 10년물 금리", "value": "4.48%", "sub": "7/2 기준", "tone": "neutral" },
-    { "label": "USD/KRW", "value": "1,542.6원", "sub": "7/3 · 주중 고점 1,558원", "tone": "hawk" },
-    { "label": "2026 인하 없음 확률", "value": "79.8%", "sub": "시장 내재 확률", "tone": "hawk" }
+    {
+      "label": "기준금리",
+      "value": "3.50–3.75%",
+      "sub": "6/17 동결",
+      "tone": "neutral"
+    },
+    {
+      "label": "CPI (전년비)",
+      "value": "4.2%",
+      "sub": "5월 · 4월 3.8%에서 상승",
+      "tone": "hawk"
+    },
+    {
+      "label": "코어 PCE (전년비)",
+      "value": "3.4%",
+      "sub": "5월 · 2023년 10월 이후 최고",
+      "tone": "hawk"
+    },
+    {
+      "label": "실업률",
+      "value": "4.2%",
+      "sub": "6월 · 참가율 하락 착시(61.5%)",
+      "tone": "neutral"
+    },
+    {
+      "label": "비농업 고용",
+      "value": "+5.7만",
+      "sub": "6월 · 예상 하회, 고용 둔화",
+      "tone": "dove"
+    },
+    {
+      "label": "미 10년물 금리",
+      "value": "4.48%",
+      "sub": "7/2 기준",
+      "tone": "neutral"
+    },
+    {
+      "label": "USD/KRW",
+      "value": "1,542.6원",
+      "sub": "7/3 · 주중 고점 1,558원",
+      "tone": "hawk"
+    },
+    {
+      "label": "2026 인하 없음 확률",
+      "value": "79.8%",
+      "sub": "시장 내재 확률",
+      "tone": "hawk"
+    }
   ],
   "briefing": {
     "date": "2026-07-04",
@@ -49,9 +109,21 @@
     ]
   },
   "history": [
-    { "date": "07-04", "hold": 81.2, "hike": 15.0, "cut": 3.8, "signal": "hawkish", "usdkrw": 1542.6 }
+    {
+      "date": "07-04",
+      "hold": 81.2,
+      "hike": 15.0,
+      "cut": 3.8,
+      "signal": "hawkish",
+      "usdkrw": 1542.6
+    }
   ],
   "sources": [
-    "CME FedWatch", "BLS 고용보고서", "BEA PCE", "CNBC", "Federal Reserve", "Trading Economics"
+    "CME FedWatch",
+    "BLS 고용보고서",
+    "BEA PCE",
+    "CNBC",
+    "Federal Reserve",
+    "Trading Economics"
   ]
 }

@@ -7,7 +7,8 @@
   `https://claude.ai/code/artifact/e11867b7-f727-433c-b232-50250b27222e`
 - **favicon: 🏦 (변경 금지)**
 - **브랜치:** `claude/mobile-offline-functionality-h7k7bm`
-- **갱신 주기:** 매일 07:30 / 12:30 / 17:30 / 22:30 KST (UTC 22:30 / 03:30 / 08:30 / 13:30)
+- **갱신 주기:** 매일 08:00 / 13:00 / 18:00 / 23:00 KST (UTC 23:00 / 04:00 / 09:00 / 14:00)
+  - GitHub Actions 미러(`fetch-gucci.yml`)는 매 갱신 13분 전(07:47 KST 등)에 선행 실행됨
 
 ## 환경 제약 (중요)
 
