@@ -1,0 +1,75 @@
+name: Mirror Gucci Intelligence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/mobile-offline-functionality-h7k7bm]
+    paths:
+      - '.github/workflows/fetch-gucci.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/mobile-offline-functionality-h7k7bm
+
+      - name: Fetch site and same-origin assets
+        run: |
+          set -x
+          BASE="https://krw-watcher.tail3e31a9.ts.net"
+          OUT="gucci-mirror"
+          rm -rf "$OUT"; mkdir -p "$OUT"
+
+          fetch() {  # $1 = absolute path on site, $2 = output file
+            mkdir -p "$(dirname "$OUT/$2")"
+            curl -sL --max-time 30 -A "Mozilla/5.0 (X11; Linux x86_64) Chrome/126 Safari/537.36" \
+              -w "%{http_code} $1\n" -o "$OUT/$2" "$BASE$1" >> "$OUT/_fetch_log.txt" 2>&1 || true
+          }
+
+          fetch "/gucci/" "index.html"
+          fetch "/gucci" "index_noslash.html"
+          fetch "/" "root.html"
+
+          # Discover same-origin links in the main page (src/href/fetch/axios URLs)
+          grep -oE '(src|href)="[^"]+"' "$OUT/index.html" | sed -E 's/^(src|href)="//; s/"$//' | sort -u > "$OUT/_links.txt" || true
+          grep -oE "(fetch|axios[a-zA-Z.]*)\(['\"][^'\"]+" "$OUT/index.html" | grep -oE "['\"][^'\"]+$" | tr -d "'\"" | sort -u >> "$OUT/_links.txt" || true
+
+          # Fetch up to 40 same-origin assets (js/css/json), keeping paths
+          i=0
+          while read -r link; do
+            case "$link" in
+              http*://krw-watcher.tail3e31a9.ts.net/*) p="${link#*.ts.net}" ;;
+              http*) continue ;;
+              /*) p="$link" ;;
+              *) p="/gucci/$link" ;;
+            esac
+            p="${p%%\?*}"
+            [ -z "$p" ] && continue
+            i=$((i+1)); [ "$i" -gt 40 ] && break
+            fetch "$p" "assets${p}"
+          done < "$OUT/_links.txt"
+
+          # Second-level discovery: scan fetched JS for API endpoint strings and grab JSON GETs
+          find "$OUT/assets" -name '*.js' 2>/dev/null | while read -r js; do
+            grep -oE "['\"](/[a-zA-Z0-9_./-]*(api|data|json)[a-zA-Z0-9_./-]*)['\"]" "$js" | tr -d "'\""
+          done | sort -u | head -25 > "$OUT/_api_paths.txt" || true
+          while read -r p; do
+            [ -z "$p" ] && continue
+            fetch "$p" "api${p}.json"
+          done < "$OUT/_api_paths.txt"
+
+          echo "== fetch log =="; cat "$OUT/_fetch_log.txt" || true
+          du -sh "$OUT"
+
+      - name: Commit mirror back to branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gucci-mirror
+          git commit -m "chore: gucci-intelligence site mirror [skip ci]" || echo "nothing to commit"
+          git push origin claude/mobile-offline-functionality-h7k7bm
