@@ -32,17 +32,24 @@
    - 연준 의장·FOMC 위원 최신 발언, 점도표/정책 뉴스
    - (오전 07:30 KST 실행 시) 지난 24시간 매크로 뉴스 — 데일리 브리핑용
 
-3. **분석 후 `mobile/data.json` 갱신**
+3. **분석 후 `mobile/data.json` 갱신** (v2 스키마 — 필드 구조 유지 필수)
    - `updated_at_kst` = 지금 KST (`TZ=Asia/Seoul date '+%Y-%m-%d %H:%M'`),
      `next_update_kst` = 다음 예약 시각
    - `meeting_probs`, `macro` 값·날짜 최신화 (`asof` 포함)
    - `hawk_dove_score`(0=비둘기, 100=매파)와 `stance`, `horizons`
      (signal/delta_bps/confidence/note)를 근거 기반으로 재산정
+   - `report` (도출 보고서): 점수·핵심 동인·반대 신호·결론을 200자 내외로 재작성
+   - `agents.specialists` 9개: 각 관점(행동/NLP/역사/테일러/점도표/의사록/
+     거시/정치경제/컨센서스)에서 signal과 note를 최신 근거로 재산정
+   - `agents.regionals` 12개: 지역 연준 총재 최근 발언 기준 signal 갱신
    - FOMC가 지나면 `next_fomc`를 다음 회의로 교체
-   - `briefing`은 하루 1회(07:30 실행분)에 전면 재작성, 그 외에는
-     달라진 사실만 반영. 전부 한국어.
-   - `history`에 `{date, hold, hike, cut, signal, usdkrw}` 1행 append
-     (하루 마지막 실행 기준으로 중복 날짜면 교체). 최근 30개 유지.
+   - `briefing`: 하루 1회(08:00 실행분)에 전면 재작성하되, **직전 briefing을
+     `briefing_archive`에 append 후** 교체(아카이브 최근 14개 유지).
+     그 외 시간대엔 달라진 사실만 반영.
+   - 모든 서술 필드는 한국어 원문 + `*_en` 영어 병기 (label/sub/note/exec_summary/
+     rate_signal/market_impact/report.body 등)
+   - `history`에 `{date, hold, hike, cut, signal, usdkrw, y10}` 1행 append
+     (같은 날짜 기존 행은 교체). 최근 30개 유지.
 
 4. **렌더 + 배포**
    ```bash

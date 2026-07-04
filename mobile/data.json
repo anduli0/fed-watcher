@@ -1,129 +1,100 @@
 {
-  "updated_at_kst": "2026-07-04 16:05",
+  "updated_at_kst": "2026-07-05 00:45",
   "next_update_kst": "2026-07-05 08:00",
   "policy_rate": {
     "target": "3.50–3.75%",
-    "note": "6월 17일 FOMC 동결 (Warsh 의장 첫 회의)"
+    "note": "6월 17일 FOMC 동결 (Warsh 의장 첫 회의)",
+    "note_en": "Held at June 17 FOMC (Warsh's first meeting)"
   },
   "next_fomc": {
     "date": "2026-07-29",
-    "label": "7월 29일 FOMC"
+    "label": "7월 29일 FOMC",
+    "label_en": "Jul 29 FOMC"
   },
   "meeting_probs": {
     "hold": 81.2,
     "hike": 15.0,
     "cut": 3.8,
-    "asof": "7월 3일 · CME FedWatch"
+    "asof": "7월 3일 · CME FedWatch",
+    "asof_en": "Jul 3 · CME FedWatch"
   },
   "hawk_dove_score": 72,
   "stance": "hawkish",
   "horizons": {
-    "6m": {
-      "signal": "hawkish",
-      "delta_bps": 25,
-      "confidence": 0.62,
-      "note": "점도표 중앙값 3.8% → 연내 1회 인상 시사"
-    },
-    "12m": {
-      "signal": "hawkish",
-      "delta_bps": 25,
-      "confidence": 0.52,
-      "note": "인플레 재가속 지속 시 추가 인상 리스크"
-    },
-    "3y": {
-      "signal": "neutral",
-      "delta_bps": -25,
-      "confidence": 0.4,
-      "note": "중립금리(≈3%)로 점진 수렴 전망"
-    },
-    "10y": {
-      "signal": "neutral",
-      "delta_bps": -50,
-      "confidence": 0.3,
-      "note": "장기 균형금리 경로, 불확실성 큼"
-    }
+    "6m": { "signal": "hawkish", "delta_bps": 25, "confidence": 0.62, "note": "점도표 중앙값 3.8% → 연내 1회 인상 시사", "note_en": "Dot plot median 3.8% implies one hike this year" },
+    "12m": { "signal": "hawkish", "delta_bps": 25, "confidence": 0.52, "note": "인플레 재가속 지속 시 추가 인상 리스크", "note_en": "Further hike risk if inflation keeps re-accelerating" },
+    "3y": { "signal": "neutral", "delta_bps": -25, "confidence": 0.4, "note": "중립금리(≈3%)로 점진 수렴 전망", "note_en": "Gradual convergence toward neutral (≈3%)" },
+    "10y": { "signal": "neutral", "delta_bps": -50, "confidence": 0.3, "note": "장기 균형금리 경로, 불확실성 큼", "note_en": "Long-run equilibrium path, high uncertainty" }
   },
   "macro": [
-    {
-      "label": "기준금리",
-      "value": "3.50–3.75%",
-      "sub": "6/17 동결",
-      "tone": "neutral"
-    },
-    {
-      "label": "CPI (전년비)",
-      "value": "4.2%",
-      "sub": "5월 · 4월 3.8%에서 상승",
-      "tone": "hawk"
-    },
-    {
-      "label": "코어 PCE (전년비)",
-      "value": "3.4%",
-      "sub": "5월 · 2023년 10월 이후 최고",
-      "tone": "hawk"
-    },
-    {
-      "label": "실업률",
-      "value": "4.2%",
-      "sub": "6월 · 참가율 하락 착시(61.5%)",
-      "tone": "neutral"
-    },
-    {
-      "label": "비농업 고용",
-      "value": "+5.7만",
-      "sub": "6월 · 예상 하회, 고용 둔화",
-      "tone": "dove"
-    },
-    {
-      "label": "미 10년물 금리",
-      "value": "4.48%",
-      "sub": "7/2 기준",
-      "tone": "neutral"
-    },
-    {
-      "label": "USD/KRW",
-      "value": "1,542.6원",
-      "sub": "7/3 · 주중 고점 1,558원",
-      "tone": "hawk"
-    },
-    {
-      "label": "2026 인하 없음 확률",
-      "value": "79.8%",
-      "sub": "시장 내재 확률",
-      "tone": "hawk"
-    }
+    { "label": "기준금리", "label_en": "Fed Funds", "value": "3.50–3.75%", "sub": "6/17 동결", "sub_en": "Held 6/17", "tone": "neutral" },
+    { "label": "CPI (전년비)", "label_en": "CPI (YoY)", "value": "4.2%", "sub": "5월 · 4월 3.8%에서 상승", "sub_en": "May · up from 3.8% in Apr", "tone": "hawk" },
+    { "label": "코어 PCE (전년비)", "label_en": "Core PCE (YoY)", "value": "3.4%", "sub": "5월 · 2023년 10월 이후 최고", "sub_en": "May · highest since Oct 2023", "tone": "hawk" },
+    { "label": "실업률", "label_en": "Unemployment", "value": "4.2%", "sub": "6월 · 참가율 하락 착시(61.5%)", "sub_en": "Jun · flattered by lower participation (61.5%)", "tone": "neutral" },
+    { "label": "비농업 고용", "label_en": "Nonfarm Payrolls", "value": "+5.7만", "sub": "6월 · 예상 하회, 고용 둔화", "sub_en": "Jun · below consensus, cooling", "tone": "dove" },
+    { "label": "미 10년물 금리", "label_en": "US 10Y Yield", "value": "4.48%", "sub": "7/2 기준", "sub_en": "as of 7/2", "tone": "neutral" },
+    { "label": "USD/KRW", "label_en": "USD/KRW", "value": "1,542.6원", "sub": "7/3 · 주중 고점 1,558원", "sub_en": "7/3 · weekly high 1,558", "tone": "hawk" },
+    { "label": "2026 인하 없음 확률", "label_en": "No 2026 cut odds", "value": "79.8%", "sub": "시장 내재 확률", "sub_en": "market-implied", "tone": "hawk" }
   ],
+  "report": {
+    "title": "도출 보고서 — 매파적 동결 유지",
+    "title_en": "Derivation Report — Hawkish Hold",
+    "body": "10개 분석 관점의 가중 종합 결과, 정책 기조 점수는 72/100(매파)입니다. 핵심 동인은 세 가지입니다. 첫째, 물가 재가속 — CPI 4.2%(4월 3.8%), 코어 PCE 3.4%로 연속 상승하며 테일러 준칙 기준 적정금리가 현행 상단을 상회합니다. 둘째, 위원회 구성 — Warsh 의장 취임 후 첫 회의에서 완화 편향 문구가 삭제됐고, 점도표상 17명 중 9명이 연내 최소 1회 인상을 예상합니다. 셋째, 시장 컨센서스 — CME FedWatch 기준 7월 동결 81.2%, 2026년 인하 없음 79.8%가 내재되어 있습니다. 반대 방향 신호는 고용 둔화(6월 +5.7만, 참가율 61.5%로 하락)가 유일하며, 현재로선 인플레 우선순위를 뒤집기에 부족합니다. 결론: 7월 29일 매파적 동결이 기본 시나리오이며, 6개월 시계열에서 +25bp 인상 리스크가 우세합니다.",
+    "body_en": "The weighted synthesis of 10 analytical lenses puts the policy-stance score at 72/100 (hawkish). Three drivers dominate. First, re-accelerating inflation — CPI at 4.2% (from 3.8%) and core PCE at 3.4% put the Taylor-rule rate above the current target ceiling. Second, committee composition — the easing bias was removed at Warsh's first meeting and 9 of 17 dots project at least one hike this year. Third, market consensus — FedWatch prices an 81.2% July hold and 79.8% odds of no cut in 2026. The only opposing signal is the cooling labor market (Jun +57k, participation down to 61.5%), insufficient for now to outweigh the inflation priority. Conclusion: a hawkish hold on Jul 29 is the base case, with +25bp hike risk dominating over 6 months."
+  },
+  "agents": {
+    "specialists": [
+      { "icon": "👁", "name": "행동 분석", "name_en": "Behavioral", "desc": "발화 패턴·기자회견 톤 분석", "desc_en": "Presser tone & speech patterns", "signal": "hawkish", "note": "Warsh 첫 기자회견 어조 단호 — \"5년간 실패\" 등 강한 확신 표현", "note_en": "Warsh's debut presser assertive — \"missed for five years\" framing" },
+      { "icon": "💬", "name": "NLP 감성", "name_en": "NLP Sentiment", "desc": "연설 감성 점수화 (화자 가중)", "desc_en": "Speaker-weighted speech sentiment", "signal": "hawkish", "note": "6월 성명·연설에서 완화 편향 어휘 삭제, 매파 어휘 빈도 상승", "note_en": "Easing-bias language dropped; hawkish vocabulary up" },
+      { "icon": "📚", "name": "역사적 사이클", "name_en": "Historical Cycles", "desc": "역사적 사이클 패턴 매칭", "desc_en": "Cycle pattern matching", "signal": "neutral", "note": "1994년 선제 인상기 유사성 vs 고용 둔화의 1995년식 중단 가능성 혼재", "note_en": "Echoes of 1994 pre-emption vs a 1995-style pause on cooling jobs" },
+      { "icon": "📐", "name": "테일러 준칙", "name_en": "Taylor Rule", "desc": "준칙 기반 적정금리 계산", "desc_en": "Rule-implied policy rate", "signal": "hawkish", "note": "CPI 4.2% 기준 준칙 금리가 현행 상단(3.75%) 상회 → 인상 압력", "note_en": "Rule rate above current 3.75% ceiling at 4.2% CPI" },
+      { "icon": "🔭", "name": "점도표", "name_en": "Dot Plot", "desc": "점도표 & 베이지북 해독", "desc_en": "Dot plot & Beige Book decoding", "signal": "hawkish", "note": "중앙값 3.8% — 위원 9명이 연내 1회 이상 인상 예상, 인하는 1명뿐", "note_en": "Median 3.8%; 9 dots see ≥1 hike, only one sees a cut" },
+      { "icon": "📄", "name": "FOMC 의사록", "name_en": "FOMC Minutes", "desc": "매파/비둘기 균형 추출", "desc_en": "Hawk/dove balance extraction", "signal": "hawkish", "note": "6월 성명서에서 인하 편향 문구 제거 — 긴축 방향 전환 신호", "note_en": "Cutting bias removed from June statement" },
+      { "icon": "📊", "name": "거시 데이터", "name_en": "Macro Data", "desc": "경제지표 하드데이터 처리", "desc_en": "Hard-data processing", "signal": "neutral", "note": "인플레 재가속 vs 고용 둔화(+5.7만) — 상충 신호 혼재", "note_en": "Re-accelerating inflation vs cooling payrolls (+57k) — mixed" },
+      { "icon": "🏛", "name": "정치경제", "name_en": "Political Economy", "desc": "제도적 압력·정치 역학 평가", "desc_en": "Institutional & political dynamics", "signal": "neutral", "note": "신임 의장 취임 초기 — 연준 운영 개편 태스크포스 등 내부 재정립 국면", "note_en": "New-chair transition; internal overhaul task forces underway" },
+      { "icon": "🏦", "name": "시장 컨센서스", "name_en": "Market Consensus", "desc": "CME FedWatch + 월가 종합 (1.5×)", "desc_en": "FedWatch + Street synthesis (1.5×)", "signal": "neutral", "note": "7월 동결 81.2% · 연내 무인하 79.8% 내재 — 동결 컨센서스 견고", "note_en": "81.2% July hold, 79.8% no-cut-2026 priced — firm hold consensus" }
+    ],
+    "regionals": [
+      { "name": "Boston", "signal": "neutral" },
+      { "name": "New York", "signal": "neutral" },
+      { "name": "Philadelphia", "signal": "neutral" },
+      { "name": "Cleveland", "signal": "hawkish" },
+      { "name": "Richmond", "signal": "hawkish" },
+      { "name": "Atlanta", "signal": "neutral" },
+      { "name": "Chicago", "signal": "dovish" },
+      { "name": "St. Louis", "signal": "hawkish" },
+      { "name": "Minneapolis", "signal": "hawkish" },
+      { "name": "Kansas City", "signal": "hawkish" },
+      { "name": "Dallas", "signal": "hawkish" },
+      { "name": "San Francisco", "signal": "neutral" }
+    ],
+    "regional_note": "Deutsche Bank 집계: 4월 회의 이후 투표권자 중 매파 11 · 중립 5 · 비둘기 1",
+    "regional_note_en": "Deutsche Bank tally since April: 11 hawkish / 5 neutral / 1 dovish voters"
+  },
   "briefing": {
     "date": "2026-07-04",
     "exec_summary": "신임 Kevin Warsh 의장이 \"5년간 인플레 목표를 놓쳤고, 이제 바로잡겠다\"는 강한 매파 메시지를 내며 취임했습니다. CPI가 4.2%로 재가속되고 코어 PCE도 3.4%로 오른 반면, 6월 고용은 +5.7만 명으로 뚜렷이 둔화됐습니다. 시장은 7월 29일 동결(81%)을 유력하게 보며, 점도표상 위원 17명 중 9명이 연내 최소 1회 인상을 예상합니다. 원화는 1,540원대로 2009년 이후 최저 수준 부근입니다.",
+    "exec_summary_en": "New Chair Kevin Warsh arrived with a blunt hawkish message — \"we've missed on inflation for five years and we're going to fix that.\" CPI re-accelerated to 4.2% and core PCE rose to 3.4%, while June payrolls cooled to +57k. Markets see a July 29 hold (81%) as the base case, with 9 of 17 dots projecting at least one hike this year. The won trades near 1,540 — around its weakest since 2009.",
     "what_changed": [
       "6월 고용보고서 발표(7/2): 비농업 +5.7만(예상 하회), 실업률 4.3→4.2% 하락은 참가율 하락(61.5%, 2021년 3월 이후 최저)에 의한 착시",
       "USD/KRW 1,558원(7/1) → 1,542원(7/3)으로 소폭 반락, 다만 외국인 국내주식 8일 연속 순매도로 약세 압력 지속",
       "7/4 미국 독립기념일로 미 증시 휴장"
     ],
     "rate_signal": "매파적 동결. 인상 리스크가 인하 리스크보다 큽니다. 고용 둔화에도 인플레 재가속이 우선순위이며, Deutsche Bank 집계 기준 FOMC 투표권자 17명 중 11명이 매파 성향입니다.",
+    "rate_signal_en": "Hawkish hold. Hike risk outweighs cut risk: re-accelerating inflation trumps the cooling labor market, and 11 of 17 voters lean hawkish per Deutsche Bank's tally.",
+    "market_impact": "달러 강세·원화 약세 압력 지속. 미 10년물 4.5% 부근 고착 시 성장주·장기채에 부담이며, 원화 자산은 외국인 수급 반전 전까지 방어적 접근이 유효합니다.",
+    "market_impact_en": "Sustained dollar strength keeps pressure on the won. A 10Y pinned near 4.5% weighs on duration and growth assets; Korean assets stay defensive until foreign flows turn.",
     "watch_next": [
       "7월 중순 · 6월 CPI 발표 — 4%대 지속 여부가 7월 FOMC 메시지를 결정",
       "7월 29일 · FOMC 금리결정 및 Warsh 기자회견",
       "Warsh 의장의 연준 운영 개편 태스크포스 후속 발표"
     ]
   },
+  "briefing_archive": [],
   "history": [
-    {
-      "date": "07-04",
-      "hold": 81.2,
-      "hike": 15.0,
-      "cut": 3.8,
-      "signal": "hawkish",
-      "usdkrw": 1542.6
-    }
+    { "date": "07-04", "hold": 81.2, "hike": 15.0, "cut": 3.8, "signal": "hawkish", "usdkrw": 1542.6, "y10": 4.48 }
   ],
   "sources": [
-    "CME FedWatch",
-    "BLS 고용보고서",
-    "BEA PCE",
-    "CNBC",
-    "Federal Reserve",
-    "Trading Economics"
+    "CME FedWatch", "BLS 고용보고서", "BEA PCE", "CNBC", "Federal Reserve", "Trading Economics", "Deutsche Bank"
   ]
 }

@@ -98,7 +98,6 @@
   }
   .num { font-variant-numeric: tabular-nums; }
 
-  /* Header */
   header.wrap-head {
     display: flex;
     align-items: baseline;
@@ -108,7 +107,33 @@
   }
   .brand { font-size: 1.02rem; font-weight: 800; letter-spacing: 0.06em; margin: 0; }
   .brand small { display: block; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em; color: var(--muted); margin-top: 0.1rem; }
-  .stamp { text-align: right; font-size: 0.7rem; color: var(--muted); line-height: 1.5; }
+  .head-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem; }
+  .stamp { text-align: right; font-size: 0.68rem; color: var(--muted); line-height: 1.45; }
+  .langtog { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+  .langtog button {
+    font: inherit; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+    background: none; border: none; color: var(--muted);
+    padding: 0.22rem 0.65rem; cursor: pointer;
+  }
+  .langtog button.on { background: var(--track); color: var(--ink); }
+  .langtog button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+  /* Tab nav */
+  .tabs {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem;
+    position: sticky; top: 0.4rem; z-index: 5;
+  }
+  .tabs button {
+    font: inherit; font-size: 0.8rem; font-weight: 700;
+    padding: 0.55rem 0.2rem;
+    background: var(--card); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 10px;
+    cursor: pointer;
+  }
+  .tabs button.on { color: var(--ink); border-color: var(--gold); box-shadow: inset 0 -2px 0 var(--gold); }
+  .tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .view { display: flex; flex-direction: column; gap: 0.75rem; }
+  .view.hidden { display: none; }
 
   /* Hero */
   .hero { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
@@ -161,6 +186,23 @@
   .tile .t-val { font-size: 1.12rem; font-weight: 750; margin-top: 0.15rem; letter-spacing: -0.01em; }
   .tile .t-sub { font-size: 0.66rem; color: var(--faint); margin-top: 0.15rem; line-height: 1.4; }
 
+  /* Derivation report accordion */
+  details.report { border: 1px solid var(--border); border-radius: 11px; background: var(--bg); }
+  details.report summary {
+    cursor: pointer; padding: 0.75rem 0.9rem;
+    font-size: 0.82rem; font-weight: 700; color: var(--ink);
+    list-style: none; display: flex; justify-content: space-between; align-items: center;
+  }
+  details.report summary::-webkit-details-marker { display: none; }
+  details.report summary::after { content: "+"; color: var(--faint); font-size: 1rem; }
+  details.report[open] summary::after { content: "–"; }
+  details.report .rbody { padding: 0 0.9rem 0.85rem; font-size: 0.84rem; color: var(--muted); }
+
+  /* Trend chart */
+  .chart-box { overflow-x: auto; }
+  .legend { display: flex; gap: 1rem; font-size: 0.68rem; color: var(--muted); margin-top: 0.4rem; }
+  .legend .sw { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+
   /* Briefing */
   .brief p { margin: 0.45rem 0; }
   .brief-sec { margin-top: 0.9rem; }
@@ -169,6 +211,31 @@
   .brief li { margin: 0.3rem 0; font-size: 0.85rem; color: var(--muted); }
   .brief .summary { font-size: 0.9rem; }
   .signal-box { border-radius: 10px; padding: 0.75rem 0.85rem; font-size: 0.85rem; font-weight: 550; }
+  .fallback { font-size: 0.66rem; color: var(--faint); font-style: italic; margin: 0.2rem 0 0; }
+  details.arch { border-bottom: 1px solid var(--border); }
+  details.arch:last-child { border-bottom: none; }
+  details.arch summary { cursor: pointer; padding: 0.6rem 0.1rem; font-size: 0.82rem; font-weight: 650; list-style: none; }
+  details.arch summary::-webkit-details-marker { display: none; }
+  details.arch .abody { padding: 0 0.1rem 0.7rem; font-size: 0.82rem; color: var(--muted); }
+
+  /* Agents */
+  .agrid { display: flex; flex-direction: column; gap: 0.5rem; }
+  .agent { display: grid; grid-template-columns: 2rem 1fr auto; gap: 0.6rem; align-items: start; background: var(--bg); border: 1px solid var(--border); border-radius: 11px; padding: 0.65rem 0.75rem; }
+  .agent .ic { font-size: 1.15rem; line-height: 1.3; }
+  .agent .a-name { font-size: 0.84rem; font-weight: 700; }
+  .agent .a-desc { font-size: 0.66rem; color: var(--faint); }
+  .agent .a-note { font-size: 0.76rem; color: var(--muted); margin-top: 0.25rem; }
+  .sig-chip { font-size: 0.66rem; font-weight: 750; padding: 0.18rem 0.5rem; border-radius: 999px; white-space: nowrap; }
+  .rgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; }
+  .rcell { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 0.5rem 0.4rem; text-align: center; }
+  .rcell .r-name { font-size: 0.7rem; font-weight: 650; }
+  .rcell .r-sig { font-size: 0.64rem; font-weight: 750; margin-top: 0.15rem; }
+  .note { font-size: 0.7rem; color: var(--faint); margin: 0.7rem 0 0; }
+
+  /* Info tab */
+  .info p { font-size: 0.85rem; color: var(--muted); margin: 0.45rem 0; }
+  .info h3 { font-size: 0.8rem; font-weight: 750; margin: 0.9rem 0 0.2rem; color: var(--ink); }
+  .info h3:first-of-type { margin-top: 0; }
 
   /* History */
   .hist-row { display: grid; grid-template-columns: 3rem 1fr 3.6rem 4.4rem; gap: 0.5rem; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.78rem; }
@@ -187,200 +254,432 @@
 
 <div class="wrap">
   <header class="wrap-head">
-    <h1 class="brand">FED-WATCHER<small>금리 경로 · 모바일 브리핑</small></h1>
-    <div class="stamp num" id="stamp"></div>
+    <h1 class="brand">FED-WATCHER<small id="brand-sub"></small></h1>
+    <div class="head-right">
+      <div class="langtog">
+        <button id="lang-ko">한국어</button><button id="lang-en">EN</button>
+      </div>
+      <div class="stamp num" id="stamp"></div>
+    </div>
   </header>
 
-  <section class="card">
-    <p class="eyebrow">현재 기준금리</p>
-    <div class="hero">
-      <div>
-        <span class="pill" id="stance-pill"><span class="dot"></span><span id="stance-txt"></span></span>
-        <p class="rate num" id="rate"></p>
-        <p class="rate-note" id="rate-note"></p>
+  <nav class="tabs" id="tabs"></nav>
+
+  <!-- ═══════════ 대시보드 ═══════════ -->
+  <div class="view" id="view-dash">
+    <section class="card">
+      <p class="eyebrow" id="hero-eb"></p>
+      <div class="hero">
+        <div>
+          <span class="pill" id="stance-pill"><span class="dot"></span><span id="stance-txt"></span></span>
+          <p class="rate num" id="rate"></p>
+          <p class="rate-note" id="rate-note"></p>
+        </div>
+        <div class="dday">
+          <div class="d num" id="dday"></div>
+          <div class="l" id="dday-lab"></div>
+        </div>
       </div>
-      <div class="dday">
-        <div class="d num" id="dday"></div>
-        <div class="l" id="dday-lab"></div>
+    </section>
+
+    <section class="card">
+      <p class="eyebrow" id="prob-title"></p>
+      <div id="probs"></div>
+      <p class="asof" id="prob-asof"></p>
+    </section>
+
+    <section class="card">
+      <p class="eyebrow" id="gauge-eb"></p>
+      <div class="htabs" id="htabs" role="tablist"></div>
+      <div class="gauge-box">
+        <svg id="gauge" viewBox="0 0 240 132" width="220" height="121" aria-hidden="true"></svg>
+        <p class="gauge-sig" id="gsig"></p>
+        <p class="gauge-sub num" id="gsub"></p>
+        <div class="conf">
+          <div class="conf-head"><span id="conf-lab"></span><span class="num" id="gconf-v"></span></div>
+          <div class="bar"><span id="gconf-bar"></span></div>
+        </div>
+        <p class="hnote" id="gnote"></p>
       </div>
-    </div>
-  </section>
-
-  <section class="card">
-    <p class="eyebrow" id="prob-title">다음 FOMC 확률</p>
-    <div id="probs"></div>
-    <p class="asof" id="prob-asof"></p>
-  </section>
-
-  <section class="card">
-    <p class="eyebrow">정책 기조 · 시계열 전망</p>
-    <div class="htabs" id="htabs" role="tablist"></div>
-    <div class="gauge-box">
-      <svg id="gauge" viewBox="0 0 240 132" width="220" height="121" aria-hidden="true"></svg>
-      <p class="gauge-sig" id="gsig"></p>
-      <p class="gauge-sub num" id="gsub"></p>
-      <div class="conf">
-        <div class="conf-head"><span>신뢰도</span><span class="num" id="gconf-v"></span></div>
-        <div class="bar"><span id="gconf-bar"></span></div>
+      <div style="margin-top:0.9rem">
+        <details class="report">
+          <summary id="rep-title"></summary>
+          <div class="rbody" id="rep-body"></div>
+        </details>
       </div>
-      <p class="hnote" id="gnote"></p>
-    </div>
-  </section>
+    </section>
 
-  <section class="card">
-    <p class="eyebrow">거시경제 데이터</p>
-    <div class="mgrid" id="macro"></div>
-  </section>
+    <section class="card">
+      <p class="eyebrow" id="macro-eb"></p>
+      <div class="mgrid" id="macro"></div>
+    </section>
 
-  <section class="card brief">
-    <p class="eyebrow" id="brief-title">데일리 브리핑</p>
-    <p class="summary" id="brief-sum"></p>
-    <div class="brief-sec">
-      <h3>어제와 달라진 점</h3>
-      <ul id="brief-changed"></ul>
-    </div>
-    <div class="brief-sec">
-      <h3>금리 경로 시그널</h3>
-      <div class="signal-box" id="brief-signal"></div>
-    </div>
-    <div class="brief-sec">
-      <h3>주목할 이벤트</h3>
-      <ul id="brief-watch"></ul>
-    </div>
-  </section>
+    <section class="card">
+      <p class="eyebrow" id="trend-eb"></p>
+      <div class="chart-box"><svg id="trend" viewBox="0 0 420 150" width="100%" aria-hidden="true"></svg></div>
+      <div class="legend" id="trend-legend"></div>
+    </section>
 
-  <section class="card">
-    <p class="eyebrow">업데이트 히스토리</p>
-    <div class="hist-row hist-head"><span>날짜</span><span>동결 확률</span><span class="r">기조</span><span class="r">USD/KRW</span></div>
-    <div id="hist"></div>
-  </section>
+    <section class="card">
+      <p class="eyebrow" id="hist-eb"></p>
+      <div class="hist-row hist-head"><span id="hh-d"></span><span id="hh-h"></span><span class="r" id="hh-s"></span><span class="r">USD/KRW</span></div>
+      <div id="hist"></div>
+    </section>
+  </div>
+
+  <!-- ═══════════ 브리핑 ═══════════ -->
+  <div class="view hidden" id="view-brief">
+    <section class="card brief">
+      <p class="eyebrow" id="brief-title"></p>
+      <p class="summary" id="brief-sum"></p>
+      <p class="fallback hidden" id="brief-fb"></p>
+      <div class="brief-sec">
+        <h3 id="bh-changed"></h3>
+        <ul id="brief-changed"></ul>
+      </div>
+      <div class="brief-sec">
+        <h3 id="bh-signal"></h3>
+        <div class="signal-box" id="brief-signal"></div>
+      </div>
+      <div class="brief-sec">
+        <h3 id="bh-impact"></h3>
+        <p style="font-size:0.85rem;color:var(--muted)" id="brief-impact"></p>
+      </div>
+      <div class="brief-sec">
+        <h3 id="bh-watch"></h3>
+        <ul id="brief-watch"></ul>
+      </div>
+      <p class="note" id="brief-disc"></p>
+    </section>
+    <section class="card">
+      <p class="eyebrow" id="arch-eb"></p>
+      <div id="archive"></div>
+    </section>
+  </div>
+
+  <!-- ═══════════ 에이전트 ═══════════ -->
+  <div class="view hidden" id="view-agents">
+    <section class="card">
+      <p class="eyebrow" id="spec-eb"></p>
+      <div class="agrid" id="specialists"></div>
+    </section>
+    <section class="card">
+      <p class="eyebrow" id="reg-eb"></p>
+      <div class="rgrid" id="regionals"></div>
+      <p class="note" id="reg-note"></p>
+    </section>
+  </div>
+
+  <!-- ═══════════ 정보 ═══════════ -->
+  <div class="view hidden" id="view-info">
+    <section class="card info" id="info-body"></section>
+  </div>
 
   <footer>
     <p id="foot-src"></p>
-    <p>공개 정보를 기반으로 AI가 생성한 참고 자료이며, 투자 조언이 아닙니다. Claude 클라우드에서 매일 4회(08:00 / 13:00 / 18:00 / 23:00 KST) 자동 갱신됩니다.</p>
+    <p id="foot-disc"></p>
   </footer>
 </div>
 
 <script>
 const DATA = __DATA_JSON__;
 
-const SIG = {
-  hawkish: { label: "매파", color: "var(--hawk)", soft: "var(--hawk-soft)" },
-  dovish:  { label: "비둘기파", color: "var(--dove)", soft: "var(--dove-soft)" },
-  neutral: { label: "중립", color: "var(--gold)", soft: "var(--gold-soft)" }
+const I18N = {
+  ko: {
+    sub: "금리 경로 · 모바일", stampAsof: " KST 기준", stampNext: "다음 갱신 ",
+    tabs: ["대시보드", "브리핑", "에이전트", "정보"],
+    heroEb: "현재 기준금리", stanceCur: "현재 기조 · ",
+    probSuffix: " 확률", probs: ["동결", "인상", "인하"], asofSuffix: " 기준",
+    gaugeEb: "정책 기조 · 시계열 전망", conf: "신뢰도",
+    hlabs: { "6m": "6개월", "12m": "1년", "3y": "3년", "10y": "10년" },
+    gsub: (d, h) => (d > 0 ? "+" : "") + d + " bps · " + h + " 전망 (현재 대비 누적)",
+    macroEb: "거시경제 데이터", trendEb: "지표 추이", histEb: "업데이트 히스토리",
+    hh: ["날짜", "동결 확률", "기조"],
+    legend: ["동결 확률(%)", "USD/KRW"],
+    briefTitle: "데일리 브리핑 · ", bhChanged: "어제와 달라진 점", bhSignal: "금리 경로 시그널",
+    bhImpact: "시장 영향", bhWatch: "주목할 이벤트", archEb: "이전 브리핑", archEmpty: "이전 브리핑이 아직 없습니다. 매일 아침 8시에 쌓입니다.",
+    specEb: "에이전트 현황 — 전문 분석 (9)", regEb: "12개 지역 연준 기조",
+    sig: { hawkish: "매파", dovish: "비둘기파", neutral: "중립" },
+    disc: "공개 정보를 기반으로 AI가 생성한 참고 자료이며, 투자 조언이 아닙니다.",
+    footDisc: "Claude 클라우드에서 매일 4회(08:00 / 13:00 / 18:00 / 23:00 KST) 자동 갱신됩니다.",
+    srcPrefix: "출처: ", infoEb: "이 대시보드에 대하여", fbNote: "",
+    info: `<h3>무엇을 보여주나</h3>
+<p>연준(Fed)의 금리 경로를 4개 시계열(6개월/1년/3년/10년)로 전망하고, 다음 FOMC의 동결·인상·인하 확률, 핵심 거시지표, 일일 브리핑을 제공합니다.</p>
+<h3>어떻게 만들어지나</h3>
+<p>매일 4회 Claude 클라우드 세션이 깨어나 최신 공개 데이터(CME FedWatch, BLS, BEA, 연준 발표, 시장 뉴스)를 수집한 뒤, PC 버전 fed-watcher의 10개 에이전트 관점(행동 분석, NLP 감성, 역사적 사이클, 테일러 준칙, 점도표, FOMC 의사록, 거시 데이터, 정치경제, 지역 연준, 시장 컨센서스)으로 분석해 종합합니다.</p>
+<h3>기조 점수</h3>
+<p>0(강한 비둘기)~100(강한 매파) 척도이며, 게이지 바늘 위치가 현재 종합 점수입니다. bps는 현재 기준금리 대비 누적 변화 전망치입니다.</p>
+<h3>갱신 일정</h3>
+<p>매일 08:00 / 13:00 / 18:00 / 23:00 KST. 브리핑 전면 재작성은 아침 8시 갱신에서 수행됩니다.</p>`
+  },
+  en: {
+    sub: "Rate-Path Intelligence · Mobile", stampAsof: " KST", stampNext: "Next update ",
+    tabs: ["Dashboard", "Briefing", "Agents", "About"],
+    heroEb: "Current Fed Funds Target", stanceCur: "Stance · ",
+    probSuffix: " Probabilities", probs: ["Hold", "Hike", "Cut"], asofSuffix: "",
+    gaugeEb: "Policy Stance · Horizons", conf: "Confidence",
+    hlabs: { "6m": "6M", "12m": "1Y", "3y": "3Y", "10y": "10Y" },
+    gsub: (d, h) => (d > 0 ? "+" : "") + d + " bps · " + h + " horizon (cumulative vs current)",
+    macroEb: "Macro Data", trendEb: "Trends", histEb: "Update History",
+    hh: ["Date", "Hold prob", "Stance"],
+    legend: ["Hold prob (%)", "USD/KRW"],
+    briefTitle: "Daily Briefing · ", bhChanged: "What changed", bhSignal: "Rate-path signal",
+    bhImpact: "Market impact", bhWatch: "Watch next", archEb: "Previous briefings", archEmpty: "No previous briefings yet — they accumulate each morning at 08:00 KST.",
+    specEb: "Agent Status — Specialists (9)", regEb: "12 Regional Fed Stances",
+    sig: { hawkish: "HAWKISH", dovish: "DOVISH", neutral: "NEUTRAL" },
+    disc: "AI-generated from public information. Not financial advice.",
+    footDisc: "Auto-refreshed 4× daily (08:00 / 13:00 / 18:00 / 23:00 KST) in the Claude cloud.",
+    srcPrefix: "Sources: ", infoEb: "About this dashboard", fbNote: "Korean original shown (no English version for this item).",
+    info: `<h3>What it shows</h3>
+<p>Fed rate-path forecasts across four horizons (6M/1Y/3Y/10Y), next-FOMC hold/hike/cut probabilities, key macro indicators, and a daily briefing.</p>
+<h3>How it's produced</h3>
+<p>Four times a day a Claude cloud session collects fresh public data (CME FedWatch, BLS, BEA, Fed communications, market news) and synthesizes it through the ten agent lenses of the desktop fed-watcher: Behavioral, NLP Sentiment, Historical Cycles, Taylor Rule, Dot Plot, FOMC Minutes, Macro Data, Political Economy, Regional Feds, and Market Consensus.</p>
+<h3>Stance score</h3>
+<p>Scale of 0 (strongly dovish) to 100 (strongly hawkish); the gauge needle marks the current composite. bps figures are cumulative expected changes vs the current fed funds rate.</p>
+<h3>Schedule</h3>
+<p>Daily at 08:00 / 13:00 / 18:00 / 23:00 KST. The full briefing rewrite happens in the 08:00 run.</p>`
+  }
 };
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-/* Header stamp */
-$("stamp").innerHTML = esc(DATA.updated_at_kst) + " KST 기준<br>다음 갱신 " + esc(DATA.next_update_kst.slice(11)) + " KST";
-
-/* Hero */
-$("rate").textContent = DATA.policy_rate.target;
-$("rate-note").textContent = DATA.policy_rate.note;
-const stance = SIG[DATA.stance] || SIG.neutral;
-const pill = $("stance-pill");
-pill.style.background = stance.soft;
-pill.style.color = stance.color;
-pill.querySelector(".dot").style.background = stance.color;
-$("stance-txt").textContent = "현재 기조 · " + stance.label;
-
-const fomc = new Date(DATA.next_fomc.date + "T00:00:00+09:00");
-const kstNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
-const dd = Math.max(0, Math.ceil((fomc - kstNow) / 86400000));
-$("dday").textContent = "D-" + dd;
-$("dday-lab").textContent = DATA.next_fomc.label;
-
-/* Probability bars */
-$("prob-title").textContent = DATA.next_fomc.label + " 확률";
-const probs = [
-  ["동결", DATA.meeting_probs.hold, "var(--gold)"],
-  ["인상", DATA.meeting_probs.hike, "var(--hawk)"],
-  ["인하", DATA.meeting_probs.cut, "var(--dove)"]
-];
-$("probs").innerHTML = probs.map(([lab, v, c]) =>
-  '<div class="prob-row"><span class="lab">' + lab + '</span>' +
-  '<div class="bar"><span style="width:' + v + '%;background:' + c + '"></span></div>' +
-  '<span class="val num" style="color:' + c + '">' + v.toFixed(1) + '%</span></div>'
-).join("");
-$("prob-asof").textContent = DATA.meeting_probs.asof + " 기준";
-
-/* Horizon tabs + gauge */
-const HORDER = ["6m", "12m", "3y", "10y"];
-const HLAB = { "6m": "6개월", "12m": "1년", "3y": "3년", "10y": "10년" };
+const SIG_STYLE = {
+  hawkish: { color: "var(--hawk)", soft: "var(--hawk-soft)" },
+  dovish:  { color: "var(--dove)", soft: "var(--dove-soft)" },
+  neutral: { color: "var(--gold)", soft: "var(--gold-soft)" }
+};
+let LANG = "ko";
+try { LANG = localStorage.getItem("fw-lang") || "ko"; } catch (e) {}
+let activeTab = "dash";
 let activeH = "6m";
+
+const $ = (id) => document.getElementById(id);
+const T = () => I18N[LANG];
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pick = (obj, ko, en) => (LANG === "en" && obj[en]) ? obj[en] : obj[ko];
+
+/* ───── chrome ───── */
+function renderChrome() {
+  $("brand-sub").textContent = T().sub;
+  $("stamp").innerHTML = esc(DATA.updated_at_kst) + T().stampAsof + "<br>" + T().stampNext + esc(DATA.next_update_kst.slice(11)) + " KST";
+  $("lang-ko").classList.toggle("on", LANG === "ko");
+  $("lang-en").classList.toggle("on", LANG === "en");
+  const keys = ["dash", "brief", "agents", "info"];
+  $("tabs").innerHTML = T().tabs.map((lab, i) =>
+    '<button data-tab="' + keys[i] + '"' + (keys[i] === activeTab ? ' class="on"' : "") + ">" + lab + "</button>"
+  ).join("");
+  document.querySelectorAll("#tabs button").forEach(b =>
+    b.addEventListener("click", () => { activeTab = b.dataset.tab; showTab(); })
+  );
+}
+function showTab() {
+  for (const k of ["dash", "brief", "agents", "info"]) {
+    $("view-" + k).classList.toggle("hidden", k !== activeTab);
+  }
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === activeTab));
+}
+
+/* ───── dashboard ───── */
+function renderDash() {
+  $("hero-eb").textContent = T().heroEb;
+  $("rate").textContent = DATA.policy_rate.target;
+  $("rate-note").textContent = pick(DATA.policy_rate, "note", "note_en");
+  const stance = SIG_STYLE[DATA.stance] || SIG_STYLE.neutral;
+  const pill = $("stance-pill");
+  pill.style.background = stance.soft;
+  pill.style.color = stance.color;
+  pill.querySelector(".dot").style.background = stance.color;
+  $("stance-txt").textContent = T().stanceCur + T().sig[DATA.stance];
+
+  const fomc = new Date(DATA.next_fomc.date + "T00:00:00+09:00");
+  const kstNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+  const dd = Math.max(0, Math.ceil((fomc - kstNow) / 86400000));
+  $("dday").textContent = "D-" + dd;
+  $("dday-lab").textContent = pick(DATA.next_fomc, "label", "label_en");
+
+  $("prob-title").textContent = pick(DATA.next_fomc, "label", "label_en") + T().probSuffix;
+  const probs = [
+    [T().probs[0], DATA.meeting_probs.hold, "var(--gold)"],
+    [T().probs[1], DATA.meeting_probs.hike, "var(--hawk)"],
+    [T().probs[2], DATA.meeting_probs.cut, "var(--dove)"]
+  ];
+  $("probs").innerHTML = probs.map(([lab, v, c]) =>
+    '<div class="prob-row"><span class="lab">' + lab + '</span>' +
+    '<div class="bar"><span style="width:' + v + '%;background:' + c + '"></span></div>' +
+    '<span class="val num" style="color:' + c + '">' + v.toFixed(1) + '%</span></div>'
+  ).join("");
+  $("prob-asof").textContent = pick(DATA.meeting_probs, "asof", "asof_en") + T().asofSuffix;
+
+  $("gauge-eb").textContent = T().gaugeEb;
+  $("conf-lab").textContent = T().conf;
+  const HORDER = ["6m", "12m", "3y", "10y"];
+  $("htabs").innerHTML = HORDER.map(h => {
+    const d = DATA.horizons[h].delta_bps;
+    return '<button role="tab" data-h="' + h + '"><span>' + T().hlabs[h] + '</span><span class="bps num">' + (d > 0 ? "+" : "") + d + 'bp</span></button>';
+  }).join("");
+  document.querySelectorAll("#htabs button").forEach(b =>
+    b.addEventListener("click", () => { activeH = b.dataset.h; renderHorizon(); })
+  );
+  renderHorizon();
+
+  $("rep-title").textContent = pick(DATA.report, "title", "title_en");
+  $("rep-body").textContent = pick(DATA.report, "body", "body_en");
+
+  $("macro-eb").textContent = T().macroEb;
+  const TONE = { hawk: "var(--hawk)", dove: "var(--dove)", neutral: "var(--ink)" };
+  $("macro").innerHTML = DATA.macro.map(m =>
+    '<div class="tile"><div class="t-lab">' + esc(pick(m, "label", "label_en")) + '</div>' +
+    '<div class="t-val num" style="color:' + (TONE[m.tone] || TONE.neutral) + '">' + esc(m.value) + '</div>' +
+    '<div class="t-sub">' + esc(pick(m, "sub", "sub_en")) + '</div></div>'
+  ).join("");
+
+  renderTrend();
+
+  $("hist-eb").textContent = T().histEb;
+  $("hh-d").textContent = T().hh[0]; $("hh-h").textContent = T().hh[1]; $("hh-s").textContent = T().hh[2];
+  $("hist").innerHTML = DATA.history.slice().reverse().map(r => {
+    const s = SIG_STYLE[r.signal] || SIG_STYLE.neutral;
+    return '<div class="hist-row"><span class="num">' + esc(r.date) + '</span>' +
+      '<div class="bar hbar"><span style="width:' + r.hold + '%;background:var(--gold)"></span></div>' +
+      '<span class="r" style="color:' + s.color + ';font-weight:700">' + T().sig[r.signal] + '</span>' +
+      '<span class="r num">' + r.usdkrw.toLocaleString("ko-KR") + '</span></div>';
+  }).join("");
+}
 
 function drawGauge(score, color) {
   const cx = 120, cy = 118, r = 92;
   const a0 = Math.PI, a1 = Math.PI + (score / 100) * Math.PI;
   const px = (a) => (cx + r * Math.cos(a)).toFixed(1) + "," + (cy + r * Math.sin(a)).toFixed(1);
+  const doveL = LANG === "en" ? "DOVE" : "비둘기";
+  const hawkL = LANG === "en" ? "HAWK" : "매파";
   $("gauge").innerHTML =
     '<path d="M' + px(a0) + ' A' + r + ',' + r + ' 0 0,1 ' + px(2 * Math.PI) + '" fill="none" stroke="var(--track)" stroke-width="13" stroke-linecap="round"/>' +
     '<path d="M' + px(a0) + ' A' + r + ',' + r + ' 0 0,1 ' + px(a1) + '" fill="none" stroke="' + color + '" stroke-width="13" stroke-linecap="round"/>' +
-    '<circle cx="' + (cx + (r) * Math.cos(a1)).toFixed(1) + '" cy="' + (cy + (r) * Math.sin(a1)).toFixed(1) + '" r="8" fill="' + color + '" stroke="var(--card)" stroke-width="2"/>' +
-    '<text x="' + (cx - r) + '" y="' + (cy + 13) + '" font-size="10" font-weight="700" fill="var(--dove)" text-anchor="middle">비둘기</text>' +
-    '<text x="' + (cx + r) + '" y="' + (cy + 13) + '" font-size="10" font-weight="700" fill="var(--hawk)" text-anchor="middle">매파</text>';
+    '<circle cx="' + (cx + r * Math.cos(a1)).toFixed(1) + '" cy="' + (cy + r * Math.sin(a1)).toFixed(1) + '" r="8" fill="' + color + '" stroke="var(--card)" stroke-width="2"/>' +
+    '<text x="' + (cx - r) + '" y="' + (cy + 13) + '" font-size="10" font-weight="700" fill="var(--dove)" text-anchor="middle">' + doveL + '</text>' +
+    '<text x="' + (cx + r) + '" y="' + (cy + 13) + '" font-size="10" font-weight="700" fill="var(--hawk)" text-anchor="middle">' + hawkL + '</text>';
 }
 
 function renderHorizon() {
   const h = DATA.horizons[activeH];
-  const sig = SIG[h.signal] || SIG.neutral;
+  const sig = SIG_STYLE[h.signal] || SIG_STYLE.neutral;
   document.querySelectorAll("#htabs button").forEach(b => {
     const on = b.dataset.h === activeH;
     b.classList.toggle("on", on);
     b.setAttribute("aria-selected", on);
-    b.style.color = on ? SIG[DATA.horizons[b.dataset.h].signal].color : "";
+    b.style.color = on ? SIG_STYLE[DATA.horizons[b.dataset.h].signal].color : "";
   });
   const score = activeH === "6m" || activeH === "12m"
     ? DATA.hawk_dove_score
     : (h.signal === "hawkish" ? 72 : h.signal === "dovish" ? 28 : 50);
   drawGauge(score, sig.color);
-  $("gsig").textContent = sig.label;
+  $("gsig").textContent = T().sig[h.signal];
   $("gsig").style.color = sig.color;
-  $("gsub").textContent = (h.delta_bps > 0 ? "+" : "") + h.delta_bps + " bps · " + HLAB[activeH] + " 전망 (현재 대비 누적)";
+  $("gsub").textContent = T().gsub(h.delta_bps, T().hlabs[activeH]);
   $("gconf-v").textContent = Math.round(h.confidence * 100) + "%";
   const cb = $("gconf-bar");
   cb.style.width = (h.confidence * 100) + "%";
   cb.style.background = h.confidence >= 0.6 ? "var(--dove)" : h.confidence >= 0.4 ? "var(--gold)" : "var(--faint)";
-  $("gnote").textContent = h.note;
+  $("gnote").textContent = pick(h, "note", "note_en");
 }
 
-$("htabs").innerHTML = HORDER.map(h => {
-  const d = DATA.horizons[h].delta_bps;
-  return '<button role="tab" data-h="' + h + '"><span>' + HLAB[h] + '</span><span class="bps num">' + (d > 0 ? "+" : "") + d + 'bp</span></button>';
-}).join("");
-document.querySelectorAll("#htabs button").forEach(b =>
-  b.addEventListener("click", () => { activeH = b.dataset.h; renderHorizon(); })
-);
-renderHorizon();
+/* Trend chart: hold-prob line + USD/KRW line, indexed separately but drawn on
+   a shared canvas as two normalized series (single value axis avoided). */
+function renderTrend() {
+  $("trend-eb").textContent = T().trendEb;
+  const H = DATA.history;
+  const W = 420, HT = 150, P = 26;
+  const n = H.length;
+  const svg = $("trend");
+  if (n < 2) {
+    svg.innerHTML = '<text x="' + (W / 2) + '" y="' + (HT / 2) + '" text-anchor="middle" font-size="12" fill="var(--faint)">' +
+      (LANG === "en" ? "Chart appears after 2+ updates" : "업데이트가 2회 이상 쌓이면 추이가 표시됩니다") + '</text>';
+    $("trend-legend").innerHTML = "";
+    return;
+  }
+  const xs = i => P + (W - 2 * P) * (n === 1 ? 0.5 : i / (n - 1));
+  const line = (vals, color, dash) => {
+    const mn = Math.min(...vals), mx = Math.max(...vals);
+    const span = (mx - mn) || 1;
+    const ys = v => HT - P - (HT - 2 * P) * ((v - mn) / span);
+    const d = vals.map((v, i) => (i ? "L" : "M") + xs(i).toFixed(1) + "," + ys(v).toFixed(1)).join(" ");
+    const end = '<circle cx="' + xs(vals.length - 1).toFixed(1) + '" cy="' + ys(vals[vals.length - 1]).toFixed(1) + '" r="4" fill="' + color + '"/>';
+    return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2"' + (dash ? ' stroke-dasharray="4 3"' : "") + '/>' + end;
+  };
+  let g = '<line x1="' + P + '" y1="' + (HT - P) + '" x2="' + (W - P) + '" y2="' + (HT - P) + '" stroke="var(--border)"/>';
+  g += H.map((r, i) => '<text x="' + xs(i).toFixed(1) + '" y="' + (HT - 8) + '" font-size="9" fill="var(--faint)" text-anchor="middle" class="num">' + esc(r.date) + '</text>').join("");
+  g += line(H.map(r => r.hold), "var(--gold)");
+  g += line(H.map(r => r.usdkrw), "var(--hawk)", true);
+  svg.innerHTML = g;
+  $("trend-legend").innerHTML =
+    '<span><span class="sw" style="background:var(--gold)"></span>' + T().legend[0] + '</span>' +
+    '<span><span class="sw" style="background:var(--hawk)"></span>' + T().legend[1] + ' (---)</span>';
+}
 
-/* Macro tiles */
-const TONE = { hawk: "var(--hawk)", dove: "var(--dove)", neutral: "var(--ink)" };
-$("macro").innerHTML = DATA.macro.map(m =>
-  '<div class="tile"><div class="t-lab">' + esc(m.label) + '</div>' +
-  '<div class="t-val num" style="color:' + (TONE[m.tone] || TONE.neutral) + '">' + esc(m.value) + '</div>' +
-  '<div class="t-sub">' + esc(m.sub) + '</div></div>'
-).join("");
+/* ───── briefing ───── */
+function briefBlock(b, container) {
+  const stance = SIG_STYLE[DATA.stance] || SIG_STYLE.neutral;
+  $("brief-title").textContent = T().briefTitle + b.date;
+  $("brief-sum").textContent = pick(b, "exec_summary", "exec_summary_en");
+  const fb = $("brief-fb");
+  fb.classList.toggle("hidden", !(LANG === "en" && !b.exec_summary_en));
+  fb.textContent = T().fbNote;
+  $("bh-changed").textContent = T().bhChanged;
+  $("brief-changed").innerHTML = (b.what_changed || []).map(x => "<li>" + esc(x) + "</li>").join("");
+  $("bh-signal").textContent = T().bhSignal;
+  const sb = $("brief-signal");
+  sb.textContent = pick(b, "rate_signal", "rate_signal_en");
+  sb.style.background = stance.soft;
+  sb.style.color = stance.color;
+  $("bh-impact").textContent = T().bhImpact;
+  $("brief-impact").textContent = pick(b, "market_impact", "market_impact_en") || "—";
+  $("bh-watch").textContent = T().bhWatch;
+  $("brief-watch").innerHTML = (b.watch_next || []).map(x => "<li>" + esc(x) + "</li>").join("");
+  $("brief-disc").textContent = T().disc;
+}
+function renderBrief() {
+  briefBlock(DATA.briefing);
+  $("arch-eb").textContent = T().archEb;
+  const arch = DATA.briefing_archive || [];
+  $("archive").innerHTML = arch.length
+    ? arch.slice().reverse().map(b =>
+        '<details class="arch"><summary>' + esc(b.date) + '</summary><div class="abody">' +
+        esc(pick(b, "exec_summary", "exec_summary_en")) +
+        (b.rate_signal ? '<br><br><b>' + T().bhSignal + ':</b> ' + esc(pick(b, "rate_signal", "rate_signal_en")) : "") +
+        '</div></details>'
+      ).join("")
+    : '<p class="note" style="margin:0">' + T().archEmpty + '</p>';
+}
 
-/* Briefing */
-$("brief-title").textContent = "데일리 브리핑 · " + DATA.briefing.date;
-$("brief-sum").textContent = DATA.briefing.exec_summary;
-$("brief-changed").innerHTML = DATA.briefing.what_changed.map(x => "<li>" + esc(x) + "</li>").join("");
-$("brief-watch").innerHTML = DATA.briefing.watch_next.map(x => "<li>" + esc(x) + "</li>").join("");
-const sb = $("brief-signal");
-sb.textContent = DATA.briefing.rate_signal;
-sb.style.background = stance.soft;
-sb.style.color = stance.color;
+/* ───── agents ───── */
+function renderAgents() {
+  $("spec-eb").textContent = T().specEb;
+  $("specialists").innerHTML = DATA.agents.specialists.map(a => {
+    const s = SIG_STYLE[a.signal] || SIG_STYLE.neutral;
+    return '<div class="agent"><div class="ic">' + a.icon + '</div>' +
+      '<div><div class="a-name">' + esc(pick(a, "name", "name_en")) + '</div>' +
+      '<div class="a-desc">' + esc(pick(a, "desc", "desc_en")) + '</div>' +
+      '<div class="a-note">' + esc(pick(a, "note", "note_en")) + '</div></div>' +
+      '<span class="sig-chip" style="background:' + s.soft + ';color:' + s.color + '">' + T().sig[a.signal] + '</span></div>';
+  }).join("");
+  $("reg-eb").textContent = T().regEb;
+  $("regionals").innerHTML = DATA.agents.regionals.map(r => {
+    const s = SIG_STYLE[r.signal] || SIG_STYLE.neutral;
+    return '<div class="rcell"><div class="r-name">' + esc(r.name) + '</div>' +
+      '<div class="r-sig" style="color:' + s.color + '">' + T().sig[r.signal] + '</div></div>';
+  }).join("");
+  $("reg-note").textContent = pick(DATA.agents, "regional_note", "regional_note_en");
+}
 
-/* History */
-$("hist").innerHTML = DATA.history.slice().reverse().map(r => {
-  const s = SIG[r.signal] || SIG.neutral;
-  return '<div class="hist-row"><span class="num">' + esc(r.date) + '</span>' +
-    '<div class="bar hbar"><span style="width:' + r.hold + '%;background:var(--gold)"></span></div>' +
-    '<span class="r" style="color:' + s.color + ';font-weight:700">' + s.label + '</span>' +
-    '<span class="r num">' + r.usdkrw.toLocaleString("ko-KR") + '</span></div>';
-}).join("");
+/* ───── info + footer ───── */
+function renderInfo() {
+  $("info-body").innerHTML = '<p class="eyebrow">' + T().infoEb + '</p>' + T().info;
+  $("foot-src").textContent = T().srcPrefix + DATA.sources.join(" · ");
+  $("foot-disc").textContent = T().disc + " " + T().footDisc;
+}
 
-/* Footer */
-$("foot-src").textContent = "출처: " + DATA.sources.join(" · ");
+function renderAll() {
+  renderChrome(); renderDash(); renderBrief(); renderAgents(); renderInfo(); showTab();
+}
+$("lang-ko").addEventListener("click", () => { LANG = "ko"; try { localStorage.setItem("fw-lang", "ko"); } catch (e) {} renderAll(); });
+$("lang-en").addEventListener("click", () => { LANG = "en"; try { localStorage.setItem("fw-lang", "en"); } catch (e) {} renderAll(); });
+renderAll();
 </script>
