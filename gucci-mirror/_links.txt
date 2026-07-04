@@ -1,0 +1,13 @@
+$1
+${esc(isrc)}
+${esc(it.product_url)}
+${esc(it.source_url)}
+${esc(it.url)}
+data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='11' fill='%23175e3d'/%3E%3Crect y='11' width='32' height='10' fill='%23a91622'/%3E%3Crect y='21' width='32' height='11' fill='%23175e3d'/%3E%3C/svg%3E
+https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css
+https://fonts.googleapis.com
+https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&family=Cormorant+Garamond:wght@300;400;500&display=swap
+https://fonts.gstatic.com
+icon-180.png
+manifest.webmanifest
+api/run

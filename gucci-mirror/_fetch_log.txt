@@ -1,0 +1,12 @@
+200 /gucci/
+200 /gucci
+200 /
+404 /gucci/$1
+404 /gucci/${esc(isrc)}
+404 /gucci/${esc(it.product_url)}
+404 /gucci/${esc(it.source_url)}
+404 /gucci/${esc(it.url)}
+000 /gucci/data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='11' fill='%23175e3d'/%3E%3Crect y='11' width='32' height='10' fill='%23a91622'/%3E%3Crect y='21' width='32' height='11' fill='%23175e3d'/%3E%3C/svg%3E
+200 /gucci/icon-180.png
+200 /gucci/manifest.webmanifest
+404 /gucci/api/run
