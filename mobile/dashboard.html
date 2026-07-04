@@ -1,0 +1,386 @@
+<title>FED-WATCHER 모바일</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #F4F6FA;
+    --card: #FFFFFF;
+    --border: #DCE3EE;
+    --ink: #17212F;
+    --muted: #5C6B82;
+    --faint: #8C99AE;
+    --hawk: #C2402F;
+    --dove: #1E7A52;
+    --gold: #9A6B00;
+    --track: #E7ECF4;
+    --hawk-soft: rgba(194, 64, 47, 0.10);
+    --dove-soft: rgba(30, 122, 82, 0.10);
+    --gold-soft: rgba(154, 107, 0, 0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0A101C;
+      --card: #111A2B;
+      --border: #1F2B42;
+      --ink: #E8EDF5;
+      --muted: #97A5BC;
+      --faint: #64738D;
+      --hawk: #E4604F;
+      --dove: #3FA97C;
+      --gold: #BD8420;
+      --track: #1A2539;
+      --hawk-soft: rgba(228, 96, 79, 0.13);
+      --dove-soft: rgba(63, 169, 124, 0.13);
+      --gold-soft: rgba(189, 132, 32, 0.13);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0A101C;
+    --card: #111A2B;
+    --border: #1F2B42;
+    --ink: #E8EDF5;
+    --muted: #97A5BC;
+    --faint: #64738D;
+    --hawk: #E4604F;
+    --dove: #3FA97C;
+    --gold: #BD8420;
+    --track: #1A2539;
+    --hawk-soft: rgba(228, 96, 79, 0.13);
+    --dove-soft: rgba(63, 169, 124, 0.13);
+    --gold-soft: rgba(189, 132, 32, 0.13);
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F6FA;
+    --card: #FFFFFF;
+    --border: #DCE3EE;
+    --ink: #17212F;
+    --muted: #5C6B82;
+    --faint: #8C99AE;
+    --hawk: #C2402F;
+    --dove: #1E7A52;
+    --gold: #9A6B00;
+    --track: #E7ECF4;
+    --hawk-soft: rgba(194, 64, 47, 0.10);
+    --dove-soft: rgba(30, 122, 82, 0.10);
+    --gold-soft: rgba(154, 107, 0, 0.10);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 30rem;
+    margin: 0 auto;
+    padding: 1rem 1rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.1rem 1.15rem;
+  }
+  .eyebrow {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 0.65rem;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Header */
+  header.wrap-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0.15rem 0.1rem;
+  }
+  .brand { font-size: 1.02rem; font-weight: 800; letter-spacing: 0.06em; margin: 0; }
+  .brand small { display: block; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.02em; color: var(--muted); margin-top: 0.1rem; }
+  .stamp { text-align: right; font-size: 0.7rem; color: var(--muted); line-height: 1.5; }
+
+  /* Hero */
+  .hero { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+  .hero .rate { font-size: 1.72rem; font-weight: 750; letter-spacing: -0.01em; margin: 0.1rem 0 0; }
+  .hero .rate-note { font-size: 0.72rem; color: var(--muted); margin: 0.2rem 0 0; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-size: 0.78rem; font-weight: 700;
+    padding: 0.32rem 0.7rem; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dday { text-align: center; }
+  .dday .d { font-size: 1.25rem; font-weight: 750; }
+  .dday .l { font-size: 0.68rem; color: var(--muted); }
+
+  /* Probability bars */
+  .prob-row { display: grid; grid-template-columns: 3.2rem 1fr 3.4rem; align-items: center; gap: 0.6rem; margin-top: 0.55rem; }
+  .prob-row .lab { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+  .prob-row .val { font-size: 0.85rem; font-weight: 700; text-align: right; }
+  .bar { height: 12px; background: var(--track); border-radius: 4px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .asof { font-size: 0.68rem; color: var(--faint); margin: 0.7rem 0 0; }
+
+  /* Gauge */
+  .gauge-box { display: flex; flex-direction: column; align-items: center; }
+  .gauge-sig { font-size: 1.3rem; font-weight: 750; margin: 0.15rem 0 0; }
+  .gauge-sub { font-size: 0.75rem; color: var(--muted); margin: 0.15rem 0 0; }
+  .htabs { display: flex; gap: 0.4rem; margin-bottom: 0.9rem; }
+  .htabs button {
+    flex: 1; padding: 0.5rem 0.2rem;
+    background: var(--track); color: var(--muted);
+    border: 1px solid transparent; border-radius: 9px;
+    font: inherit; font-size: 0.76rem; font-weight: 700;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 0.1rem;
+  }
+  .htabs button .bps { font-size: 0.68rem; font-weight: 600; }
+  .htabs button.on { background: var(--card); border-color: currentColor; }
+  .htabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .conf { width: 100%; max-width: 13rem; margin-top: 0.8rem; }
+  .conf .conf-head { display: flex; justify-content: space-between; font-size: 0.68rem; color: var(--muted); margin-bottom: 0.25rem; }
+  .conf .bar { height: 6px; }
+  .hnote { font-size: 0.74rem; color: var(--muted); text-align: center; margin: 0.7rem 0 0; }
+
+  /* Macro grid */
+  .mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+  .tile { background: var(--bg); border: 1px solid var(--border); border-radius: 11px; padding: 0.7rem 0.75rem; }
+  .tile .t-lab { font-size: 0.68rem; font-weight: 600; color: var(--muted); }
+  .tile .t-val { font-size: 1.12rem; font-weight: 750; margin-top: 0.15rem; letter-spacing: -0.01em; }
+  .tile .t-sub { font-size: 0.66rem; color: var(--faint); margin-top: 0.15rem; line-height: 1.4; }
+
+  /* Briefing */
+  .brief p { margin: 0.45rem 0; }
+  .brief-sec { margin-top: 0.9rem; }
+  .brief-sec h3 { font-size: 0.78rem; font-weight: 750; margin: 0 0 0.35rem; color: var(--ink); }
+  .brief ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
+  .brief li { margin: 0.3rem 0; font-size: 0.85rem; color: var(--muted); }
+  .brief .summary { font-size: 0.9rem; }
+  .signal-box { border-radius: 10px; padding: 0.75rem 0.85rem; font-size: 0.85rem; font-weight: 550; }
+
+  /* History */
+  .hist-row { display: grid; grid-template-columns: 3rem 1fr 3.6rem 4.4rem; gap: 0.5rem; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.78rem; }
+  .hist-row:last-child { border-bottom: none; }
+  .hist-head { color: var(--faint); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; }
+  .hist-row .hbar { height: 8px; }
+  .hist-row .r { text-align: right; }
+
+  footer { font-size: 0.68rem; color: var(--faint); line-height: 1.7; padding: 0.4rem 0.2rem 0; }
+  footer p { margin: 0.3rem 0; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .bar > span { transition: width 0.5s ease; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="wrap-head">
+    <h1 class="brand">FED-WATCHER<small>금리 경로 · 모바일 브리핑</small></h1>
+    <div class="stamp num" id="stamp"></div>
+  </header>
+
+  <section class="card">
+    <p class="eyebrow">현재 기준금리</p>
+    <div class="hero">
+      <div>
+        <span class="pill" id="stance-pill"><span class="dot"></span><span id="stance-txt"></span></span>
+        <p class="rate num" id="rate"></p>
+        <p class="rate-note" id="rate-note"></p>
+      </div>
+      <div class="dday">
+        <div class="d num" id="dday"></div>
+        <div class="l" id="dday-lab"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow" id="prob-title">다음 FOMC 확률</p>
+    <div id="probs"></div>
+    <p class="asof" id="prob-asof"></p>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">정책 기조 · 시계열 전망</p>
+    <div class="htabs" id="htabs" role="tablist"></div>
+    <div class="gauge-box">
+      <svg id="gauge" viewBox="0 0 240 132" width="220" height="121" aria-hidden="true"></svg>
+      <p class="gauge-sig" id="gsig"></p>
+      <p class="gauge-sub num" id="gsub"></p>
+      <div class="conf">
+        <div class="conf-head"><span>신뢰도</span><span class="num" id="gconf-v"></span></div>
+        <div class="bar"><span id="gconf-bar"></span></div>
+      </div>
+      <p class="hnote" id="gnote"></p>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">거시경제 데이터</p>
+    <div class="mgrid" id="macro"></div>
+  </section>
+
+  <section class="card brief">
+    <p class="eyebrow" id="brief-title">데일리 브리핑</p>
+    <p class="summary" id="brief-sum"></p>
+    <div class="brief-sec">
+      <h3>어제와 달라진 점</h3>
+      <ul id="brief-changed"></ul>
+    </div>
+    <div class="brief-sec">
+      <h3>금리 경로 시그널</h3>
+      <div class="signal-box" id="brief-signal"></div>
+    </div>
+    <div class="brief-sec">
+      <h3>주목할 이벤트</h3>
+      <ul id="brief-watch"></ul>
+    </div>
+  </section>
+
+  <section class="card">
+    <p class="eyebrow">업데이트 히스토리</p>
+    <div class="hist-row hist-head"><span>날짜</span><span>동결 확률</span><span class="r">기조</span><span class="r">USD/KRW</span></div>
+    <div id="hist"></div>
+  </section>
+
+  <footer>
+    <p id="foot-src"></p>
+    <p>공개 정보를 기반으로 AI가 생성한 참고 자료이며, 투자 조언이 아닙니다. Claude 클라우드에서 매일 4회(07:30 / 12:30 / 17:30 / 22:30 KST) 자동 갱신됩니다.</p>
+  </footer>
+</div>
+
+<script>
+const DATA = {"updated_at_kst": "2026-07-04 16:05", "next_update_kst": "2026-07-04 22:30", "policy_rate": {"target": "3.50–3.75%", "note": "6월 17일 FOMC 동결 (Warsh 의장 첫 회의)"}, "next_fomc": {"date": "2026-07-29", "label": "7월 29일 FOMC"}, "meeting_probs": {"hold": 81.2, "hike": 15.0, "cut": 3.8, "asof": "7월 3일 · CME FedWatch"}, "hawk_dove_score": 72, "stance": "hawkish", "horizons": {"6m": {"signal": "hawkish", "delta_bps": 25, "confidence": 0.62, "note": "점도표 중앙값 3.8% → 연내 1회 인상 시사"}, "12m": {"signal": "hawkish", "delta_bps": 25, "confidence": 0.52, "note": "인플레 재가속 지속 시 추가 인상 리스크"}, "3y": {"signal": "neutral", "delta_bps": -25, "confidence": 0.4, "note": "중립금리(≈3%)로 점진 수렴 전망"}, "10y": {"signal": "neutral", "delta_bps": -50, "confidence": 0.3, "note": "장기 균형금리 경로, 불확실성 큼"}}, "macro": [{"label": "기준금리", "value": "3.50–3.75%", "sub": "6/17 동결", "tone": "neutral"}, {"label": "CPI (전년비)", "value": "4.2%", "sub": "5월 · 4월 3.8%에서 상승", "tone": "hawk"}, {"label": "코어 PCE (전년비)", "value": "3.4%", "sub": "5월 · 2023년 10월 이후 최고", "tone": "hawk"}, {"label": "실업률", "value": "4.2%", "sub": "6월 · 참가율 하락 착시(61.5%)", "tone": "neutral"}, {"label": "비농업 고용", "value": "+5.7만", "sub": "6월 · 예상 하회, 고용 둔화", "tone": "dove"}, {"label": "미 10년물 금리", "value": "4.48%", "sub": "7/2 기준", "tone": "neutral"}, {"label": "USD/KRW", "value": "1,542.6원", "sub": "7/3 · 주중 고점 1,558원", "tone": "hawk"}, {"label": "2026 인하 없음 확률", "value": "79.8%", "sub": "시장 내재 확률", "tone": "hawk"}], "briefing": {"date": "2026-07-04", "exec_summary": "신임 Kevin Warsh 의장이 \"5년간 인플레 목표를 놓쳤고, 이제 바로잡겠다\"는 강한 매파 메시지를 내며 취임했습니다. CPI가 4.2%로 재가속되고 코어 PCE도 3.4%로 오른 반면, 6월 고용은 +5.7만 명으로 뚜렷이 둔화됐습니다. 시장은 7월 29일 동결(81%)을 유력하게 보며, 점도표상 위원 17명 중 9명이 연내 최소 1회 인상을 예상합니다. 원화는 1,540원대로 2009년 이후 최저 수준 부근입니다.", "what_changed": ["6월 고용보고서 발표(7/2): 비농업 +5.7만(예상 하회), 실업률 4.3→4.2% 하락은 참가율 하락(61.5%, 2021년 3월 이후 최저)에 의한 착시", "USD/KRW 1,558원(7/1) → 1,542원(7/3)으로 소폭 반락, 다만 외국인 국내주식 8일 연속 순매도로 약세 압력 지속", "7/4 미국 독립기념일로 미 증시 휴장"], "rate_signal": "매파적 동결. 인상 리스크가 인하 리스크보다 큽니다. 고용 둔화에도 인플레 재가속이 우선순위이며, Deutsche Bank 집계 기준 FOMC 투표권자 17명 중 11명이 매파 성향입니다.", "watch_next": ["7월 중순 · 6월 CPI 발표 — 4%대 지속 여부가 7월 FOMC 메시지를 결정", "7월 29일 · FOMC 금리결정 및 Warsh 기자회견", "Warsh 의장의 연준 운영 개편 태스크포스 후속 발표"]}, "history": [{"date": "07-04", "hold": 81.2, "hike": 15.0, "cut": 3.8, "signal": "hawkish", "usdkrw": 1542.6}], "sources": ["CME FedWatch", "BLS 고용보고서", "BEA PCE", "CNBC", "Federal Reserve", "Trading Economics"]};
+
+const SIG = {
+  hawkish: { label: "매파", color: "var(--hawk)", soft: "var(--hawk-soft)" },
+  dovish:  { label: "비둘기파", color: "var(--dove)", soft: "var(--dove-soft)" },
+  neutral: { label: "중립", color: "var(--gold)", soft: "var(--gold-soft)" }
+};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* Header stamp */
+$("stamp").innerHTML = esc(DATA.updated_at_kst) + " KST 기준<br>다음 갱신 " + esc(DATA.next_update_kst.slice(11)) + " KST";
+
+/* Hero */
+$("rate").textContent = DATA.policy_rate.target;
+$("rate-note").textContent = DATA.policy_rate.note;
+const stance = SIG[DATA.stance] || SIG.neutral;
+const pill = $("stance-pill");
+pill.style.background = stance.soft;
+pill.style.color = stance.color;
+pill.querySelector(".dot").style.background = stance.color;
+$("stance-txt").textContent = "현재 기조 · " + stance.label;
+
+const fomc = new Date(DATA.next_fomc.date + "T00:00:00+09:00");
+const kstNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+const dd = Math.max(0, Math.ceil((fomc - kstNow) / 86400000));
+$("dday").textContent = "D-" + dd;
+$("dday-lab").textContent = DATA.next_fomc.label;
+
+/* Probability bars */
+$("prob-title").textContent = DATA.next_fomc.label + " 확률";
+const probs = [
+  ["동결", DATA.meeting_probs.hold, "var(--gold)"],
+  ["인상", DATA.meeting_probs.hike, "var(--hawk)"],
+  ["인하", DATA.meeting_probs.cut, "var(--dove)"]
+];
+$("probs").innerHTML = probs.map(([lab, v, c]) =>
+  '<div class="prob-row"><span class="lab">' + lab + '</span>' +
+  '<div class="bar"><span style="width:' + v + '%;background:' + c + '"></span></div>' +
+  '<span class="val num" style="color:' + c + '">' + v.toFixed(1) + '%</span></div>'
+).join("");
+$("prob-asof").textContent = DATA.meeting_probs.asof + " 기준";
+
+/* Horizon tabs + gauge */
+const HORDER = ["6m", "12m", "3y", "10y"];
+const HLAB = { "6m": "6개월", "12m": "1년", "3y": "3년", "10y": "10년" };
+let activeH = "6m";
+
+function drawGauge(score, color) {
+  const cx = 120, cy = 118, r = 92;
+  const a0 = Math.PI, a1 = Math.PI + (score / 100) * Math.PI;
+  const px = (a) => (cx + r * Math.cos(a)).toFixed(1) + "," + (cy + r * Math.sin(a)).toFixed(1);
+  $("gauge").innerHTML =
+    '<path d="M' + px(a0) + ' A' + r + ',' + r + ' 0 0,1 ' + px(2 * Math.PI) + '" fill="none" stroke="var(--track)" stroke-width="13" stroke-linecap="round"/>' +
+    '<path d="M' + px(a0) + ' A' + r + ',' + r + ' 0 0,1 ' + px(a1) + '" fill="none" stroke="' + color + '" stroke-width="13" stroke-linecap="round"/>' +
+    '<circle cx="' + (cx + (r) * Math.cos(a1)).toFixed(1) + '" cy="' + (cy + (r) * Math.sin(a1)).toFixed(1) + '" r="8" fill="' + color + '" stroke="var(--card)" stroke-width="2"/>' +
+    '<text x="' + (cx - r) + '" y="' + (cy + 13) + '" font-size="10" font-weight="700" fill="var(--dove)" text-anchor="middle">비둘기</text>' +
+    '<text x="' + (cx + r) + '" y="' + (cy + 13) + '" font-size="10" font-weight="700" fill="var(--hawk)" text-anchor="middle">매파</text>';
+}
+
+function renderHorizon() {
+  const h = DATA.horizons[activeH];
+  const sig = SIG[h.signal] || SIG.neutral;
+  document.querySelectorAll("#htabs button").forEach(b => {
+    const on = b.dataset.h === activeH;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-selected", on);
+    b.style.color = on ? SIG[DATA.horizons[b.dataset.h].signal].color : "";
+  });
+  const score = activeH === "6m" || activeH === "12m"
+    ? DATA.hawk_dove_score
+    : (h.signal === "hawkish" ? 72 : h.signal === "dovish" ? 28 : 50);
+  drawGauge(score, sig.color);
+  $("gsig").textContent = sig.label;
+  $("gsig").style.color = sig.color;
+  $("gsub").textContent = (h.delta_bps > 0 ? "+" : "") + h.delta_bps + " bps · " + HLAB[activeH] + " 전망 (현재 대비 누적)";
+  $("gconf-v").textContent = Math.round(h.confidence * 100) + "%";
+  const cb = $("gconf-bar");
+  cb.style.width = (h.confidence * 100) + "%";
+  cb.style.background = h.confidence >= 0.6 ? "var(--dove)" : h.confidence >= 0.4 ? "var(--gold)" : "var(--faint)";
+  $("gnote").textContent = h.note;
+}
+
+$("htabs").innerHTML = HORDER.map(h => {
+  const d = DATA.horizons[h].delta_bps;
+  return '<button role="tab" data-h="' + h + '"><span>' + HLAB[h] + '</span><span class="bps num">' + (d > 0 ? "+" : "") + d + 'bp</span></button>';
+}).join("");
+document.querySelectorAll("#htabs button").forEach(b =>
+  b.addEventListener("click", () => { activeH = b.dataset.h; renderHorizon(); })
+);
+renderHorizon();
+
+/* Macro tiles */
+const TONE = { hawk: "var(--hawk)", dove: "var(--dove)", neutral: "var(--ink)" };
+$("macro").innerHTML = DATA.macro.map(m =>
+  '<div class="tile"><div class="t-lab">' + esc(m.label) + '</div>' +
+  '<div class="t-val num" style="color:' + (TONE[m.tone] || TONE.neutral) + '">' + esc(m.value) + '</div>' +
+  '<div class="t-sub">' + esc(m.sub) + '</div></div>'
+).join("");
+
+/* Briefing */
+$("brief-title").textContent = "데일리 브리핑 · " + DATA.briefing.date;
+$("brief-sum").textContent = DATA.briefing.exec_summary;
+$("brief-changed").innerHTML = DATA.briefing.what_changed.map(x => "<li>" + esc(x) + "</li>").join("");
+$("brief-watch").innerHTML = DATA.briefing.watch_next.map(x => "<li>" + esc(x) + "</li>").join("");
+const sb = $("brief-signal");
+sb.textContent = DATA.briefing.rate_signal;
+sb.style.background = stance.soft;
+sb.style.color = stance.color;
+
+/* History */
+$("hist").innerHTML = DATA.history.slice().reverse().map(r => {
+  const s = SIG[r.signal] || SIG.neutral;
+  return '<div class="hist-row"><span class="num">' + esc(r.date) + '</span>' +
+    '<div class="bar hbar"><span style="width:' + r.hold + '%;background:var(--gold)"></span></div>' +
+    '<span class="r" style="color:' + s.color + ';font-weight:700">' + s.label + '</span>' +
+    '<span class="r num">' + r.usdkrw.toLocaleString("ko-KR") + '</span></div>';
+}).join("");
+
+/* Footer */
+$("foot-src").textContent = "출처: " + DATA.sources.join(" · ");
+</script>
