@@ -54,14 +54,29 @@ jobs:
             fetch "$p" "assets${p}"
           done < "$OUT/_links.txt"
 
-          # Second-level discovery: scan fetched JS for API endpoint strings and grab JSON GETs
-          find "$OUT/assets" -name '*.js' 2>/dev/null | while read -r js; do
-            grep -oE "['\"](/[a-zA-Z0-9_./-]*(api|data|json)[a-zA-Z0-9_./-]*)['\"]" "$js" | tr -d "'\""
-          done | sort -u | head -25 > "$OUT/_api_paths.txt" || true
+          # Known API endpoints used by the SPA (jget calls in index.html)
+          for ep in summary timeseries news luxury events products calendar ambassadors reports sov pool status runlog; do
+            fetch "/gucci/api/$ep" "api/$ep.json"
+          done
+
+          # Fetch every report listed by /api/reports (list of paths/ids)
+          python3 - <<'PY' > "$OUT/_report_paths.txt" || true
+          import json
+          try:
+              d = json.load(open("gucci-mirror/api/reports.json"))
+          except Exception:
+              d = []
+          items = d if isinstance(d, list) else d.get("reports") or d.get("items") or []
+          for it in items:
+              p = it if isinstance(it, str) else (it.get("path") or it.get("file") or it.get("id") or "")
+              if p:
+                  print(p)
+          PY
           while read -r p; do
             [ -z "$p" ] && continue
-            fetch "$p" "api${p}.json"
-          done < "$OUT/_api_paths.txt"
+            safe=$(echo "$p" | tr '/' '_')
+            fetch "/gucci/api/report/$p" "reports/${safe}.json"
+          done < "$OUT/_report_paths.txt"
 
           echo "== fetch log =="; cat "$OUT/_fetch_log.txt" || true
           du -sh "$OUT"
