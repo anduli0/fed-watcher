@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>환율 와쳐 — 원/달러</title>
+<title>KRW-Watcher · USD/KRW Forecast</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💱</text></svg>">
 <style>
   :root{
@@ -11,43 +11,68 @@
     --ink:#151a22; --ink2:#4b5563; --ink3:#8a94a6;
     --accent:#2563eb; --accent-soft:rgba(37,99,235,.10);
     --up:#dc2626; --down:#2563eb; --flat:#6b7280;
-    --ok:#15803d; --err:#b91c1c;
-    --chip:#eef1f6;
+    --ok:#15803d; --err:#b91c1c; --chip:#eef1f6;
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --bg:#0b1220; --surface:#111a2c; --border:#1f2a40;
+      --bg:#0c0f17; --surface:#131a29; --border:#222c42;
       --ink:#e8edf5; --ink2:#aab4c5; --ink3:#6b7890;
       --accent:#5b9bff; --accent-soft:rgba(91,155,255,.12);
       --up:#f87171; --down:#5b9bff; --flat:#93a0b4;
-      --ok:#4ade80; --err:#f87171;
-      --chip:#1a2438;
+      --ok:#4ade80; --err:#f87171; --chip:#1c2539;
     }
   }
   *{box-sizing:border-box; margin:0}
   html,body{background:var(--bg); color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR","Malgun Gothic",sans-serif;
     -webkit-font-smoothing:antialiased}
-  .wrap{max-width:760px; margin:0 auto; padding:16px 14px 40px}
-  header{display:flex; align-items:center; justify-content:space-between; padding:6px 2px 14px}
-  h1{font-size:17px; font-weight:700; letter-spacing:-.2px}
-  h1 .sub{color:var(--ink3); font-weight:500; font-size:13px; margin-left:6px}
-  .live{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink3)}
+  .wrap{max-width:820px; margin:0 auto; padding:16px 14px 40px}
+  header{display:flex; align-items:center; justify-content:space-between; padding:6px 2px 12px; flex-wrap:wrap; gap:8px}
+  h1{font-size:17px; font-weight:800; letter-spacing:-.2px}
+  h1 .grad{background:linear-gradient(90deg,#5ab0ff,#c58af9); -webkit-background-clip:text; background-clip:text; color:transparent}
+  h1 .sub{color:var(--ink3); font-weight:500; font-size:12px; margin-left:6px}
+  .hbtns{display:flex; align-items:center; gap:8px}
+  .live{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink3)}
   .dot{width:8px; height:8px; border-radius:50%; background:var(--ok)}
   .dot.err{background:var(--err)}
-  .card{background:var(--surface); border:1px solid var(--border); border-radius:14px;
-    padding:16px; margin-bottom:12px}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:15px; margin-bottom:12px}
+  .sec-title{font-size:13.5px; font-weight:700; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center}
+  .sec-title .tm{font-size:11px; color:var(--ink3); font-weight:500}
+  .btn{border:1px solid var(--border); background:var(--accent-soft); color:var(--accent);
+    font-size:12.5px; font-weight:700; border-radius:9px; padding:7px 12px; cursor:pointer}
+  .btn:disabled{opacity:.5}
+  .btn.ghost{background:transparent; color:var(--ink2); font-weight:600}
   /* hero */
   .rate-row{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
-  .rate{font-size:44px; font-weight:800; letter-spacing:-1px; font-variant-numeric:tabular-nums}
-  .rate .won{font-size:20px; font-weight:600; color:var(--ink2); margin-left:2px}
+  .rate{font-size:42px; font-weight:800; letter-spacing:-1px; font-variant-numeric:tabular-nums}
+  .rate .won{font-size:19px; font-weight:600; color:var(--ink2); margin-left:2px}
   .delta{font-size:15px; font-weight:700; font-variant-numeric:tabular-nums}
-  .delta.up{color:var(--up)} .delta.down{color:var(--down)} .delta.flat{color:var(--flat)}
-  .meta{margin-top:6px; font-size:12px; color:var(--ink3)}
-  /* tabs + chart */
+  .up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--flat)}
+  .meta{margin-top:5px; font-size:11.5px; color:var(--ink3)}
+  .badge{display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:700; padding:5px 11px; border-radius:999px; background:var(--chip)}
+  /* horizons */
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th{color:var(--ink3); font-weight:600; text-align:right; padding:4px 6px; font-size:11.5px}
+  td{padding:7px 6px; text-align:right; border-top:1px solid var(--border); font-variant-numeric:tabular-nums}
+  th:first-child,td:first-child{text-align:left}
+  .sig{font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--chip)}
+  /* agents grid */
+  .agents{display:grid; grid-template-columns:repeat(auto-fill,minmax(105px,1fr)); gap:6px}
+  .ag{border:1px solid var(--border); border-radius:9px; padding:7px 8px; font-size:10.5px; line-height:1.5}
+  .ag b{display:block; font-size:10.5px; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .ag .st{font-weight:700}
+  .ag.analyzing{border-color:var(--accent); animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{opacity:.55}}
+  .tierlab{font-size:10.5px; color:var(--ink3); margin:8px 0 5px; font-weight:700}
+  /* report */
+  .kotabs{display:flex; gap:6px; margin-bottom:8px}
+  .kotab{border:1px solid var(--border); background:transparent; color:var(--ink2); border-radius:8px; padding:4px 12px; font-size:12px; font-weight:700; cursor:pointer}
+  .kotab.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent)}
+  .report{font-size:13.5px; line-height:1.75; color:var(--ink2); white-space:pre-wrap}
+  .headline{font-size:15px; font-weight:700; margin-bottom:8px; line-height:1.5}
+  /* chart */
   .tabs{display:flex; gap:6px; margin:2px 0 10px}
-  .tab{flex:1; border:1px solid var(--border); background:transparent; color:var(--ink2);
-    border-radius:9px; padding:7px 0; font-size:13px; font-weight:600; cursor:pointer}
+  .tab{flex:1; border:1px solid var(--border); background:transparent; color:var(--ink2); border-radius:9px; padding:6px 0; font-size:12.5px; font-weight:600; cursor:pointer}
   .tab.on{background:var(--accent-soft); border-color:var(--accent); color:var(--accent)}
   #chartbox{position:relative}
   svg{display:block; width:100%; height:auto}
@@ -56,63 +81,79 @@
   .line{fill:none; stroke:var(--accent); stroke-width:2; stroke-linejoin:round; stroke-linecap:round}
   .area{fill:var(--accent); opacity:.08}
   .cross{stroke:var(--ink3); stroke-width:1; stroke-dasharray:3 3}
-  .tip{position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--border);
-    border-radius:8px; padding:6px 9px; font-size:12px; color:var(--ink);
-    box-shadow:0 4px 14px rgba(0,0,0,.12); white-space:nowrap; display:none}
-  .tip b{font-variant-numeric:tabular-nums}
+  .tip{position:absolute; pointer-events:none; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-size:12px; box-shadow:0 4px 14px rgba(0,0,0,.15); white-space:nowrap; display:none}
   .chart-note{font-size:11px; color:var(--ink3); margin-top:6px}
-  /* analysis */
-  .an-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
-  .an-title{font-size:14px; font-weight:700}
-  .an-time{font-size:11px; color:var(--ink3)}
-  .badge{display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:700;
-    padding:5px 11px; border-radius:999px; background:var(--chip)}
-  .badge.up{color:var(--up)} .badge.down{color:var(--down)} .badge.flat{color:var(--flat)}
-  .range-line{font-size:13px; color:var(--ink2); margin-top:8px; font-variant-numeric:tabular-nums}
-  .conf{display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; color:var(--ink3)}
-  .conf .bar{flex:1; height:6px; border-radius:4px; background:var(--chip); overflow:hidden}
-  .conf .fill{height:100%; border-radius:4px; background:var(--accent)}
-  .headline{font-size:15px; font-weight:700; margin:12px 0 6px; line-height:1.45}
+  /* news */
+  .news li{list-style:none; padding:7px 0; border-top:1px solid var(--border); font-size:12.5px; line-height:1.5}
+  .news li:first-child{border-top:none}
+  .news a{color:var(--ink); text-decoration:none}
+  .news .src{color:var(--ink3); font-size:11px; margin-right:6px}
+  .score{font-size:10.5px; color:var(--accent); font-weight:700; margin-right:6px}
+  /* brief */
   .commentary{font-size:13.5px; line-height:1.7; color:var(--ink2); white-space:pre-wrap}
-  .drivers{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
-  .chipd{font-size:12px; color:var(--ink2); background:var(--chip); border-radius:999px; padding:4px 10px}
-  .rationale{font-size:12px; color:var(--ink3); margin-top:10px; line-height:1.6}
-  .empty{color:var(--ink3); font-size:13px; line-height:1.7}
-  /* context grid */
-  .ctx{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px}
-  .ctx .tile{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px}
-  .ctx .lab{font-size:12px; color:var(--ink3)}
-  .ctx .val{font-size:18px; font-weight:700; margin-top:3px; font-variant-numeric:tabular-nums}
-  .ctx .chg{font-size:12px; font-weight:600; margin-top:2px; font-variant-numeric:tabular-nums}
-  footer{font-size:11.5px; color:var(--ink3); line-height:1.8; padding:8px 4px}
-  .btn{border:1px solid var(--border); background:transparent; color:var(--ink2); font-size:12px;
-    border-radius:8px; padding:5px 10px; cursor:pointer}
-  .btn:active{background:var(--chip)}
+  .drivers{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px}
+  .chipd{font-size:11.5px; color:var(--ink2); background:var(--chip); border-radius:999px; padding:4px 10px}
+  /* stats row */
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px}
+  .stat{border:1px solid var(--border); border-radius:11px; padding:11px}
+  .stat .lab{font-size:11px; color:var(--ink3)}
+  .stat .val{font-size:18px; font-weight:800; margin-top:3px; font-variant-numeric:tabular-nums}
+  /* ctx */
+  .ctx{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px}
+  .tile{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:11px}
+  .tile .lab{font-size:11.5px; color:var(--ink3)}
+  .tile .val{font-size:17px; font-weight:700; margin-top:3px; font-variant-numeric:tabular-nums}
+  .tile .chg{font-size:11.5px; font-weight:600; margin-top:2px; font-variant-numeric:tabular-nums}
+  /* feed */
+  .feed{font-size:11.5px; line-height:1.7; max-height:260px; overflow-y:auto; font-family:ui-monospace,Menlo,Consolas,monospace}
+  .feed .t{color:var(--ink3)}
+  .feed .s{font-weight:700}
+  footer{font-size:11px; color:var(--ink3); line-height:1.8; padding:8px 4px}
+  .empty{color:var(--ink3); font-size:12.5px; line-height:1.7}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>환율 와쳐<span class="sub">원/달러 · KRW Watcher</span></h1>
-    <div class="live"><span class="dot" id="dot"></span><span id="upd">연결 중…</span></div>
+    <h1><span class="grad">KRW</span>·Watcher<span class="sub">USD/KRW 예측 인텔리전스</span></h1>
+    <div class="hbtns">
+      <span class="live"><span class="dot" id="dot"></span><span id="upd">연결 중…</span></span>
+      <button class="btn" id="runbtn" onclick="runCycle()">사이클 실행 ▶</button>
+    </div>
   </header>
 
+  <!-- 1. 현재 환율 + 종합 신호 -->
   <div class="card">
     <div class="rate-row">
       <div class="rate" id="rate">—<span class="won">원</span></div>
       <div class="delta flat" id="delta">—</div>
+      <span class="badge" id="sigbadge" style="display:none"></span>
     </div>
     <div class="meta" id="rate-meta">데이터 로딩 중…</div>
   </div>
 
-  <div class="card" id="an-card">
-    <div class="an-head">
-      <span class="an-title">🤖 AI 분석 <span style="font-weight:500;color:var(--ink3)">by Claude</span></span>
-      <span class="an-time" id="an-time"></span>
-    </div>
-    <div id="an-body"><div class="empty">아직 생성된 분석이 없습니다. 서버가 부팅 후 자동으로 첫 분석을 생성합니다 (몇 분 소요).</div></div>
+  <!-- 2. 호라이즌 예측 -->
+  <div class="card">
+    <div class="sec-title">📈 호라이즌 예측 (최종) <span class="tm" id="fc-time"></span></div>
+    <div id="hz-body"><div class="empty">아직 생성된 예측이 없습니다. 23-에이전트 위원회의 첫 사이클이 완료되면 표시됩니다 (약 20~30분).</div></div>
   </div>
 
+  <!-- 3. 도출 리포트 -->
+  <div class="card">
+    <div class="sec-title">📝 도출 리포트 (Chief)
+      <span class="kotabs"><button class="kotab on" data-l="ko">KO</button><button class="kotab" data-l="en">EN</button></span>
+    </div>
+    <div id="rep-body"><div class="empty">사이클 완료 후 표시됩니다.</div></div>
+  </div>
+
+  <!-- 4. 실시간 에이전트 위원회 -->
+  <div class="card">
+    <div class="sec-title">🤖 실시간 에이전트 위원회 (<span id="agcount">23</span>) <span class="tm" id="ag-state"></span></div>
+    <div id="ag-body"><div class="empty">대기 중…</div></div>
+    <div class="meta" style="margin-top:8px">계층형 종합: 학계 → 섹터 → 수석(Chief) · 소유자 클로드 구독으로 구동</div>
+  </div>
+
+  <!-- 5. 차트 -->
   <div class="card">
     <div class="tabs" id="tabs">
       <button class="tab on" data-r="1d">1일</button>
@@ -121,154 +162,296 @@
       <button class="tab" data-r="1y">1년</button>
     </div>
     <div id="chartbox">
-      <svg id="chart" viewBox="0 0 720 260" role="img" aria-label="원/달러 환율 추이 차트"></svg>
+      <svg id="chart" viewBox="0 0 720 250" role="img" aria-label="원/달러 환율 추이 차트"></svg>
       <div class="tip" id="tip"></div>
     </div>
     <div class="chart-note" id="chart-note"></div>
   </div>
 
+  <!-- 6. 트레이드 신호 · 모의매매 -->
+  <div class="card">
+    <div class="sec-title">💼 트레이드 신호 · 브로커 (paper) <span class="tm" id="tr-sum"></span></div>
+    <div id="tr-body"><div class="empty">예측이 쌓이면 모의 포지션이 표시됩니다.</div></div>
+  </div>
+
+  <!-- 7. 뉴스 스크랩 -->
+  <div class="card">
+    <div class="sec-title">📰 뉴스 스크랩 (핵심 기사 선별) <span class="tm" id="news-time"></span></div>
+    <ul class="news" id="news-body"><li class="empty">수집 중…</li></ul>
+  </div>
+
+  <!-- 8. 데일리 브리프 -->
+  <div class="card">
+    <div class="sec-title">☀️ 데일리 브리프 (전문 분석 + 뉴스)
+      <button class="btn ghost" id="briefbtn" onclick="runBrief()">생성 ▶</button>
+    </div>
+    <div id="brief-body"><div class="empty">매일 아침 KST 07:30 자동 생성됩니다.</div></div>
+  </div>
+
+  <!-- 9. 정확도 · 금일 고저종 -->
+  <div class="card">
+    <div class="sec-title">🎯 예측 정확도 · 금일 고저종</div>
+    <div class="stats" id="acc-body"><div class="empty">예측이 하루 이상 쌓이면 적중률이 계산됩니다.</div></div>
+  </div>
+
+  <!-- 10. 보조지표 -->
   <div class="ctx" id="ctx"></div>
 
+  <!-- 11. 활동 피드 -->
+  <div class="card" style="margin-top:12px">
+    <div class="sec-title">📡 활동 피드 (raw) <span class="tm">↻ 3s</span></div>
+    <div class="feed" id="feed"></div>
+  </div>
+
   <footer>
-    이 사이트는 서버에서 24시간 스스로 동작합니다 — 환율 10분마다 수집, AI 분석은 KST 08:30 / 12:30 / 18:30 / 22:30 자동 생성.
-    화면은 1분마다 자동 갱신되므로 휴대폰에서는 열어서 보기만 하면 됩니다.
+    KRW-Watcher — 원-달러(USD/KRW) 환율 예측 · 23에이전트 계층형 아키텍처.
+    서버에서 24시간 자동 동작(수집 10분·사이클 KST 08/13/20시·브리프 07:30) — 휴대폰은 열어서 보기만 하면 됩니다.<br>
+    © 2026 Minkyu An(안민규). 모든 권리 보유 · 대외비 · 무단 복제 및 재배포 금지 · ID-2026-MA-KW-23A
   </footer>
 </div>
 
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
-const fmt=n=>n==null?"—":Number(n).toLocaleString("ko-KR",{minimumFractionDigits:1,maximumFractionDigits:2});
+const fmt=(n,d=1)=>n==null?"—":Number(n).toLocaleString("ko-KR",{minimumFractionDigits:d,maximumFractionDigits:2});
 const kst=iso=>{try{return new Date(iso).toLocaleString("ko-KR",{timeZone:"Asia/Seoul",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
-let curRange="1d", chartPts=[], lastGood=false;
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const SIGKO={krw_weak:"원화 약세(달러↑)",krw_strong:"원화 강세(달러↓)",neutral:"중립"};
+const SIGCLS={krw_weak:"up",krw_strong:"down",neutral:"flat"};
+let curRange="1d", chartPts=[], repLang="ko", lastReport=null;
 
-function setLive(ok,msg){ $("dot").className="dot"+(ok?"":" err"); $("upd").textContent=msg; lastGood=ok; }
-
-async function j(url,opt){ const r=await fetch(url,opt); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
+async function j(u,o){const r=await fetch(u,o);if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}
+function setLive(ok,msg){$("dot").className="dot"+(ok?"":" err");$("upd").textContent=msg;}
 
 async function loadLatest(){
   try{
-    const d=await j("/api/latest");
-    const L=d.latest||{};
+    const d=await j("/api/latest"), L=d.latest||{};
     if(L.rate!=null){
       $("rate").innerHTML=fmt(L.rate)+'<span class="won">원</span>';
-      const ch=L.change, pc=L.change_pct;
-      const el=$("delta");
-      if(ch==null){ el.textContent="전일비 —"; el.className="delta flat"; }
-      else{
-        const up=ch>0, flat=Math.abs(ch)<0.005;
+      const ch=L.change,pc=L.change_pct,el=$("delta");
+      if(ch==null){el.textContent="전일비 —";el.className="delta flat";}
+      else{const up=ch>0,flat=Math.abs(ch)<.005;
         el.className="delta "+(flat?"flat":up?"up":"down");
-        el.textContent=(flat?"— ":up?"▲ ":"▼ ")+fmt(Math.abs(ch))+"원 ("+(pc>0?"+":"")+pc+"%)";
-      }
+        el.textContent=(flat?"— ":up?"▲ ":"▼ ")+fmt(Math.abs(ch))+"원 ("+(pc>0?"+":"")+pc+"%)";}
       $("rate-meta").textContent="시장가 "+(L.market_time?kst(L.market_time)+" 기준":"")+" · 소스 "+(L.source||"?")+" · 수집 "+kst(L.collected_at);
       setLive(true,"업데이트 "+kst(L.collected_at));
     }
     renderCtx(d.context||{});
-  }catch(e){ setLive(false,"서버 연결 실패"); }
+  }catch(e){setLive(false,"서버 연결 실패");}
 }
 
 function renderCtx(c){
-  const box=$("ctx"); box.innerHTML="";
-  for(const k of ["dxy","us10y","usdjpy","kospi"]){
-    const v=c[k]; if(!v) continue;
-    const pc=v.change_pct, up=pc>0, flat=pc==null||Math.abs(pc)<0.005;
+  const box=$("ctx");box.innerHTML="";
+  for(const k of["dxy","us10y","usdjpy","kospi"]){
+    const v=c[k];if(!v)continue;
+    const pc=v.change_pct,up=pc>0,flat=pc==null||Math.abs(pc)<.005;
     box.insertAdjacentHTML("beforeend",
-      `<div class="tile"><div class="lab">${v.label}</div><div class="val">${fmt(v.price)}</div>
-       <div class="chg" style="color:var(--${flat?"flat":up?"up":"down"})">${pc==null?"":(flat?"— ":up?"▲ ":"▼ ")+Math.abs(pc)+"%"}</div></div>`);
+      `<div class="tile"><div class="lab">${esc(v.label)}</div><div class="val">${fmt(v.price)}</div>
+       <div class="chg ${flat?"flat":up?"up":"down"}">${pc==null?"":(flat?"— ":up?"▲ ":"▼ ")+Math.abs(pc)+"%"}</div></div>`);
   }
 }
 
+async function loadForecast(){
+  try{
+    const f=await j("/api/forecast");
+    if(f.status==="no_forecast")return;
+    $("fc-time").textContent="생성 "+kst(f.created_kst)+" KST · 에이전트 "+f.agents_ok+"/"+f.agents_total;
+    const hs=f.horizons||{};
+    const one=hs["1w"]||{};
+    if(one.signal){const b=$("sigbadge");b.style.display="";b.className="badge "+SIGCLS[one.signal];
+      b.textContent="1주 신호: "+(SIGKO[one.signal]||one.signal)+" · 신뢰도 "+one.confidence+"%";}
+    let rows="";
+    for(const h of["1w","1m","3m","12m"]){
+      const v=hs[h];if(!v)continue;
+      const d=v.published_delta_krw;
+      rows+=`<tr><td><b>${{"1w":"1주","1m":"1개월","3m":"3개월","12m":"12개월"}[h]}</b></td>
+        <td class="${d>0.4?"up":d<-0.4?"down":"flat"}">${d>0?"+":""}${fmt(d)}₩</td>
+        <td>${fmt(v.implied_rate)}</td>
+        <td>${v.confidence}%</td>
+        <td><span class="sig ${SIGCLS[v.signal]||"flat"}">${SIGKO[v.signal]||v.signal}</span></td>
+        <td class="flat">${v.unchanged_streak_days}일</td></tr>`;
+    }
+    $("hz-body").innerHTML=`<table><thead><tr><th>호라이즌</th><th>Δ예상</th><th>내재환율</th><th>신뢰도</th><th>신호</th><th>유지</th></tr></thead><tbody>${rows}</tbody></table>`;
+    lastReport=f; renderReport();
+    if(f.today&&f.today.close){
+      const t=f.today;
+      const acc=$("acc-body");
+      const existing=acc.querySelector(".stat.today");
+      const html=`<div class="stat today"><div class="lab">금일 고저종 예측</div><div class="val" style="font-size:14px">고 ${fmt(t.high)} · 저 ${fmt(t.low)} · 종 ${fmt(t.close)}</div></div>`;
+      if(existing)existing.outerHTML=html;else acc.insertAdjacentHTML("afterbegin",html);
+    }
+  }catch(e){}
+}
+
+function renderReport(){
+  if(!lastReport)return;
+  const txt=repLang==="ko"?lastReport.report_ko:lastReport.report_en;
+  $("rep-body").innerHTML=(lastReport.headline?`<div class="headline">${esc(lastReport.headline)}</div>`:"")+
+    `<div class="report">${esc(txt||"(없음)")}</div>`;
+}
+document.querySelectorAll(".kotab").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".kotab").forEach(t=>t.classList.remove("on"));
+  b.classList.add("on");repLang=b.dataset.l;renderReport();
+});
+
+async function loadAgents(){
+  try{
+    const d=await j("/api/agents/status");
+    $("ag-state").textContent=d.running?"사이클 진행 중…":"대기";
+    $("runbtn").disabled=!!d.running;
+    $("agcount").textContent=(d.agents||[]).length;
+    const tiers={"학계":[],"섹터":[]};
+    for(const a of d.agents||[])(tiers[a.tier]=tiers[a.tier]||[]).push(a);
+    let html="";
+    for(const t of["학계","섹터"]){
+      if(!(tiers[t]||[]).length)continue;
+      html+=`<div class="tierlab">${t} (${tiers[t].length})</div><div class="agents">`+
+        tiers[t].map(a=>{
+          const st=a.status||"idle";
+          const cls=st==="analyzing"?"analyzing":"";
+          const stTxt=st==="ok"?(SIGKO[a.stance]?.split("(")[0]||a.stance):st==="analyzing"?"분석중…":st==="error"?"오류":"대기";
+          const col=st==="ok"?(SIGCLS[a.stance]||"flat"):st==="error"?"up":"flat";
+          return `<div class="ag ${cls}" title="${esc(a.note||"")}"><b>${esc(a.name)}</b><span class="st ${col}">${stTxt}</span></div>`;
+        }).join("")+"</div>";
+    }
+    $("ag-body").innerHTML=html||'<div class="empty">대기 중…</div>';
+  }catch(e){}
+}
+
+async function loadTrading(){
+  try{
+    const d=await j("/api/trading");
+    $("tr-sum").textContent="누적 평가손익 "+(d.mtm_pnl_krw>0?"+":"")+fmt(d.mtm_pnl_krw)+"₩";
+    const ps=d.open_positions||[];
+    if(!ps.length)return;
+    $("tr-body").innerHTML=`<table><thead><tr><th>진입시각</th><th>방향</th><th>진입가</th><th>현재가</th><th>손익(₩)</th></tr></thead><tbody>`+
+      ps.map(p=>`<tr><td>${esc(p.opened)}</td><td>${esc(p.side)}</td><td>${fmt(p.entry)}</td><td>${fmt(p.mark)}</td>
+        <td class="${p.pnl_krw>0?"up":p.pnl_krw<0?"down":"flat"}">${p.pnl_krw>0?"+":""}${fmt(p.pnl_krw)}</td></tr>`).join("")+"</tbody></table>";
+  }catch(e){}
+}
+
+async function loadNews(){
+  try{
+    const d=await j("/api/news");
+    const day=(d.days||[])[0];if(!day)return;
+    $("news-time").textContent=day.date+" · "+day.count+"건";
+    $("news-body").innerHTML=(day.articles||[]).slice(0,10).map(a=>
+      `<li><span class="score">${a.score}</span><span class="src">${esc(a.source)}</span>
+       <a href="${esc(a.link)}" target="_blank" rel="noopener">${esc(a.title)}</a></li>`).join("");
+  }catch(e){}
+}
+
+async function loadBrief(){
+  try{
+    const d=await j("/api/brief");
+    if(d.status==="no_analysis")return;
+    const o=d.outlook||{};
+    $("brief-body").innerHTML=
+      (d.headline?`<div class="headline">${esc(d.headline)}</div>`:"")+
+      `<div class="commentary">${esc(d.commentary||"")}</div>`+
+      ((d.drivers||[]).length?`<div class="drivers">${d.drivers.map(x=>`<span class="chipd">${esc(x)}</span>`).join("")}</div>`:"")+
+      `<div class="meta" style="margin-top:8px">전망 ${esc(o.direction||"?")} · 범위 ${fmt(o.range_low)}~${fmt(o.range_high)}원 · 신뢰도 ${o.confidence??"?"}% · 생성 ${kst(d.created_kst)} KST</div>`;
+  }catch(e){}
+}
+
+async function loadAccuracy(){
+  try{
+    const d=await j("/api/accuracy");
+    const acc=$("acc-body");
+    const today=acc.querySelector(".stat.today");
+    let html=today?today.outerHTML:"";
+    html+=`<div class="stat"><div class="lab">1주 방향 적중률 (실현)</div><div class="val">${d.hit_rate==null?"집계 전":d.hit_rate+"%"}</div></div>
+           <div class="stat"><div class="lab">채점된 예측</div><div class="val">${d.scored}건</div></div>`;
+    acc.innerHTML=html;
+  }catch(e){}
+}
+
+async function loadFeed(){
+  try{
+    const ev=await j("/api/activity?limit=40");
+    $("feed").innerHTML=ev.map(e=>
+      `<div><span class="t">[${(e.ts||"").slice(11,19)}]</span> <span class="s" style="color:${e.color||"inherit"}">${esc(e.source)}</span>: ${esc(e.message)}</div>`).join("");
+  }catch(e){}
+}
+
+async function runCycle(){
+  $("runbtn").disabled=true;
+  try{await j("/api/trigger-cycle",{method:"POST"});}catch(e){}
+  setTimeout(loadAgents,1500);
+}
+async function runBrief(){
+  $("briefbtn").disabled=true;
+  try{await j("/api/trigger-brief",{method:"POST"});}catch(e){}
+  setTimeout(()=>{$("briefbtn").disabled=false;loadBrief();},60000);
+}
+
+/* chart */
 async function loadChart(r){
   try{
     const d=await j("/api/chart?range="+r);
-    chartPts=d.points||[];
-    drawChart();
+    chartPts=d.points||[];drawChart();
     $("chart-note").textContent=chartPts.length?
-      (d.stale?"오프라인 캐시 표시 중 · ":"")+"구간 "+{"1d":"1일","1w":"1주","1mo":"1개월","1y":"1년"}[r]+" · "+chartPts.length+"개 포인트":"차트 데이터를 불러오지 못했습니다.";
-  }catch(e){ $("chart-note").textContent="차트 데이터를 불러오지 못했습니다."; }
+      (d.stale?"오프라인 캐시 · ":"")+{"1d":"1일","1w":"1주","1mo":"1개월","1y":"1년"}[r]+" · "+chartPts.length+"pt":"차트 데이터를 불러오지 못했습니다.";
+  }catch(e){$("chart-note").textContent="차트 데이터를 불러오지 못했습니다.";}
 }
-
 function drawChart(){
-  const svg=$("chart"); svg.innerHTML="";
-  if(chartPts.length<2) return;
-  const W=720,H=260,P={l:52,r:10,t:12,b:24};
-  const xs=chartPts.map(p=>p[0]), ys=chartPts.map(p=>p[1]);
+  const svg=$("chart");svg.innerHTML="";
+  if(chartPts.length<2)return;
+  const W=720,H=250,P={l:52,r:10,t:12,b:24};
+  const xs=chartPts.map(p=>p[0]),ys=chartPts.map(p=>p[1]);
   const x0=Math.min(...xs),x1=Math.max(...xs);
   let y0=Math.min(...ys),y1=Math.max(...ys);
-  const pad=(y1-y0)*0.08||1; y0-=pad; y1+=pad;
+  const pad=(y1-y0)*.08||1;y0-=pad;y1+=pad;
   const X=t=>P.l+(t-x0)/(x1-x0||1)*(W-P.l-P.r);
   const Y=v=>H-P.b-(v-y0)/(y1-y0||1)*(H-P.t-P.b);
   let g="";
-  const steps=4;
-  for(let i=0;i<=steps;i++){
-    const v=y0+(y1-y0)*i/steps, y=Y(v);
-    g+=`<line class="grid" x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}"/>`;
-    g+=`<text class="axis" x="${P.l-6}" y="${y+3}" text-anchor="end">${Math.round(v).toLocaleString("ko-KR")}</text>`;
-  }
+  for(let i=0;i<=4;i++){const v=y0+(y1-y0)*i/4,y=Y(v);
+    g+=`<line class="grid" x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}"/>
+        <text class="axis" x="${P.l-6}" y="${y+3}" text-anchor="end">${Math.round(v).toLocaleString("ko-KR")}</text>`;}
   const tf=t=>{const d=new Date(t*1000);return curRange==="1d"||curRange==="1w"
-    ? d.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour:"2-digit",minute:"2-digit",...(curRange==="1w"?{month:"numeric",day:"numeric"}:{})})
-    : d.toLocaleDateString("ko-KR",{timeZone:"Asia/Seoul",month:"numeric",day:"numeric",...(curRange==="1y"?{year:"2-digit"}:{})});};
+    ?d.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour:"2-digit",minute:"2-digit",...(curRange==="1w"?{month:"numeric",day:"numeric"}:{})})
+    :d.toLocaleDateString("ko-KR",{timeZone:"Asia/Seoul",month:"numeric",day:"numeric",...(curRange==="1y"?{year:"2-digit"}:{})});};
   [0,.5,1].forEach(f=>{const t=x0+(x1-x0)*f;
     g+=`<text class="axis" x="${X(t)}" y="${H-8}" text-anchor="${f===0?"start":f===1?"end":"middle"}">${tf(t)}</text>`;});
   const path=chartPts.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join("");
-  g+=`<path class="area" d="${path} L${X(x1).toFixed(1)} ${H-P.b} L${X(x0).toFixed(1)} ${H-P.b} Z"/>`;
-  g+=`<path class="line" d="${path}"/>`;
-  g+=`<g id="hoverg" style="display:none"><line class="cross" id="crossx" y1="${P.t}" y2="${H-P.b}"/><circle id="hpt" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/></g>`;
+  g+=`<path class="area" d="${path} L${X(x1).toFixed(1)} ${H-P.b} L${X(x0).toFixed(1)} ${H-P.b} Z"/><path class="line" d="${path}"/>
+      <g id="hoverg" style="display:none"><line class="cross" id="crossx" y1="${P.t}" y2="${H-P.b}"/>
+      <circle id="hpt" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/></g>`;
   svg.innerHTML=g;
-  const tip=$("tip"), box=$("chartbox"), hg=svg.querySelector("#hoverg");
+  const tip=$("tip"),box=$("chartbox"),hg=svg.querySelector("#hoverg");
   const move=ev=>{
     const r=svg.getBoundingClientRect();
     const cx=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
     const t=x0+((cx/r.width*W)-P.l)/(W-P.l-P.r)*(x1-x0);
     let best=0,bd=1e18;
-    for(let i=0;i<chartPts.length;i++){const d=Math.abs(chartPts[i][0]-t); if(d<bd){bd=d;best=i;}}
-    const p=chartPts[best], px=X(p[0]), py=Y(p[1]);
+    for(let i=0;i<chartPts.length;i++){const d=Math.abs(chartPts[i][0]-t);if(d<bd){bd=d;best=i;}}
+    const p=chartPts[best],px=X(p[0]),py=Y(p[1]);
     hg.style.display="";
-    svg.querySelector("#crossx").setAttribute("x1",px); svg.querySelector("#crossx").setAttribute("x2",px);
-    const c=svg.querySelector("#hpt"); c.setAttribute("cx",px); c.setAttribute("cy",py);
+    svg.querySelector("#crossx").setAttribute("x1",px);svg.querySelector("#crossx").setAttribute("x2",px);
+    const c=svg.querySelector("#hpt");c.setAttribute("cx",px);c.setAttribute("cy",py);
     tip.style.display="block";
     tip.innerHTML=`<b>${fmt(p[1])}원</b><br><span style="color:var(--ink3)">${tf(p[0])}</span>`;
-    const bw=box.clientWidth, tx=px/W*bw;
+    const bw=box.clientWidth,tx=px/W*bw;
     tip.style.left=Math.min(Math.max(tx-40,0),bw-110)+"px";
-    tip.style.top=(py/260*box.clientHeight-56)+"px";
+    tip.style.top=(py/250*box.clientHeight-56)+"px";
   };
-  const off=()=>{hg.style.display="none"; tip.style.display="none";};
-  svg.onmousemove=move; svg.onmouseleave=off;
-  svg.ontouchstart=svg.ontouchmove=ev=>{move(ev);};
-  svg.ontouchend=off;
+  const off=()=>{hg.style.display="none";tip.style.display="none";};
+  svg.onmousemove=move;svg.onmouseleave=off;
+  svg.ontouchstart=svg.ontouchmove=ev=>{move(ev);};svg.ontouchend=off;
 }
-
-async function loadAnalysis(){
-  try{
-    const d=await j("/api/analysis");
-    if(!d||d.status==="no_analysis"){ return; }
-    const o=d.outlook||{};
-    const dir=o.direction||"중립";
-    const cls=dir.includes("상승")?"up":dir.includes("하락")?"down":"flat";
-    const arrow=cls==="up"?"▲":cls==="down"?"▼":"→";
-    $("an-time").textContent=d.created_kst?("생성 "+kst(d.created_kst)+" KST"):"";
-    $("an-body").innerHTML=`
-      <span class="badge ${cls}">${arrow} 1주 전망: ${dir}</span>
-      ${o.range_low&&o.range_high?`<div class="range-line">예상 범위 <b>${fmt(o.range_low)} ~ ${fmt(o.range_high)}원</b></div>`:""}
-      ${o.confidence!=null?`<div class="conf"><span>신뢰도 ${o.confidence}%</span><div class="bar"><div class="fill" style="width:${Math.max(0,Math.min(100,o.confidence))}%"></div></div></div>`:""}
-      ${d.headline?`<div class="headline">${esc(d.headline)}</div>`:""}
-      ${d.commentary?`<div class="commentary">${esc(d.commentary)}</div>`:""}
-      ${(d.drivers||[]).length?`<div class="drivers">${d.drivers.map(x=>`<span class="chipd">${esc(x)}</span>`).join("")}</div>`:""}
-      ${o.rationale?`<div class="rationale">근거: ${esc(o.rationale)}</div>`:""}`;
-  }catch(e){/* keep previous */}
-}
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-
 $("tabs").addEventListener("click",e=>{
-  const b=e.target.closest(".tab"); if(!b) return;
+  const b=e.target.closest(".tab");if(!b)return;
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));
-  b.classList.add("on"); curRange=b.dataset.r; loadChart(curRange);
+  b.classList.add("on");curRange=b.dataset.r;loadChart(curRange);
 });
 
-loadLatest(); loadChart(curRange); loadAnalysis();
-setInterval(loadLatest, 60*1000);
-setInterval(loadAnalysis, 180*1000);
-setInterval(()=>loadChart(curRange), 10*60*1000);
+function refreshAll(){loadLatest();loadForecast();loadAgents();loadTrading();loadNews();loadBrief();loadAccuracy();}
+refreshAll();loadChart(curRange);loadFeed();
+setInterval(loadLatest,60*1000);
+setInterval(loadAgents,15*1000);
+setInterval(loadFeed,3*1000);
+setInterval(()=>{loadForecast();loadTrading();loadBrief();loadNews();loadAccuracy();},180*1000);
+setInterval(()=>loadChart(curRange),10*60*1000);
 </script>
 </body>
 </html>

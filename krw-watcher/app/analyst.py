@@ -152,6 +152,27 @@ async def run_analysis(trigger: str = "scheduled", force: bool = False) -> Optio
             prev_line = (f"\n직전 분석({prev.get('created_kst','')[:16]}): "
                          f"{po.get('direction','?')} / 범위 {po.get('range_low','?')}~{po.get('range_high','?')}원")
 
+        # 뉴스 헤드라인 + 최신 위원회 예측을 브리프에 반영
+        news_block = ""
+        try:
+            from . import news as news_mod
+            lines = await news_mod.headline_lines(8)
+            if lines:
+                news_block = "\n주요 뉴스:\n" + "\n".join(lines)
+        except Exception:
+            pass
+        fc_block = ""
+        try:
+            from . import agents as agents_mod
+            fc = agents_mod.latest_forecast()
+            if fc:
+                hs = fc.get("horizons", {})
+                fc_block = ("\n위원회 최신 예측: " + ", ".join(
+                    f"{h} {v.get('published_delta_krw'):+.1f}₩({v.get('signal')})"
+                    for h, v in hs.items()))
+        except Exception:
+            pass
+
         user_msg = f"""현재 시각(KST): {now_kst.strftime('%Y-%m-%d %H:%M')}
 원/달러 환율: {snap['rate']}원 (전일 대비 {snap.get('change') if snap.get('change') is not None else '?'}원, {snap.get('change_pct') if snap.get('change_pct') is not None else '?'}%)
 데이터 소스: {snap.get('source')}
@@ -160,7 +181,7 @@ async def run_analysis(trigger: str = "scheduled", force: bool = False) -> Optio
 
 주변 지표:
 {chr(10).join(ctx_lines) if ctx_lines else '- (수집 실패)'}
-{prev_line}
+{prev_line}{fc_block}{news_block}
 
 위 데이터를 바탕으로 지정된 JSON 형식의 브리핑을 작성하세요."""
 
@@ -182,6 +203,7 @@ async def run_analysis(trigger: str = "scheduled", force: bool = False) -> Optio
         _save()
         collector.emit("analyst",
                        f"AI 분석 완료: {record['headline'] or '(제목 없음)'}", "ok")
+        await _send_telegram(record)
         return record
     except ClaudeAuthError as e:
         collector.emit("analyst", f"클로드 인증 오류: {str(e)[:150]}", "error")
@@ -196,3 +218,29 @@ async def run_analysis(trigger: str = "scheduled", force: bool = False) -> Optio
 
 def is_running() -> bool:
     return _running
+
+
+async def _send_telegram(record: dict) -> None:
+    """데일리 브리프 텔레그램 전송 — TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID가
+    설정된 경우에만 동작(옵션)."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    chat = os.getenv("TELEGRAM_CHAT_ID", "")
+    if not token or not chat:
+        return
+    import httpx
+    o = record.get("outlook") or {}
+    text = (f"💱 KRW-Watcher 데일리 브리프\n"
+            f"{record.get('created_kst','')[:16]} KST · {record.get('rate')}원\n\n"
+            f"■ {record.get('headline','')}\n\n"
+            f"{record.get('commentary','')}\n\n"
+            f"전망: {o.get('direction','?')} · 범위 {o.get('range_low','?')}~{o.get('range_high','?')}원 "
+            f"· 신뢰도 {o.get('confidence','?')}%")
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": chat, "text": text[:4000]})
+            r.raise_for_status()
+        collector.emit("telegram", "데일리 브리프 전송 완료", "ok")
+    except Exception as e:
+        collector.emit("telegram", f"전송 실패: {str(e)[:100]}", "error")

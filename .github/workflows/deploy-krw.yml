@@ -213,14 +213,23 @@ jobs:
           ROOT_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL/" || echo ERR)
           echo "probes: latest=$LATEST_CODE chart=$CHART_CODE root=$ROOT_CODE"
 
-          echo "=== Waiting for first AI analysis (startup warm-up, up to ~8 min) ==="
-          ANALYSIS="no_analysis"
-          for i in $(seq 1 32); do
+          echo "=== Waiting for first committee forecast (23 agents, up to ~35 min) ==="
+          ANALYSIS="no_forecast"
+          for i in $(seq 1 140); do
             sleep 15
-            A=$(curl -sf --max-time 20 "$URL/api/analysis" 2>/dev/null || echo '{}')
-            S=$(echo "$A" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status') or ('ok' if d.get('headline') is not None else '?'))" 2>/dev/null || echo "?")
-            echo "  [$i] analysis=$S"
-            if [ "$S" = "ok" ]; then ANALYSIS="$A"; break; fi
+            F=$(curl -sf --max-time 20 "$URL/api/forecast" 2>/dev/null || echo '{}')
+            S=$(echo "$F" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d.get('horizons') else d.get('status','?'))" 2>/dev/null || echo "?")
+            PROG=$(curl -sf --max-time 20 "$URL/api/agents/status" 2>/dev/null | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          ags = d.get('agents', [])
+          ok = sum(1 for a in ags if a.get('status') == 'ok')
+          err = sum(1 for a in ags if a.get('status') == 'error')
+          run = sum(1 for a in ags if a.get('status') == 'analyzing')
+          print(f\"ok={ok} err={err} analyzing={run} running={d.get('running')}\")
+          " 2>/dev/null || echo "?")
+            echo "  [$i] forecast=$S agents: $PROG"
+            if [ "$S" = "ok" ]; then ANALYSIS="$F"; break; fi
           done
 
           echo "=== Recent activity ==="

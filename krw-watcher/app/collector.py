@@ -44,12 +44,23 @@ _charts: dict[str, dict] = {}        # range -> {"points": [[ts,close],...], "fe
 activity: deque = deque(maxlen=300)  # [{"ts","source","message","status"}]
 
 
+_seq = 0
+_SYSTEM_SOURCES = {"system", "collector", "news", "analyst", "telegram"}
+_COLORS = {"ok": "#81C995", "error": "#E53E3E", "info": "#8AB4F8"}
+
+
 def emit(source: str, message: str, status: str = "info") -> None:
+    global _seq
+    _seq += 1
     activity.appendleft({
+        "seq": _seq,
         "ts": datetime.now(timezone.utc).isoformat(),
+        "category": "system" if source in _SYSTEM_SOURCES else "agent",
         "source": source,
         "message": message,
         "status": status,
+        "level": status,
+        "color": _COLORS.get(status, _COLORS["info"]),
     })
     log = logger.error if status == "error" else logger.info
     log("[%s] %s", source, message)
