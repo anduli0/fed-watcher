@@ -17,14 +17,29 @@ from . import collector
 logger = logging.getLogger("krw_watcher.news")
 KST = ZoneInfo("Asia/Seoul")
 
+from urllib.parse import quote
+
+def _gn(q: str, ko: bool = True) -> str:
+    return ("https://news.google.com/rss/search?q=" + quote(q + " when:7d") +
+            ("&hl=ko&gl=KR&ceid=KR:ko" if ko else "&hl=en-US&gl=US&ceid=US:en"))
+
 FEEDS = [
-    ("원/달러 환율", "https://news.google.com/rss/search?q=%EC%9B%90%EB%8B%AC%EB%9F%AC%20%ED%99%98%EC%9C%A8%20when:7d&hl=ko&gl=KR&ceid=KR:ko"),
-    ("USD/KRW exchange rate", "https://news.google.com/rss/search?q=USD%2FKRW%20exchange%20rate%20when:7d&hl=en-US&gl=US&ceid=US:en"),
-    ("외환당국·한국은행", "https://news.google.com/rss/search?q=(%EC%99%B8%ED%99%98%EB%8B%B9%EA%B5%AD%20OR%20%ED%95%9C%EA%B5%AD%EC%9D%80%ED%96%89)%20%ED%99%98%EC%9C%A8%20when:7d&hl=ko&gl=KR&ceid=KR:ko"),
+    ("원/달러 환율", _gn("원달러 환율")),
+    ("USD/KRW exchange rate", _gn("USD/KRW exchange rate", ko=False)),
+    ("외환당국·개입", _gn("(외환당국 OR 구두개입 OR 스무딩오퍼레이션) 환율")),
+    ("한국은행 리포트", _gn("한국은행 (보고서 OR 이슈노트 OR 금통위 OR 기준금리)")),
+    ("경상수지·환류", _gn("경상수지 OR 무역수지 OR 본원소득수지 OR 배당 환류")),
+    ("통화량·유동성", _gn("(M2 OR 통화량 OR 유동성) 원화")),
+    ("정부 정책·기재부", _gn("기획재정부 (환율 OR 외환 OR 밸류업)")),
+    ("리스크·지정학", _gn("(지정학 OR 신용등급 OR 자본유출) 원화 환율")),
 ]
-_SCORE = {"환율": 2.0, "원달러": 2.5, "원/달러": 2.5, "원화": 1.5, "달러": 1.0, "개입": 2.0,
-          "한국은행": 1.5, "연준": 1.5, "fed": 1.2, "금리": 1.2, "intervention": 2.0,
+_SCORE = {"환율": 2.0, "원달러": 2.5, "원/달러": 2.5, "원화": 1.5, "달러": 1.0, "개입": 2.5,
+          "한국은행": 1.8, "금통위": 2.0, "연준": 1.5, "fed": 1.2, "금리": 1.2, "intervention": 2.0,
           "usd/krw": 3.0, "krw": 2.0, "won": 1.5, "forecast": 1.5, "전망": 1.5,
+          "경상수지": 2.2, "무역수지": 1.8, "본원소득": 2.2, "환류": 2.5, "배당": 1.3,
+          "통화량": 2.0, "m2": 2.0, "유동성": 1.3, "기재부": 1.8, "기획재정부": 1.8,
+          "구두개입": 2.8, "스무딩": 2.8, "외환보유액": 2.0, "국민연금": 1.8, "환헤지": 2.0,
+          "지정학": 1.5, "신용등급": 1.8, "자본유출": 2.0,
           "급등": 1.2, "급락": 1.2, "1500": 1.0, "1600": 1.0}
 
 _cache: dict[str, Any] = {"items": [], "fetched": 0.0}

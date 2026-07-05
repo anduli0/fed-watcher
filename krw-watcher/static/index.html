@@ -58,9 +58,15 @@
   .acc-body{padding:0}
   @media(max-width:860px){
     .layout{grid-template-columns:1fr}
-    .snav{flex-direction:row;flex-wrap:wrap;gap:4px;position:static;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px}
-    .snav button{width:auto;border-left:none;border-radius:7px;padding:7px 10px}
-    .snav button.on{border-left:none}
+    /* 모바일: 감싸는 큰 메뉴 대신 한 줄 가로 스와이프 칩바(상단 고정) */
+    .snav{flex-direction:row;flex-wrap:nowrap;gap:6px;position:sticky;top:0;z-index:60;
+      overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+      background:var(--bg);padding:8px 2px;margin:0 0 12px;border-bottom:1px solid var(--line)}
+    .snav::-webkit-scrollbar{display:none}
+    .snav button{width:auto;flex:0 0 auto;border-left:none;border:1px solid var(--line);
+      border-radius:999px;padding:6px 12px;font-size:11.5px;white-space:nowrap}
+    .snav button.on{border-left:none;border-color:var(--accent);background:var(--panel)}
+    .snav .ic{width:auto}
   }
 
   .cols{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
@@ -345,6 +351,9 @@ function toggleAcc(id){
   curSec=id;
   document.querySelectorAll('.acc').forEach(s=>s.classList.toggle('open', s.id===id));
   document.querySelectorAll('#snav button').forEach(b=>b.classList.toggle('on', b.dataset.t===id));
+  const on=document.querySelector('#snav button.on');
+  if(on&&window.matchMedia('(max-width:860px)').matches)
+    on.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
 }
 function buildNav(){
   const nav=document.getElementById('snav'); if(!nav) return;

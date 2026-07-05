@@ -217,6 +217,24 @@ async def api_backtest(years: int = 12, lookback: int = 20, horizon: str = "1m")
     return await asyncio.to_thread(quant.backtest, years, lookback, horizon)
 
 
+@app.get("/api/notes")
+async def api_notes():
+    from . import notes as notes_mod
+    return {"notes": notes_mod.load()}
+
+
+@app.post("/api/notes")
+async def api_notes_add(payload: dict):
+    from . import notes as notes_mod
+    title = str(payload.get("title", "")).strip()
+    body = str(payload.get("body", "")).strip()
+    if not title or not body:
+        return JSONResponse({"ok": False, "error": "title/body required"}, status_code=400)
+    rec = notes_mod.add(title, body)
+    collector.emit("system", f"연구 노트 추가: {rec['title'][:60]}", "ok")
+    return {"ok": True, "note": rec}
+
+
 # 보조(원본 외 유지): 차트/최신값 — 다른 클라이언트 호환용
 @app.get("/api/latest")
 async def api_latest():
