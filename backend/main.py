@@ -38,7 +38,27 @@ async def run_data_collection():
 
 
 # ── Core AI cycle ────────────────────────────────────────────────────────────
+# The startup warm-up, the KST schedule, and the manual trigger endpoint can all
+# call trigger_cycle — without a guard they overlap (a warm-up cycle still
+# running when the next scheduled slot fires), which on a 512 MB host means OOM
+# and double token burn for a single forecast. Skip instead of queueing: the
+# already-running cycle produces the same forecast the new request wanted.
+_cycle_lock = asyncio.Lock()
+
+
 async def trigger_cycle(cycle_type: str = "scheduled"):
+    if _cycle_lock.locked():
+        from backend.data import activity_log as AL
+        AL.emit("system", "System",
+                f"Cycle '{cycle_type}' skipped — another cycle is already running",
+                "#DD6B20", "info")
+        logger.warning("Cycle '%s' skipped — another cycle is already running", cycle_type)
+        return
+    async with _cycle_lock:
+        await _trigger_cycle_inner(cycle_type)
+
+
+async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
     """Run a full Orchestrator cycle (uses latest collected data; no fresh scraping)."""
     from backend.agents.orchestrator import run_full_cycle, HORIZONS
     from backend.agents.base_agent import AgentContext
