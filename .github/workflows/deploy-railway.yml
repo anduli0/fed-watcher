@@ -92,7 +92,7 @@ jobs:
           fi
 
           if [ -z "$SERVICE_ID" ]; then
-            echo "=== Creating new Render service (Docker, master branch) ==="
+            echo "=== Creating new Render service (Docker, branch ${GITHUB_REF_NAME}) ==="
             CREATE_RESP=$(curl -s -X POST "https://api.render.com/v1/services" \
               -H "Authorization: Bearer $RENDER_API_KEY" \
               -H "Content-Type: application/json" \
@@ -101,7 +101,7 @@ jobs:
                 \"name\": \"fed-watcher-backend\",
                 \"ownerId\": \"$OWNER_ID\",
                 \"repo\": \"https://github.com/anduli0/fed-watcher\",
-                \"branch\": \"master\",
+                \"branch\": \"${GITHUB_REF_NAME}\",
                 \"autoDeploy\": \"yes\",
                 \"serviceDetails\": {
                   \"env\": \"docker\",
@@ -134,6 +134,16 @@ jobs:
           if [ "${{ github.event.inputs.skip_deploy }}" = "true" ]; then
             echo "=== skip_deploy=true -> NOT updating env vars (avoids auto-redeploy) ==="
           else
+          # The service builds whatever branch it is pinned to, which is not
+          # necessarily the branch that triggered this workflow. Repoint it so
+          # the code being deployed is the code that was just pushed.
+          echo "=== Pointing service at branch ${GITHUB_REF_NAME} ==="
+          curl -s -X PATCH "https://api.render.com/v1/services/$SERVICE_ID" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"branch\": \"${GITHUB_REF_NAME}\"}" \
+            -o /dev/null -w "branch PATCH -> HTTP %{http_code}\n"
+
           echo "=== Setting environment variables ==="
           ENV_VARS=$(python3 -c "
           import json, os
