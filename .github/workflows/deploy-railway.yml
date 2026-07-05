@@ -5,6 +5,7 @@ on:
     branches: [main, master]
     paths-ignore:
       - 'frontend/**'
+      - 'krw-watcher/**'
       - '**.md'
   workflow_dispatch:
     inputs:
