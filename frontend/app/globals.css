@@ -47,3 +47,23 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in { animation: fade-in 0.3s ease-out; }
+
+/* ── Mobile optimizations ──────────────────────────────────────────────────── */
+/* Never let the page itself pan horizontally — only designated strips scroll.
+   overflow-x: clip (not hidden!) — hidden turns the ancestor into a scroll
+   container and silently breaks position: sticky on the tab strip. */
+html, body { overflow-x: clip; }
+html { -webkit-text-size-adjust: 100%; }
+
+/* Horizontal scroll areas (tab strip, wide tables): keep the drag inside the
+   strip instead of chaining to the page, momentum-scroll on iOS. */
+.overflow-x-auto {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Comfortable touch targets + no gray tap flash on mobile */
+@media (max-width: 639px) {
+  button, a { -webkit-tap-highlight-color: transparent; }
+  .tabnav button { min-height: 44px; }
+}

@@ -26,13 +26,27 @@ interface Props {
 export default function TabNav({ active, onChange }: Props) {
   const { lang } = useLang();
   return (
-    <nav className="flex gap-1 border-b mb-6 overflow-x-auto scrollbar-none" style={{ borderColor: "var(--color-navy-700)" }}>
+    // Sticky on mobile so the tab strip stays pinned while content scrolls;
+    // overscroll containment + snap keep horizontal drags on the tabs instead
+    // of sliding the strip (or the page) into empty space.
+    <nav
+      className="tabnav flex gap-1 border-b mb-6 overflow-x-auto scrollbar-none sticky top-0 z-30 select-none"
+      style={{
+        borderColor: "var(--color-navy-700)",
+        background: "var(--color-navy)",
+        overscrollBehaviorX: "contain",
+        touchAction: "pan-x",
+        scrollSnapType: "x proximity",
+        WebkitTapHighlightColor: "transparent",
+      }}
+    >
       {TABS.map(t => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
           className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs font-medium transition-all relative whitespace-nowrap shrink-0"
           style={{
+            scrollSnapAlign: "start",
             color: active === t.id ? "var(--color-text-primary)" : "var(--color-text-muted)",
             borderBottom: active === t.id
               ? "2px solid var(--color-gold)"

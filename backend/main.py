@@ -179,6 +179,48 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         collab_rounds = 2 if result.get("collaboration", {}).get("agents_revised") else 1
         await crud.complete_run(db, run.id, "completed", collab_rounds)
 
+        # ── Accuracy optimizations (evidence from the backtest) ──────────────
+        # 1) The market-implied signal alone hits 83% directionally at 12m while
+        #    the committee's edge is smallest when it disagrees → shrink the raw
+        #    committee delta toward the market prior in proportion to dispersion.
+        # 2) On-hold regimes are the engine's weakest (29% directional): when the
+        #    committee's ±1σ band straddles zero, publish NEUTRAL instead of a
+        #    low-conviction directional call (reference build's caution rule).
+        # 3) Published confidence may never exceed the weighted share of agents
+        #    agreeing with the published sign (calibration by construction).
+        def _final_horizon_deltas(hh: str) -> list[tuple[float, float]]:
+            """[(delta, weight)] using each agent's round-final output."""
+            by_agent: dict[int, dict] = {}
+            for ar in result["agent_results"]:
+                cur = by_agent.get(ar["agent_id"])
+                if cur is None or ar.get("round", 1) > cur.get("round", 1):
+                    by_agent[ar["agent_id"]] = ar
+            out = []
+            for ar in by_agent.values():
+                hv = (ar.get("horizons") or {}).get(hh, {})
+                d = hv.get("delta_bps", ar["rate_path_delta_bps"] if hh == "12m" else None)
+                if d is not None:
+                    out.append((float(d), float(ar.get("weight_applied") or 1.0)))
+            return out
+
+        def _dispersion(vals: list[tuple[float, float]]) -> float | None:
+            if len(vals) < 2:
+                return None
+            xs = [v for v, _ in vals]
+            m = sum(xs) / len(xs)
+            return (sum((x - m) ** 2 for x in xs) / len(xs)) ** 0.5
+
+        market_prior_bps = {}
+        try:
+            if market_prior_text:
+                # recompute the numeric priors used in the context block
+                dff_v, gs2_v = macro.get("DFF"), macro.get("GS2")
+                if dff_v is not None and gs2_v is not None:
+                    p12 = (gs2_v - dff_v) * 100.0 * 0.7
+                    market_prior_bps = {"12m": p12, "6m": p12 * 0.5}
+        except Exception:
+            pass
+
         # ── Stabilize and persist all 4 horizons ──
         # Always publish immediately — cloud is always-on, no "morning publish" gate needed
         immediate_publish = True
@@ -186,6 +228,24 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         report_en = result.get("report_en", "")
         for h in HORIZONS:
             agg = result["horizons"][h]
+
+            finals = _final_horizon_deltas(h)
+            sigma = _dispersion(finals)
+
+            # (1) dispersion-weighted shrink toward the market prior (6m/12m)
+            raw_delta = agg["weighted_delta_bps"]
+            prior = market_prior_bps.get(h)
+            if prior is not None and sigma is not None:
+                shrink = min(0.5, sigma / 50.0)
+                blended = (1 - shrink) * raw_delta + shrink * prior
+                if abs(blended - raw_delta) >= 1.0:
+                    AL.emit("system", "Chief",
+                            f"{h}: committee {raw_delta:+.0f}bps → {blended:+.0f}bps "
+                            f"(시장프라이어 수축 {shrink:.0%}, σ={sigma:.0f}bps)",
+                            "#C9A84C", "info")
+                raw_delta = blended
+            agg = dict(agg)
+            agg["weighted_delta_bps"] = raw_delta
             prev = await crud.get_latest_horizon_forecast(db, h)
             prev_delta = prev.published_delta if prev else 0.0
             prev_streak = prev.unchanged_streak_days if prev else 0
@@ -208,8 +268,39 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                 recent_raw_deltas=recent_raw,
             )
 
+            # (2) 1σ conviction band: a directional call whose band straddles
+            # zero is statistically indistinguishable from "no change" — the
+            # engine's historical weak spot. Publish neutral instead.
+            published_delta = stabilized.published_delta
+            band_neutralized = False
+            if (sigma is not None and published_delta != 0
+                    and (published_delta - sigma) < 0 < (published_delta + sigma)):
+                AL.emit("system", "Chief",
+                        f"{h}: {published_delta:+.0f}bps 콜의 1σ 밴드(±{sigma:.0f})가 0을 포함 "
+                        "→ 방향 확신 부족, 중립 발행 (동결기 신중 규칙)",
+                        "#DD6B20", "info")
+                published_delta = 0.0
+                band_neutralized = True
+
+            # (3) confidence calibrated to weighted agreement with the call
+            conf_published = agg["confidence"]
+            if finals:
+                pub_sign = 1 if published_delta >= 25 else (-1 if published_delta <= -25 else 0)
+                wsum = sum(w for _, w in finals)
+                agree = sum(
+                    w for d, w in finals
+                    if (1 if d >= 12.5 else (-1 if d <= -12.5 else 0)) == pub_sign
+                )
+                if wsum > 0:
+                    conf_published = round(min(conf_published, agree / wsum), 3)
+
             justification = None
-            if stabilized.changed:
+            if band_neutralized:
+                justification = (
+                    f"위원회 ±1σ 밴드가 0을 포함(±{sigma:.0f}bps) — 방향 확신 부족으로 "
+                    "중립 발행 (동결기 신중 규칙)"
+                )
+            elif stabilized.changed:
                 try:
                     justification = await justify_change(
                         stabilized.published_delta, prev_delta, event, result["agent_results"]
@@ -218,8 +309,8 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                     justification = None
 
             # Determine signal from published delta
-            sig = "hawkish" if stabilized.published_delta >= 25 else \
-                  "dovish" if stabilized.published_delta <= -25 else "neutral"
+            sig = "hawkish" if published_delta >= 25 else \
+                  "dovish" if published_delta <= -25 else "neutral"
 
             await crud.save_horizon_forecast(db, {
                 "run_id": run.id,
@@ -227,8 +318,8 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                 "target_date": date.today().isoformat(),
                 "raw_delta_bps": stabilized.raw_delta,
                 "smoothed_delta": stabilized.smoothed_delta,
-                "published_delta": stabilized.published_delta,
-                "confidence": agg["confidence"],
+                "published_delta": published_delta,
+                "confidence": conf_published,
                 "signal": sig,
                 "trigger_event": event.get("label") if event else None,
                 "unchanged_streak_days": stabilized.unchanged_streak,
