@@ -1,2 +1,4 @@
 SERVICE_ID=srv-d8cjm7pnrd2s73dmg1q0
 URL=https://fed-watcher-backend-9rgk.onrender.com
+HEALTH={"status":"ok","model":"claude-sonnet-4-6","data_last_collected":null,"agent_count":21,"claude_auth":{"ok":null,"mode":"oauth_token (CLAUDE_CODE_OAUTH_TOKEN)","detail":"not checked yet"}}
+DEPLOY_STATUS=unknown
