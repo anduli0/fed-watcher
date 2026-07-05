@@ -10,6 +10,9 @@ import ForecastReport from "@/components/ForecastReport";
 import MacroDataPanel from "@/components/MacroDataPanel";
 import MultiHorizonGauges from "@/components/MultiHorizonGauges";
 import DailyBriefingPage from "@/components/DailyBriefingPage";
+import TodayPanel from "@/components/TodayPanel";
+import TrackRecordPanel from "@/components/TrackRecordPanel";
+import TradingPanel from "@/components/TradingPanel";
 import { useForecast } from "@/hooks/useForecast";
 import { useLang } from "@/context/LanguageContext";
 import { Horizon } from "@/lib/api";
@@ -18,7 +21,7 @@ import api from "@/lib/api";
 export default function DashboardPage() {
   const { horizons, history, agents, report, loading, lastRefresh, refresh } = useForecast();
   const { T, lang } = useLang();
-  const [tab, setTab] = useState<Tab>("live");
+  const [tab, setTab] = useState<Tab>("today");
   const [activeHorizon, setActiveHorizon] = useState<Horizon>("12m");
   const [timeStr, setTimeStr] = useState("");
   const [yr, setYr] = useState(2026);
@@ -110,6 +113,11 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ── Tab: Today ── */}
+        {tab === "today" && (
+          <TodayPanel horizons={horizons} onNavigate={setTab} />
+        )}
+
         {/* ── Tab: Live ── */}
         {tab === "live" && (
           <div className="space-y-4 pb-8">
@@ -176,6 +184,16 @@ export default function DashboardPage() {
         {/* ── Tab: Daily Brief ── */}
         {tab === "briefing" && (
           <DailyBriefingPage />
+        )}
+
+        {/* ── Tab: Track Record ── */}
+        {tab === "track" && (
+          <TrackRecordPanel />
+        )}
+
+        {/* ── Tab: Trading ── */}
+        {tab === "trading" && (
+          <TradingPanel />
         )}
       </div>
 
