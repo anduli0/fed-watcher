@@ -19,6 +19,7 @@ from backend.routes.admin_routes import router as admin_router
 from backend.routes.briefing_routes import router as briefing_router
 from backend.routes.trading_routes import router as trading_router
 from backend.routes.accuracy_routes import router as accuracy_router
+from backend.routes.state_routes import router as state_router
 from backend.scheduler.window_manager import init_scheduler, scheduler
 
 logging.basicConfig(
@@ -360,6 +361,28 @@ async def _startup_warmup():
     # Always collect fresh data first (no AI tokens needed).
     await run_data_collection()
 
+    # Give the deploy workflow's state restore a moment to land, then skip the
+    # warm-up cycle entirely if a recent forecast already exists (restored from
+    # the previous container or left over from a same-day run) — a full 21-agent
+    # cycle per container swap is pure token burn when history survived.
+    await asyncio.sleep(float(os.getenv("STATE_RESTORE_GRACE", "90")))
+    try:
+        from backend.database import crud
+        async with AsyncSessionLocal() as _db:
+            latest = await crud.get_latest_horizon_forecast(_db, "12m")
+        if latest and latest.published_at:
+            from datetime import datetime as _dt
+            age_h = (_dt.utcnow() - latest.published_at).total_seconds() / 3600
+            if age_h < float(os.getenv("WARMUP_SKIP_IF_FRESH_HOURS", "4")):
+                logger.info(
+                    "Startup warm-up skipped — forecast from %.1fh ago present "
+                    "(restored or same-day). Next scheduled KST cycle will refresh.",
+                    age_h,
+                )
+                return
+    except Exception as e:
+        logger.warning("Warm-up freshness check failed (%s); proceeding.", e)
+
     ok, detail = await verify_auth()
     if not ok:
         logger.error(
@@ -450,6 +473,7 @@ app.include_router(admin_router)
 app.include_router(briefing_router)
 app.include_router(trading_router)
 app.include_router(accuracy_router)
+app.include_router(state_router)
 
 
 @app.get("/health")
