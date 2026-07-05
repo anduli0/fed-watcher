@@ -40,11 +40,25 @@ def _serialize_horizon(f: HorizonForecast) -> dict:
 
 @router.get("/forecast/horizons")
 async def get_all_horizons(db: AsyncSession = Depends(get_db)):
-    """Return latest published forecast for all 4 horizons."""
+    """Latest published forecast for all 4 horizons, with committee dispersion
+    and a ±1σ band around the published delta."""
+    from backend.routes.accuracy_routes import horizon_dispersion
     out = {}
+    disp_cache: dict[int, dict[str, float]] = {}
     for h in HORIZONS:
         f = await crud.get_latest_horizon_forecast(db, h)
-        out[h] = _serialize_horizon(f) if f else None
+        if not f:
+            out[h] = None
+            continue
+        row = _serialize_horizon(f)
+        if f.run_id not in disp_cache:
+            disp_cache[f.run_id] = await horizon_dispersion(db, f.run_id)
+        d = disp_cache[f.run_id].get(h)
+        row["dispersion_bps"] = d
+        pub = f.published_delta or 0.0
+        row["band_low_bps"] = round(pub - d, 1) if d is not None else None
+        row["band_high_bps"] = round(pub + d, 1) if d is not None else None
+        out[h] = row
     return out
 
 

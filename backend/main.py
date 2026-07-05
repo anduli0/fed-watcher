@@ -104,6 +104,34 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         event = await get_today_event()
         neg_examples = await get_negative_examples(db)
 
+        # Market-implied path prior: the 2Y-DFF spread scaled by the empirical
+        # pass-through (~0.7) is every agent's anchor; deviations must be argued.
+        market_prior_text = ""
+        try:
+            from backend.data.fred_client import get_macro_snapshot
+            macro = await get_macro_snapshot()
+            dff_v, gs2_v = macro.get("DFF"), macro.get("GS2")
+            if dff_v is not None and gs2_v is not None:
+                spread_bps = (gs2_v - dff_v) * 100.0
+                prior_12m = spread_bps * 0.7
+                prior_6m = prior_12m * 0.5
+                market_prior_text = (
+                    f"DFF (effective fed funds): {dff_v:.2f}% · 2Y Treasury: {gs2_v:.2f}% "
+                    f"→ 2Y-DFF spread {spread_bps:+.0f}bps.\n"
+                    f"Market-implied prior: 12m {prior_12m:+.0f}bps · 6m {prior_6m:+.0f}bps "
+                    f"(spread × 0.7 pass-through)."
+                )
+        except Exception as e:
+            logger.warning("Market prior unavailable: %s", e)
+
+        # Previous cycle's process self-review, injected as guidance
+        self_critique = None
+        try:
+            from backend.routes.accuracy_routes import latest_critique
+            self_critique = await latest_critique(db)
+        except Exception:
+            pass
+
         ctx = AgentContext(
             macro_snapshot_text=snapshot["macro_text"],
             speeches_text=snapshot["speeches_text"],
@@ -113,6 +141,8 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
             cme_probabilities=snapshot["cme"],
             negative_examples=neg_examples,
             material_event=event.get("label") if event else None,
+            market_prior_text=market_prior_text,
+            self_critique=self_critique,
         )
 
         # Compute adaptive weights before running agents

@@ -16,7 +16,27 @@ interface TradeRow {
   rationale: string | null;
 }
 
+interface PlanRow {
+  instrument: string;
+  driving_horizon: string;
+  direction: string;
+  predicted_delta_bps: number;
+  confidence: number | null;
+  current_yield: number | null;
+  target_yield: number | null;
+  duration: number;
+  expected_return_pct: number;
+  expected_days_to_target: number;
+  position_notional_usd: number;
+}
+
 interface TradingData {
+  plan: {
+    account_capital_usd: number;
+    risk_fraction: number;
+    positions: PlanRow[];
+    note: string;
+  } | null;
   open_positions: TradeRow[];
   closed_trades: TradeRow[];
   summary: {
@@ -108,6 +128,89 @@ export default function TradingPanel() {
           </p>
           <p className="text-2xl font-light mt-1">{s?.closed_count ?? 0}</p>
         </div>
+      </div>
+
+      {/* Trade-plan desk — 미국 국채 만기별 포지션 */}
+      <div className="card overflow-x-auto">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest">
+            {ko ? "트레이딩 데스크 — 미국 국채 만기별 포지션" : "Trading Desk — Treasuries by Maturity"}
+          </p>
+          {data?.plan && (
+            <span className="text-[10px] text-[var(--color-text-muted)]">
+              {ko ? "계좌 자본" : "Capital"} ${data.plan.account_capital_usd.toLocaleString()} · {Math.round(data.plan.risk_fraction * 100)}%/{ko ? "포지션" : "pos"}
+            </span>
+          )}
+        </div>
+        <p className="text-[10px] text-[var(--color-text-muted)] mb-3">
+          {ko
+            ? "금리 경로 예측 → 현물·선물 롱/숏 / 목표가 / 포지션 사이징 (AI 자동매매용)"
+            : "Rate-path call → long/short, target, and position sizing"}
+        </p>
+        {(data?.plan?.positions?.length ?? 0) === 0 ? (
+          <p className="text-sm text-[var(--color-text-muted)]">
+            {ko ? "포지션 계산 중… 첫 예측이 게시되면 표시됩니다." : "Computing positions — appears once a forecast publishes."}
+          </p>
+        ) : (
+          <table className="w-full text-sm min-w-[680px]">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] border-b"
+                style={{ borderColor: "var(--color-navy-700)" }}>
+                <th className="text-left py-2 pr-3">{ko ? "종목" : "Instrument"}</th>
+                <th className="text-center py-2 px-2">{ko ? "방향" : "Side"}</th>
+                <th className="text-right py-2 px-2">{ko ? "현재→목표" : "Now→Target"}</th>
+                <th className="text-right py-2 px-2">{ko ? "예상(목표) 수익률" : "Target Return"}</th>
+                <th className="text-right py-2 px-2">{ko ? "예상 도달 기간" : "Time to Target"}</th>
+                <th className="text-right py-2 pl-2">{ko ? "포지션" : "Sizing"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data!.plan!.positions.map(p => (
+                <tr key={p.instrument} className="border-b" style={{ borderColor: "var(--color-navy-700)" }}>
+                  <td className="py-2 pr-3 text-xs font-medium">
+                    {ko ? INSTRUMENT_LABEL[p.instrument]?.ko ?? p.instrument
+                        : INSTRUMENT_LABEL[p.instrument]?.en ?? p.instrument}
+                    <span className="text-[9px] text-[var(--color-text-muted)] ml-1">({p.driving_horizon})</span>
+                  </td>
+                  <td className="py-2 px-2 text-center">
+                    {p.direction === "flat" ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded"
+                        style={{ background: "rgba(139,160,188,0.15)", color: "var(--color-text-muted)" }}>
+                        {ko ? "관망" : "FLAT"}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-0.5 rounded font-semibold" style={{
+                        background: p.direction === "long" ? "rgba(56,161,105,0.15)" : "rgba(229,62,62,0.15)",
+                        color: p.direction === "long" ? "var(--color-signal-green)" : "var(--color-signal-red)",
+                      }}>
+                        {p.direction === "long" ? (ko ? "롱 (매수)" : "LONG") : (ko ? "숏 (매도)" : "SHORT")}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-2 text-right text-xs">
+                    {p.current_yield != null && p.target_yield != null
+                      ? `${p.current_yield.toFixed(2)}% → ${p.target_yield.toFixed(2)}%`
+                      : "—"}
+                  </td>
+                  <td className="py-2 px-2 text-right" style={{ color: p.direction === "flat" ? "var(--color-text-muted)" : "var(--color-gold)" }}>
+                    {p.direction === "flat" ? "—" : `~${p.expected_return_pct.toFixed(1)}%`}
+                  </td>
+                  <td className="py-2 px-2 text-right text-xs">
+                    {p.expected_days_to_target >= 365
+                      ? `~${Math.round(p.expected_days_to_target / 365)}${ko ? "년" : "y"}`
+                      : `~${p.expected_days_to_target}${ko ? "일" : "d"}`}
+                  </td>
+                  <td className="py-2 pl-2 text-right text-xs">
+                    ${p.position_notional_usd.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {data?.plan?.note && (
+          <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed mt-3">⚠ {data.plan.note}</p>
+        )}
       </div>
 
       {/* Open positions */}
