@@ -18,6 +18,7 @@ from backend.routes.dashboard_routes import router as dashboard_router
 from backend.routes.admin_routes import router as admin_router
 from backend.routes.briefing_routes import router as briefing_router
 from backend.routes.trading_routes import router as trading_router
+from backend.routes.accuracy_routes import router as accuracy_router
 from backend.scheduler.window_manager import init_scheduler, scheduler
 
 logging.basicConfig(
@@ -418,6 +419,7 @@ app.include_router(dashboard_router)
 app.include_router(admin_router)
 app.include_router(briefing_router)
 app.include_router(trading_router)
+app.include_router(accuracy_router)
 
 
 @app.get("/health")

@@ -198,6 +198,16 @@ async def get_macro_series(series_id: str):
 @router.post("/trigger-cycle")
 async def trigger_cycle_endpoint(request: Request):
     global _last_trigger
+    from backend.main import trigger_cycle, _cycle_lock
+
+    # A cycle is already in flight (startup warm-up or a scheduled slot) —
+    # tell the caller instead of silently no-oping via the cycle guard.
+    if _cycle_lock.locked():
+        return {
+            "status": "already_running",
+            "message": "A forecast cycle is already running — results publish when it completes.",
+        }
+
     role = getattr(request.state, "role", None)
     if role != "admin":
         elapsed = time.time() - _last_trigger
@@ -205,7 +215,6 @@ async def trigger_cycle_endpoint(request: Request):
             remaining = int(TRIGGER_COOLDOWN - elapsed)
             raise HTTPException(429, f"Rate limited. Try again in {remaining}s.")
     _last_trigger = time.time()
-    from backend.main import trigger_cycle
     import asyncio
     asyncio.create_task(trigger_cycle("forced"))
     return {"status": "triggered", "message": "Cycle running. Refresh in 2–4 min (21 agents × 2 rounds)."}

@@ -2,10 +2,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional
 import asyncio
+import os
 import time
 import json
 import re
 import statistics
+
+# Constrained hosts (e.g. Render free tier) can't afford N serialized claude
+# calls per agent — cap self-consistency sampling via env. 0 = no cap.
+_SELF_CONSISTENCY_CAP = int(os.getenv("AGENT_SELF_CONSISTENCY_CAP", "0"))
 from backend.claude_cli import call_claude
 from backend.config import settings
 
@@ -167,7 +172,10 @@ class BaseAgent(ABC):
         AL.agent_start(self.agent_name, round_num)
         t0 = time.time()
 
-        if self.self_consistency_n > 1:
+        sc_n = self.self_consistency_n
+        if _SELF_CONSISTENCY_CAP > 0:
+            sc_n = min(sc_n, _SELF_CONSISTENCY_CAP)
+        if sc_n > 1:
             result = await self._self_consistency_call(ctx)
         else:
             result = await self._call_claude(ctx)

@@ -1,0 +1,47 @@
+name: Fetch Render Runtime Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch runtime logs
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: srv-d8cjm7pnrd2s73dmg1q0
+        run: |
+          OWNER_ID=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/owners?limit=1" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['owner']['id'])")
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/logs?ownerId=$OWNER_ID&resource=$SERVICE_ID&limit=100&direction=backward" \
+            > /tmp/logs.json || echo '{}' > /tmp/logs.json
+          python3 - <<'PYEOF'
+          import json
+          try:
+              d = json.load(open('/tmp/logs.json'))
+              logs = d.get('logs', d) if isinstance(d, dict) else d
+              if isinstance(logs, list):
+                  for entry in logs:
+                      msg = entry.get('message', entry) if isinstance(entry, dict) else entry
+                      print(msg)
+              else:
+                  print(json.dumps(d)[:3000])
+          except Exception as e:
+              print('parse error:', e)
+              print(open('/tmp/logs.json').read()[:3000])
+          PYEOF
+
+      - name: Fetch service events (OOM / restarts)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: srv-d8cjm7pnrd2s73dmg1q0
+        run: |
+          curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/events?limit=25" | python3 -c "
+          import sys, json
+          for e in json.load(sys.stdin):
+            ev = e.get('event', e)
+            print(ev.get('timestamp','')[:19], ev.get('type','?'), json.dumps(ev.get('details',{}))[:220])
+          " || echo "Could not fetch events"
