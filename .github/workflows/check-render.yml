@@ -11,7 +11,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Check health endpoint
         run: |
@@ -50,20 +50,18 @@ jobs:
             print()
           " || echo "Could not fetch deploy status"
 
-      - uses: actions/checkout@v4
-      - name: Commit verify results
+      - name: Summarize results
         run: |
+          # Results go to stdout + the run summary; nothing is committed to the
+          # repo (a push would make Render rebuild and restart the service).
           HEALTH=$(curl -sf --max-time 20 "$BASE_URL/health" 2>/dev/null || echo 'OFFLINE')
           FORECAST=$(curl -s --max-time 20 "$BASE_URL/api/forecast" 2>/dev/null | head -c 400 || echo 'ERR')
           MACRO=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$BASE_URL/api/macro" 2>/dev/null || echo 'ERR')
           {
+            echo "### Render verification"
+            echo '```'
             echo "$(date -u): macro_status=$MACRO"
             echo "health=$HEALTH"
             echo "forecast=$FORECAST"
-          } > render-verify.txt
-          cat render-verify.txt
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add render-verify.txt
-          git commit -m "ci: render verification result [skip ci]" || true
-          git push origin "${GITHUB_REF_NAME}" || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
