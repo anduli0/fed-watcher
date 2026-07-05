@@ -39,7 +39,14 @@ export default function DashboardPage() {
     setTriggering(true);
     setTriggerMsg("");
     try {
-      await api.post("/api/trigger-cycle");
+      const res = await api.post<{ status: string }>("/api/trigger-cycle");
+      if (res.data?.status === "already_running") {
+        setTriggerMsg(lang === "ko"
+          ? "이미 사이클이 실행 중입니다 — 완료되면 자동으로 반영됩니다 (무료 서버에서는 20~60분 걸릴 수 있어요)."
+          : "A cycle is already running — results will appear when it completes (20–60 min on the free tier).");
+        setTriggering(false);
+        return;
+      }
       setTriggerMsg(T.cycleRunning);
       let attempts = 0;
       const prevDelta = horizons?.["12m"]?.published_delta_bps;
@@ -109,7 +116,13 @@ export default function DashboardPage() {
           <div className="card mb-4" style={{ borderColor: "rgba(201,168,76,0.3)" }}>
             <p className="text-sm text-[var(--color-gold)] font-medium mb-1">{T.firstCycleTitle}</p>
             <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">{T.firstCycleDesc}</p>
-            {triggerMsg && <p className="text-xs text-[var(--color-signal-green)] mt-2">{triggerMsg}</p>}
+          </div>
+        )}
+
+        {/* ── Cycle trigger feedback (always visible when set) ── */}
+        {triggerMsg && (
+          <div className="card mb-4" style={{ borderColor: "rgba(56,161,105,0.35)" }}>
+            <p className="text-xs text-[var(--color-signal-green)]">{triggerMsg}</p>
           </div>
         )}
 
