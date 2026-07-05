@@ -3,6 +3,10 @@ name: Verify Render Deployment
 on:
   workflow_dispatch:
 
+env:
+  BASE_URL: https://fed-watcher-backend-9rgk.onrender.com
+  SERVICE_ID: srv-d8cjm7pnrd2s73dmg1q0
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -10,18 +14,22 @@ jobs:
       - name: Check health endpoint
         run: |
           echo "=== Health Check ==="
-          RESP=$(curl -sf --max-time 30 https://fed-watcher.onrender.com/health || echo "FAILED")
+          RESP=$(curl -sf --max-time 30 "$BASE_URL/health" || echo "FAILED")
           echo "Response: $RESP"
 
       - name: Check API endpoints
         run: |
           echo ""
+          echo "=== /api/forecast ==="
+          curl -s --max-time 30 "$BASE_URL/api/forecast" | python3 -m json.tool 2>/dev/null | head -30 || echo "FAILED or empty"
+
+          echo ""
           echo "=== /api/macro ==="
-          curl -sf --max-time 30 https://fed-watcher.onrender.com/api/macro | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
+          curl -sf --max-time 30 "$BASE_URL/api/macro" | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
 
           echo ""
           echo "=== /api/briefings (latest) ==="
-          curl -sf --max-time 30 "https://fed-watcher.onrender.com/api/briefings?limit=1" | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
+          curl -sf --max-time 30 "$BASE_URL/api/briefings?limit=1" | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
 
       - name: Check Render deploy status
         env:
@@ -30,7 +38,7 @@ jobs:
           echo ""
           echo "=== Render Deploy Status ==="
           curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/srv-d8cecvgjs32c738puai0/deploys?limit=3" | python3 -c "
+            "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=3" | python3 -c "
           import sys, json
           data = json.load(sys.stdin)
           for d in data[:3]:
@@ -40,22 +48,20 @@ jobs:
             print()
           " || echo "Could not fetch deploy status"
 
-      - name: Write results to file
-        run: |
-          {
-            echo "HEALTH=$(curl -sf --max-time 20 https://fed-watcher.onrender.com/health 2>/dev/null || echo 'OFFLINE')"
-            echo "MACRO_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://fed-watcher.onrender.com/api/macro)"
-          } > /tmp/verify_results.txt
-          cat /tmp/verify_results.txt
-
       - uses: actions/checkout@v4
       - name: Commit verify results
         run: |
-          HEALTH=$(curl -sf --max-time 20 https://fed-watcher.onrender.com/health 2>/dev/null || echo 'OFFLINE')
-          MACRO=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://fed-watcher.onrender.com/api/macro 2>/dev/null || echo 'ERR')
-          echo "$(date -u): health=$HEALTH macro_status=$MACRO" > render-verify.txt
+          HEALTH=$(curl -sf --max-time 20 "$BASE_URL/health" 2>/dev/null || echo 'OFFLINE')
+          FORECAST=$(curl -s --max-time 20 "$BASE_URL/api/forecast" 2>/dev/null | head -c 400 || echo 'ERR')
+          MACRO=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$BASE_URL/api/macro" 2>/dev/null || echo 'ERR')
+          {
+            echo "$(date -u): macro_status=$MACRO"
+            echo "health=$HEALTH"
+            echo "forecast=$FORECAST"
+          } > render-verify.txt
+          cat render-verify.txt
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add render-verify.txt
           git commit -m "ci: render verification result [skip ci]" || true
-          git push origin claude/affectionate-bell-InnQ6 || true
+          git push origin "${GITHUB_REF_NAME}" || true
