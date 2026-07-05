@@ -185,7 +185,15 @@ async def call_claude(system_prompt: str, user_message: str, timeout: Optional[f
         last_exc: Optional[Exception] = None
         for attempt in range(_MAX_RETRIES + 1):
             try:
-                return await _run_once(system_prompt, user_message, timeout)
+                import time as _time
+                _t0 = _time.monotonic()
+                logger.info("claude call attempt %d/%d (timeout %.0fs, prompt %dB + %dB)",
+                            attempt + 1, _MAX_RETRIES + 1, timeout,
+                            len(system_prompt), len(user_message))
+                result = await _run_once(system_prompt, user_message, timeout)
+                logger.info("claude call completed in %.0fs (%dB out)",
+                            _time.monotonic() - _t0, len(result))
+                return result
             except ClaudeAuthError:
                 # Bad/expired/missing credentials never recover by retrying —
                 # surface immediately so the caller can fail the whole cycle fast.

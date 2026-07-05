@@ -153,6 +153,16 @@ jobs:
               -o /dev/null -w "branch PATCH -> HTTP %{http_code}\n"
           fi
 
+          # CI-only / docs-only / krw-only pushes must not rebuild+restart this
+          # service (every restart kills any in-flight forecast cycle). Idempotent.
+          if [ "${{ github.event.inputs.skip_deploy }}" != "true" ]; then
+            curl -s -X PATCH "https://api.render.com/v1/services/$SERVICE_ID" \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"buildFilter": {"paths": [], "ignoredPaths": [".github/**", "**/*.md", "krw-watcher/**", "render-*.txt", "scheduler/**", "auth_helper.ps1"]}}' \
+              -o /dev/null -w "buildFilter PATCH -> HTTP %{http_code}\n"
+          fi
+
           # Render's PUT /env-vars REPLACES the whole set and always triggers a
           # redeploy, so merge desired values over what the service already has
           # and skip the PUT entirely when nothing changed. Empty GitHub secrets
@@ -177,6 +187,11 @@ jobs:
           desired = {
             'ALLOWED_IPS': '*',
             'DEV_MODE': 'false',
+            # Free-tier tuning: one slow-but-successful claude call beats several
+            # timeout-killed ones (each kill wastes the tokens it already burned).
+            'CLAUDE_CALL_TIMEOUT': '600',
+            'CLAUDE_MAX_RETRIES': '1',
+            'AGENT_SELF_CONSISTENCY_CAP': '1',
             'JWT_SECRET': os.environ.get('JWT_SECRET', ''),
             'ADMIN_PASSWORD_HASH': os.environ.get('ADMIN_PASSWORD_HASH', ''),
             'FRED_API_KEY': os.environ.get('FRED_API_KEY', ''),
