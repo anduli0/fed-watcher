@@ -26,12 +26,26 @@ jobs:
           curl -s --max-time 30 "$BASE_URL/api/forecast" | python3 -m json.tool 2>/dev/null | head -30 || echo "FAILED or empty"
 
           echo ""
-          echo "=== /api/macro ==="
-          curl -sf --max-time 30 "$BASE_URL/api/macro" | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
+          echo "=== /api/agents/status ==="
+          curl -sf --max-time 30 "$BASE_URL/api/agents/status" | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
 
           echo ""
           echo "=== /api/briefings (latest) ==="
           curl -sf --max-time 30 "$BASE_URL/api/briefings?limit=1" | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
+
+      - name: Recent agent activity
+        run: |
+          echo "=== /api/activity (last 25 events) ==="
+          curl -sf --max-time 30 "$BASE_URL/api/activity" | python3 -c "
+          import sys, json
+          try:
+            events = json.load(sys.stdin)
+          except Exception as e:
+            print('parse error:', e); raise SystemExit
+          for e in events[-25:]:
+            agent = e.get('agent') or 'System'
+            print(f\"  [{e.get('timestamp','')[:19]}] {agent}: {e.get('message','')[:100]} [{e.get('status','')}]\")
+          " || echo "FAILED or empty"
 
       - name: Check Render deploy status
         env:
@@ -55,9 +69,9 @@ jobs:
         run: |
           HEALTH=$(curl -sf --max-time 20 "$BASE_URL/health" 2>/dev/null || echo 'OFFLINE')
           FORECAST=$(curl -s --max-time 20 "$BASE_URL/api/forecast" 2>/dev/null | head -c 400 || echo 'ERR')
-          MACRO=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$BASE_URL/api/macro" 2>/dev/null || echo 'ERR')
+          AGENTS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$BASE_URL/api/agents/status" 2>/dev/null || echo 'ERR')
           {
-            echo "$(date -u): macro_status=$MACRO"
+            echo "$(date -u): agents_status=$AGENTS"
             echo "health=$HEALTH"
             echo "forecast=$FORECAST"
           } > render-verify.txt

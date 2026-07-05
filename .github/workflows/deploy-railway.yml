@@ -150,32 +150,52 @@ jobs:
             -d "{\"branch\": \"${GITHUB_REF_NAME}\"}" \
             -o /dev/null -w "branch PATCH -> HTTP %{http_code}\n"
 
-          echo "=== Setting environment variables ==="
-          ENV_VARS=$(python3 -c "
+          echo "=== Setting environment variables (non-destructive merge) ==="
+          # Render's PUT /env-vars REPLACES the whole set, so build the payload by
+          # merging desired values over what the service already has. Empty GitHub
+          # secrets are skipped instead of overwriting — a missing secret can never
+          # wipe a credential (e.g. CLAUDE_CODE_OAUTH_TOKEN) already set on Render.
+          EXISTING_JSON=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/env-vars?limit=100" || echo '[]')
+          ENV_VARS=$(EXISTING_JSON="$EXISTING_JSON" python3 -c "
           import json, os
-          vars = [
-            {'key': 'ALLOWED_IPS',        'value': '*'},
-            {'key': 'DEV_MODE',           'value': 'false'},
-            {'key': 'JWT_SECRET',         'value': os.environ['JWT_SECRET']},
-            {'key': 'ADMIN_PASSWORD_HASH','value': os.environ['ADMIN_PASSWORD_HASH']},
-            {'key': 'FRED_API_KEY',       'value': os.environ['FRED_API_KEY']},
-          ]
-          # Prefer the long-lived OAuth token (claude setup-token) — it does not
-          # expire like a .credentials.json snapshot. Fall back to CLAUDE_CREDENTIALS.
-          oauth = os.environ.get('CLAUDE_CODE_OAUTH_TOKEN','')
-          if oauth:
-            vars.append({'key': 'CLAUDE_CODE_OAUTH_TOKEN', 'value': oauth})
-          creds = os.environ.get('CLAUDE_CREDENTIALS','')
-          if creds:
-            vars.append({'key': 'CLAUDE_CREDENTIALS', 'value': creds})
-          print(json.dumps(vars))
+          existing = {}
+          try:
+            for item in json.loads(os.environ.get('EXISTING_JSON') or '[]'):
+              ev = item.get('envVar', item) if isinstance(item, dict) else {}
+              if ev.get('key'):
+                existing[ev['key']] = ev.get('value', '')
+          except Exception:
+            pass
+          desired = {
+            'ALLOWED_IPS': '*',
+            'DEV_MODE': 'false',
+            'JWT_SECRET': os.environ.get('JWT_SECRET', ''),
+            'ADMIN_PASSWORD_HASH': os.environ.get('ADMIN_PASSWORD_HASH', ''),
+            'FRED_API_KEY': os.environ.get('FRED_API_KEY', ''),
+            # Prefer the long-lived OAuth token (claude setup-token) — it does not
+            # expire like a .credentials.json snapshot. Fall back to CLAUDE_CREDENTIALS.
+            'CLAUDE_CODE_OAUTH_TOKEN': os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', ''),
+            'CLAUDE_CREDENTIALS': os.environ.get('CLAUDE_CREDENTIALS', ''),
+          }
+          merged = dict(existing)
+          for k, v in desired.items():
+            if v:
+              merged[k] = v
+          if merged == existing:
+            print('UNCHANGED')
+          else:
+            print(json.dumps([{'key': k, 'value': v} for k, v in merged.items()]))
           ")
-
-          curl -sf -X PUT \
-            "https://api.render.com/v1/services/$SERVICE_ID/env-vars" \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$ENV_VARS"
+          if [ "$ENV_VARS" = "UNCHANGED" ]; then
+            echo "Env vars already up to date -> skipping PUT (avoids a redundant redeploy)"
+          else
+            curl -sf -X PUT \
+              "https://api.render.com/v1/services/$SERVICE_ID/env-vars" \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$ENV_VARS" -o /dev/null -w "env-vars PUT HTTP %{http_code}\n"
+          fi
           fi
 
           echo "=== Getting service URL ==="
