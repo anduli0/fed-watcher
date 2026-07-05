@@ -17,6 +17,7 @@ from backend.routes.auth_routes import router as auth_router
 from backend.routes.dashboard_routes import router as dashboard_router
 from backend.routes.admin_routes import router as admin_router
 from backend.routes.briefing_routes import router as briefing_router
+from backend.routes.trading_routes import router as trading_router
 from backend.scheduler.window_manager import init_scheduler, scheduler
 
 logging.basicConfig(
@@ -224,6 +225,47 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
 
         await generate_feedback(db, run.id, result["agent_results"])
 
+        # ── Mock trading: roll the paper book on the fresh 12M call ─────────
+        # Close any open positions at the current 2Y yield mark, then open new
+        # ones mapped from the published 12M delta. Failures here must never
+        # fail the cycle — the forecast is already persisted.
+        try:
+            from sqlalchemy import select
+            from backend.database.models import MockTrade
+            from backend.mock_trading.portfolio import (
+                Position, build_positions_from_forecast,
+            )
+            from backend.mock_trading.simulator import calculate_pnl
+            from backend.data.fred_client import get_macro_snapshot
+
+            macro = await get_macro_snapshot()
+            mark = macro.get("GS2")
+            if mark is not None:
+                open_res = await db.execute(
+                    select(MockTrade).where(MockTrade.exit_rate.is_(None))
+                )
+                for t in open_res.scalars().all():
+                    t.exit_rate = mark
+                    t.pnl = calculate_pnl(
+                        Position(t.instrument, t.direction, t.entry_rate, t.rationale or ""),
+                        current_rate=mark, entry_rate=t.entry_rate or mark,
+                    )
+                h12_now = await crud.get_latest_horizon_forecast(db, "12m")
+                delta12 = float(h12_now.published_delta) if h12_now and h12_now.published_delta is not None else 0.0
+                for pos in build_positions_from_forecast(delta12):
+                    db.add(MockTrade(
+                        run_id=run.id,
+                        instrument=pos.instrument,
+                        direction=pos.direction,
+                        entry_rate=mark,
+                        rationale=pos.rationale,
+                    ))
+                await db.commit()
+                logger.info("Mock trading book rolled at %s=%.2f (12m %+0.0f bps)",
+                            "GS2", mark, delta12)
+        except Exception as e:
+            logger.warning("Mock trading step failed (non-fatal): %s", e)
+
     logger.info(
         "Cycle done. 6m %+.0f / 12m %+.0f / 3y %+.0f / 10y %+.0f bps · revised: %s",
         result["horizons"]["6m"]["weighted_delta_bps"],
@@ -375,6 +417,7 @@ app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
 app.include_router(briefing_router)
+app.include_router(trading_router)
 
 
 @app.get("/health")
