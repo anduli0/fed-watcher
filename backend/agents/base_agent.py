@@ -47,6 +47,28 @@ class AgentContext:
     material_event: Optional[str] = None
     consensus_summary: Optional[str] = None
     own_round1_output: Optional[str] = None
+    market_prior_text: str = ""      # market-implied path prior (GS2-DFF derived)
+    self_critique: Optional[str] = None  # previous cycle's process self-review
+
+    def market_prior_block(self) -> str:
+        if not self.market_prior_text:
+            return ""
+        return (
+            "\n\n### MARKET-IMPLIED PATH PRIOR (anchor discipline)\n"
+            + self.market_prior_text
+            + "\nStart from this market prior. Deviate ONLY with explicit evidence, "
+            "state the deviation in bps, and quantize your published deltas to 25bps "
+            "Fed-move increments. Keep the 6m→12m→3y→10y path economically coherent "
+            "(smooth transitions, no sign zigzags).\n"
+        )
+
+    def self_critique_block(self) -> str:
+        if not self.self_critique:
+            return ""
+        return (
+            "\n\n### PROCESS SELF-REVIEW FROM PREVIOUS CYCLE (address this):\n"
+            + self.self_critique + "\n"
+        )
 
     def negative_examples_block(self) -> str:
         if not self.negative_examples:
@@ -240,7 +262,9 @@ class BaseAgent(ABC):
 
     async def _call_claude(self, ctx: AgentContext, temperature: float = 1.0) -> AgentResult:
         user_msg = (
-            ctx.negative_examples_block()
+            ctx.market_prior_block()
+            + ctx.self_critique_block()
+            + ctx.negative_examples_block()
             + ctx.collaboration_block()
             + "\n\n"
             + self._user_message(ctx)

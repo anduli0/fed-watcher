@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - 'frontend/**'
       - 'krw-watcher/**'
+      - '.github/**'
       - '**.md'
   workflow_dispatch:
     inputs:

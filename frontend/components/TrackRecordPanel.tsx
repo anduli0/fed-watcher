@@ -1,5 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
+import {
+  ComposedChart, Line, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer,
+} from "recharts";
 import api from "@/lib/api";
 import { useLang } from "@/context/LanguageContext";
 
@@ -82,6 +85,7 @@ export default function TrackRecordPanel() {
   const [acc, setAcc] = useState<AccuracySummary | null>(null);
   const [quality, setQuality] = useState<Quality | null>(null);
   const [backtest, setBacktest] = useState<Backtest | null>(null);
+  const [dffSeries, setDffSeries] = useState<{ date: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -90,8 +94,41 @@ export default function TrackRecordPanel() {
       api.get<AccuracySummary>("/api/accuracy/summary").then(r => setAcc(r.data)),
       api.get<Quality>("/api/accuracy/quality").then(r => setQuality(r.data)),
       api.get<Backtest>("/api/backtest/skill").then(r => setBacktest(r.data)),
+      api.get<{ data: { date: string; value: number }[] }>("/api/macro/series/DFF")
+        .then(r => setDffSeries(r.data.data)),
     ]).finally(() => setLoading(false));
   }, []);
+
+  // Chart: actual DFF (solid green) + latest forecast path to maturity (dashed
+  // gold, unverified) + past prediction targets as hollow dots at maturity.
+  const chartData = (() => {
+    if (!dffSeries.length) return [];
+    const dffNow = dffSeries[dffSeries.length - 1].value;
+    const today = dffSeries[dffSeries.length - 1].date;
+    const rows: { date: string; actual?: number; forecast?: number; past?: number }[] =
+      dffSeries.slice(-240).map(p => ({ date: p.date, actual: p.value }));
+    rows[rows.length - 1].forecast = dffNow;
+    const addDays = (d: string, n: number) => {
+      const t = new Date(d); t.setDate(t.getDate() + n);
+      return t.toISOString().slice(0, 10);
+    };
+    const windows: Record<string, number> = { "6m": 183, "12m": 365, "3y": 1095, "10y": 3650 };
+    for (const t of (acc?.tracking ?? [])) {
+      if (t.horizon === "3y" || t.horizon === "10y") continue; // keep chart near-term
+      rows.push({
+        date: addDays(today, windows[t.horizon] ?? 365),
+        forecast: Math.round((dffNow + t.predicted_delta_bps / 100) * 100) / 100,
+      });
+    }
+    for (const e of (acc?.maturity_ledger ?? [])) {
+      if (!e.matures_on) continue;
+      rows.push({
+        date: e.matures_on,
+        past: Math.round((dffNow + e.predicted_delta_bps / 100) * 100) / 100,
+      });
+    }
+    return rows.sort((a, b) => a.date.localeCompare(b.date));
+  })();
 
   if (loading) {
     return <div className="flex items-center justify-center h-48">
@@ -108,6 +145,51 @@ export default function TrackRecordPanel() {
 
   return (
     <div className="space-y-4 pb-8">
+      {/* 예측 vs 실제 chart */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest">
+            {ko ? "예측 vs 실제 · 적중 기록" : "Forecast vs Realized"}
+          </p>
+          <div className="flex gap-3 text-[9px] text-[var(--color-text-muted)]">
+            <span><span style={{ color: "var(--color-signal-green)" }}>━</span> {ko ? "실제 기준금리" : "Actual DFF"}</span>
+            <span><span style={{ color: "var(--color-gold)" }}>┅</span> {ko ? "예측 경로" : "Forecast path"}</span>
+            <span><span style={{ color: "var(--color-gold)" }}>○</span> {ko ? "과거 예측치" : "Past targets"}</span>
+          </div>
+        </div>
+        <p className="text-[10px] text-[var(--color-text-muted)] mb-2">
+          {ko
+            ? "지금(최신) 예측이 보는 미래 경로 — 현재 금리에서 만기일 목표까지. 아직 검증 전이라 점선입니다."
+            : "The latest call's path from today's rate to its maturity target — dashed because unverified."}
+        </p>
+        {chartData.length > 0 ? (
+          <div style={{ width: "100%", height: 220 }}>
+            <ResponsiveContainer>
+              <ComposedChart data={chartData} margin={{ top: 5, right: 10, bottom: 0, left: -20 }}>
+                <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#8BA0BC" }}
+                  tickFormatter={(d: string) => d.slice(0, 7)} minTickGap={40} />
+                <YAxis domain={["auto", "auto"]} tick={{ fontSize: 9, fill: "#8BA0BC" }}
+                  tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
+                <Tooltip
+                  contentStyle={{ background: "#0D1F3C", border: "1px solid #112952", fontSize: 11 }}
+                  labelStyle={{ color: "#8BA0BC" }}
+                  formatter={(v) => [`${Number(v).toFixed(2)}%`]}
+                />
+                <Line type="stepAfter" dataKey="actual" stroke="var(--color-signal-green)"
+                  strokeWidth={1.8} dot={false} connectNulls name={ko ? "실제" : "Actual"} />
+                <Line type="linear" dataKey="forecast" stroke="var(--color-gold)"
+                  strokeWidth={1.5} strokeDasharray="5 4" dot={{ r: 3 }} connectNulls
+                  name={ko ? "예측" : "Forecast"} />
+                <Scatter dataKey="past" fill="transparent" stroke="var(--color-gold)"
+                  strokeWidth={1.5} name={ko ? "과거 예측" : "Past"} shape="circle" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--color-text-muted)]">{ko ? "차트 데이터 로딩 중…" : "Loading chart…"}</p>
+        )}
+      </div>
+
       {/* Live maturity tracking — each horizon call vs realized DFF */}
       <div className="card overflow-x-auto">
         <div className="flex items-center justify-between mb-3">

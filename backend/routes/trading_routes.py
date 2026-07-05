@@ -5,6 +5,8 @@ Trading / track-record / today-at-a-glance endpoints.
 - /api/track-record : published forecasts vs subsequent market-implied moves
 - /api/today        : KST date, today's material event, schedule, latest run
 """
+import os
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
@@ -61,6 +63,94 @@ def _value_on_or_before(obs: list[dict], day: str) -> float | None:
 
 # ── Mock trading ────────────────────────────────────────────────────────────
 
+# Trade-plan desk: map the current horizon calls onto treasury/USD positions.
+# duration ≈ price sensitivity per 100bps; horizon window = expected time to target.
+_PLAN_INSTRUMENTS = [
+    # (instrument, driving horizon, duration, yield source series)
+    ("2Y_TREASURY", "12m", 2.0, "GS2"),
+    ("10Y_TREASURY", "3y", 8.0, "GS10"),
+    ("TLT", "10y", 18.0, "GS10"),
+    ("USD", "12m", 1.0, None),
+]
+_ACCOUNT_CAPITAL = float(os.getenv("ACCOUNT_CAPITAL_USD", "100000"))
+_RISK_FRACTION = float(os.getenv("POSITION_RISK_FRACTION", "0.25"))
+
+
+async def _build_plan(db: AsyncSession) -> dict:
+    from backend.database.models import HorizonForecast
+    from backend.database import crud
+
+    horizons = {}
+    for h in ("6m", "12m", "3y", "10y"):
+        f = await crud.get_latest_horizon_forecast(db, h)
+        if f:
+            horizons[h] = f
+
+    yields = {}
+    try:
+        obs2 = await _proxy_observations()
+        yields["GS2"] = obs2[-1]["value"] if obs2 else None
+    except Exception:
+        yields["GS2"] = None
+    try:
+        import httpx
+        from backend.config import settings
+        cached = data_cache.get("macro_history_GS10", ttl_seconds=4 * 3600)
+        if cached:
+            yields["GS10"] = cached["data"][-1]["value"]
+        else:
+            params = {"series_id": "GS10", "api_key": settings.FRED_API_KEY,
+                      "file_type": "json", "limit": 5, "sort_order": "desc"}
+            async with httpx.AsyncClient(timeout=15) as client:
+                r = await client.get(
+                    "https://api.stlouisfed.org/fred/series/observations", params=params)
+                r.raise_for_status()
+            obs = [o for o in r.json().get("observations", []) if o["value"] != "."]
+            yields["GS10"] = float(obs[0]["value"]) if obs else None
+    except Exception:
+        yields["GS10"] = None
+
+    window_days = {"6m": 183, "12m": 365, "3y": 1095, "10y": 3650}
+    rows = []
+    for instrument, h, dur, ysrc in _PLAN_INSTRUMENTS:
+        f = horizons.get(h)
+        if not f or f.published_delta is None:
+            continue
+        delta = float(f.published_delta)
+        if abs(delta) < 12.5:
+            direction = "flat"
+        elif instrument == "USD":
+            direction = "long" if delta > 0 else "short"
+        else:
+            direction = "short" if delta > 0 else "long"
+        cur = yields.get(ysrc) if ysrc else None
+        target = round(cur + delta / 100.0, 2) if cur is not None else None
+        expected_return_pct = round(dur * abs(delta) * 0.01, 2) if direction != "flat" else 0.0
+        rows.append({
+            "instrument": instrument,
+            "driving_horizon": h,
+            "direction": direction,
+            "predicted_delta_bps": delta,
+            "confidence": f.confidence,
+            "current_yield": cur,
+            "target_yield": target,
+            "duration": dur,
+            "expected_return_pct": expected_return_pct,
+            "expected_days_to_target": window_days[h],
+            "position_notional_usd": round(_ACCOUNT_CAPITAL * _RISK_FRACTION, 0),
+        })
+    return {
+        "account_capital_usd": _ACCOUNT_CAPITAL,
+        "risk_fraction": _RISK_FRACTION,
+        "positions": rows,
+        "note": (
+            "확률적 금리 예측에서 파생된 모델·연구·모의매매용 산출물입니다. "
+            "듀레이션·베타·DV01은 곡선/최저인도채권에 따라 변하는 단순 추정치이며, "
+            "실주문 전 브로커 실시간 데이터로 재계산하세요."
+        ),
+    }
+
+
 @router.get("/trading")
 async def get_trading(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -101,7 +191,12 @@ async def get_trading(db: AsyncSession = Depends(get_db)):
 
     realized = [c["pnl_pct"] for c in closed if c["pnl_pct"] is not None]
     wins = sum(1 for p in realized if p > 0)
+    try:
+        plan = await _build_plan(db)
+    except Exception:
+        plan = None
     return {
+        "plan": plan,
         "open_positions": open_pos,
         "closed_trades": closed[:100],
         "summary": {
