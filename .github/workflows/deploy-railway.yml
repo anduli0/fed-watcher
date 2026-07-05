@@ -23,7 +23,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -134,27 +134,33 @@ jobs:
           echo "Service ID: $SERVICE_ID"
           if [ -z "$SERVICE_ID" ]; then echo "ERROR: no service id"; exit 1; fi
 
-          # NOTE: a PUT to /env-vars makes Render auto-trigger a redeploy even when
-          # the values are unchanged. Skip it for skip_deploy runs so the AI-cycle
-          # verification isn't interrupted by a container swap.
-          if [ "${{ github.event.inputs.skip_deploy }}" = "true" ]; then
-            echo "=== skip_deploy=true -> NOT updating env vars (avoids auto-redeploy) ==="
-          else
           # The service builds whatever branch it is pinned to, which is not
-          # necessarily the branch that triggered this workflow. Repoint it so
-          # the code being deployed is the code that was just pushed.
-          echo "=== Pointing service at branch ${GITHUB_REF_NAME} ==="
-          curl -s -X PATCH "https://api.render.com/v1/services/$SERVICE_ID" \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"branch\": \"${GITHUB_REF_NAME}\"}" \
-            -o /dev/null -w "branch PATCH -> HTTP %{http_code}\n"
+          # necessarily the branch that triggered this workflow. Repoint it only
+          # when it actually differs — a PATCH can itself trigger a deploy.
+          CURRENT_BRANCH=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('service',d).get('branch',''))" 2>/dev/null || echo "")
+          echo "Service tracks branch: '$CURRENT_BRANCH' (workflow ref: '${GITHUB_REF_NAME}')"
+          if [ "${{ github.event.inputs.skip_deploy }}" = "true" ]; then
+            echo "=== skip_deploy=true -> leaving branch pin untouched ==="
+          elif [ "$CURRENT_BRANCH" != "${GITHUB_REF_NAME}" ]; then
+            echo "=== Pointing service at branch ${GITHUB_REF_NAME} ==="
+            curl -s -X PATCH "https://api.render.com/v1/services/$SERVICE_ID" \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"branch\": \"${GITHUB_REF_NAME}\"}" \
+              -o /dev/null -w "branch PATCH -> HTTP %{http_code}\n"
+          fi
 
+          # Render's PUT /env-vars REPLACES the whole set and always triggers a
+          # redeploy, so merge desired values over what the service already has
+          # and skip the PUT entirely when nothing changed. Empty GitHub secrets
+          # are skipped instead of overwriting — a missing secret can never wipe
+          # a credential (e.g. CLAUDE_CODE_OAUTH_TOKEN) already set on Render.
+          if [ "${{ github.event.inputs.skip_deploy }}" = "true" ]; then
+            echo "=== skip_deploy=true -> NOT touching env vars ==="
+          else
           echo "=== Setting environment variables (non-destructive merge) ==="
-          # Render's PUT /env-vars REPLACES the whole set, so build the payload by
-          # merging desired values over what the service already has. Empty GitHub
-          # secrets are skipped instead of overwriting — a missing secret can never
-          # wipe a credential (e.g. CLAUDE_CODE_OAUTH_TOKEN) already set on Render.
           EXISTING_JSON=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
             "https://api.render.com/v1/services/$SERVICE_ID/env-vars?limit=100" || echo '[]')
           ENV_VARS=$(EXISTING_JSON="$EXISTING_JSON" python3 -c "
@@ -209,44 +215,63 @@ jobs:
           " 2>/dev/null || echo "(deploying...)")
           echo "Render service URL: $URL"
 
-          echo "=== Saving service info to file ==="
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          echo "SERVICE_ID=$SERVICE_ID" > render-deployment.txt
-          echo "URL=$URL" >> render-deployment.txt
-          git add render-deployment.txt || true
-          (git diff --staged --quiet || git commit -m "ci: update Render deployment info [skip ci]") || true
-          git push origin HEAD:"${GITHUB_REF_NAME}" || true
-          echo "Saved SERVICE_ID=$SERVICE_ID and URL=$URL"
+          echo "Service info: SERVICE_ID=$SERVICE_ID URL=$URL"
 
           SKIP_DEPLOY="${{ github.event.inputs.skip_deploy }}"
-          NEW_DEPLOY_ID=""
+          FINAL_STATUS="unknown"
           if [ "$SKIP_DEPLOY" = "true" ]; then
             echo "=== skip_deploy=true -> not triggering a deploy in the deploy job ==="
           else
-            echo ""
-            echo "=== Triggering fresh Render deploy (API-created services lack GitHub webhook) ==="
-            DEPLOY_RESP=$(curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
-              -H "Content-Type: application/json" \
-              "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
-              -d '{"clearCache":"do_not_clear"}')
-            echo "Deploy trigger response: $DEPLOY_RESP"
-            NEW_DEPLOY_ID=$(echo "$DEPLOY_RESP" | python3 -c "
+            # Render's GitHub integration (autoDeploy=yes) queues a build for
+            # every push to the tracked branch on its own. Give the webhook a
+            # moment to register this commit; only POST a deploy via the API if
+            # it doesn't show up (e.g. manual dispatch, webhook hiccup).
+            NEW_DEPLOY_ID=""
+            if [ "${{ github.event_name }}" = "push" ]; then
+              echo "=== Waiting for Render's webhook build of $GITHUB_SHA ==="
+              for i in $(seq 1 6); do
+                LATEST=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+                  "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=1" \
+                  | python3 -c "import sys,json; d=json.load(sys.stdin); dep=(d[0].get('deploy',d[0]) if d else {}); print(dep.get('id','') + ' ' + dep.get('commit',{}).get('id',''))" 2>/dev/null || echo " ")
+                LATEST_ID="${LATEST%% *}"
+                LATEST_COMMIT="${LATEST#* }"
+                if [ "$LATEST_COMMIT" = "$GITHUB_SHA" ]; then
+                  NEW_DEPLOY_ID="$LATEST_ID"
+                  echo "  webhook build found: $NEW_DEPLOY_ID"
+                  break
+                fi
+                echo "  [$i] latest deploy is for '$LATEST_COMMIT'; waiting 15s..."
+                sleep 15
+              done
+            fi
+            if [ -z "$NEW_DEPLOY_ID" ]; then
+              echo "=== Triggering Render deploy via API ==="
+              DEPLOY_RESP=$(curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+                -H "Content-Type: application/json" \
+                "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+                -d '{"clearCache":"do_not_clear"}')
+              echo "Deploy trigger response: $DEPLOY_RESP"
+              NEW_DEPLOY_ID=$(echo "$DEPLOY_RESP" | python3 -c "
           import sys, json
           d = json.load(sys.stdin)
           print(d.get('id', d.get('deploy', {}).get('id', '')))" 2>/dev/null || echo "")
-            echo "New deploy ID: $NEW_DEPLOY_ID"
-          fi
+              echo "New deploy ID: $NEW_DEPLOY_ID"
+            fi
 
-          echo ""
-          echo "=== Polling deploy status (up to 20 min) ==="
-          FINAL_STATUS="unknown"
-          if [ -n "$NEW_DEPLOY_ID" ]; then
+            echo ""
+            echo "=== Polling deploy status (up to 20 min) ==="
             for i in $(seq 1 80); do
               sleep 15
-              STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
-                "https://api.render.com/v1/services/$SERVICE_ID/deploys/$NEW_DEPLOY_ID" \
-                | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status', d.get('deploy',{}).get('status','?')))" 2>/dev/null || echo "?")
+              if [ -n "$NEW_DEPLOY_ID" ]; then
+                DEPLOY_URL="https://api.render.com/v1/services/$SERVICE_ID/deploys/$NEW_DEPLOY_ID"
+                STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" "$DEPLOY_URL" \
+                  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status', d.get('deploy',{}).get('status','?')))" 2>/dev/null || echo "?")
+              else
+                # No id captured — follow the service's most recent deploy.
+                STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+                  "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=1" \
+                  | python3 -c "import sys,json; d=json.load(sys.stdin); print((d[0].get('deploy',d[0])).get('status','?')) if d else print('?')" 2>/dev/null || echo "?")
+              fi
               echo "  [$i] status=$STATUS"
               FINAL_STATUS="$STATUS"
               case "$STATUS" in
@@ -287,19 +312,28 @@ jobs:
             print(f'  {dep.get(\"status\")} | {dep.get(\"createdAt\",\"\")[:19]} | {dep.get(\"commit\",{}).get(\"message\",\"\")[:50]}')
           " 2>/dev/null || echo "Could not fetch"
 
-          # write verification result
-          echo "HEALTH=${HEALTH:-OFFLINE}" >> render-deployment.txt
-          echo "DEPLOY_STATUS=$FINAL_STATUS" >> render-deployment.txt
-          git add render-deployment.txt || true
-          (git diff --staged --quiet || git commit -m "ci: add verification results [skip ci]") || true
-          git push origin HEAD:"${GITHUB_REF_NAME}" || true
+          # Publish verification results to the run summary. Do NOT commit
+          # status files to the repo: Render auto-deploys every push to the
+          # tracked branch ([skip ci] only stops GitHub Actions), so a status
+          # commit would trigger a pointless rebuild that restarts the
+          # container and kills the in-flight startup forecast cycle.
+          {
+            echo "### Render deploy result"
+            echo '```'
+            echo "SERVICE_ID=$SERVICE_ID"
+            echo "URL=$URL"
+            echo "DEPLOY_STATUS=$FINAL_STATUS"
+            echo "HEALTH=${HEALTH:-OFFLINE}"
+            echo "probes: forecast=$FC briefings=$BRIEF agents=$AGENTS"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
   
   check-deploy:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     needs: deploy
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -309,10 +343,18 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set +e
-          # Read the (possibly freshly recreated) service id written by the deploy job
-          git pull --rebase origin "${GITHUB_REF_NAME}" || true
-          SERVICE_ID=$(grep '^SERVICE_ID=' render-deployment.txt | cut -d= -f2)
-          echo "Service ID from deploy job: $SERVICE_ID"
+          # Look the (possibly freshly recreated) service up by name — the
+          # deploy job no longer commits its id to the repo.
+          SERVICE_ID=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services?limit=20" | python3 -c "
+          import sys, json
+          for item in json.load(sys.stdin):
+            svc = item.get('service', {})
+            if 'fed-watcher' in svc.get('name','').lower():
+              print(svc['id']); break
+          " 2>/dev/null || echo "")
+          echo "Service ID: $SERVICE_ID"
+          if [ -z "$SERVICE_ID" ]; then echo "ERROR: no service id"; exit 1; fi
 
           echo "=== Current service info ==="
           curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
@@ -571,13 +613,16 @@ jobs:
           except Exception as ex:
             lines.append(f"(no build log: {ex})")
           text = '\n'.join(lines) + '\n'
-          open('render-status.txt', 'w').write(text)
+          open('/tmp/render-status.txt', 'w').write(text)
           print(text)
           PYEOF
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin "${GITHUB_REF_NAME}" || true
-          git add render-status.txt
-          git commit -m "ci: render deploy status [skip ci]" --allow-empty
-          git push origin HEAD:"${GITHUB_REF_NAME}" || true
+          # Publish to the run summary instead of committing to the repo —
+          # Render auto-deploys every push to the tracked branch, so a status
+          # commit would restart the very container this job just verified.
+          {
+            echo "### Render status"
+            echo '```'
+            cat /tmp/render-status.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
