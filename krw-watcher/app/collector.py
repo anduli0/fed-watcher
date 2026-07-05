@@ -45,17 +45,17 @@ activity: deque = deque(maxlen=300)  # [{"ts","source","message","status"}]
 
 
 _seq = 0
-_SYSTEM_SOURCES = {"system", "collector", "news", "analyst", "telegram"}
+_SYSTEM_SOURCES = {"system", "collector", "news", "analyst", "telegram", "broker"}
 _COLORS = {"ok": "#81C995", "error": "#E53E3E", "info": "#8AB4F8"}
 
 
-def emit(source: str, message: str, status: str = "info") -> None:
+def emit(source: str, message: str, status: str = "info", category: str | None = None) -> None:
     global _seq
     _seq += 1
     activity.appendleft({
         "seq": _seq,
         "ts": datetime.now(timezone.utc).isoformat(),
-        "category": "system" if source in _SYSTEM_SOURCES else "agent",
+        "category": category or ("system" if source in _SYSTEM_SOURCES else "agent"),
         "source": source,
         "message": message,
         "status": status,
@@ -64,6 +64,12 @@ def emit(source: str, message: str, status: str = "info") -> None:
     })
     log = logger.error if status == "error" else logger.info
     log("[%s] %s", source, message)
+
+
+def events_after(after: int = 0, limit: int = 200) -> list[dict]:
+    """Chronological events with seq > after (frontend contract)."""
+    out = [e for e in reversed(activity) if e["seq"] > after]
+    return out[-limit:]
 
 
 async def _yahoo_chart(client: httpx.AsyncClient, symbol: str, rng: str, interval: str) -> dict:
