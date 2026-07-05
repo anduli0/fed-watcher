@@ -1,0 +1,115 @@
+name: Probe reference fed site (full)
+
+# Deep inspection of the owner's local /fed build so its agent roster,
+# methodology, and API shapes can be replicated exactly on Render.
+# Read-only GETs; output goes to the job log only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Base URL of the reference fed page"
+        default: "https://krw-watcher.tail3e31a9.ts.net/fed"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Full agent roster
+        run: |
+          BASE="${{ github.event.inputs.url }}"; BASE="${BASE%/}"
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+          echo "=== /api/agents/status (roster: id, name, signal, deltas) ==="
+          curl -sS --max-time 40 "$BASE/api/agents/status" > /tmp/agents.json || true
+          python3 - <<'PY'
+          import json
+          try:
+              agents = json.load(open('/tmp/agents.json'))
+          except Exception as e:
+              print('parse error:', e); raise SystemExit
+          print(f"total agents: {len(agents)}")
+          for a in agents:
+              h = a.get('horizons', {})
+              hs = " ".join(f"{k}:{v.get('delta_bps')}" for k, v in h.items())
+              print(f"[{a.get('agent_id')}] {a.get('agent_name')} · {a.get('signal')} "
+                    f"12m={a.get('rate_path_delta_bps')} conf={a.get('confidence')} "
+                    f"round={a.get('round')} limited={a.get('limited_mode')} | {hs}")
+          PY
+          echo ""
+          echo "=== per-agent rationale samples (first 400 chars each) ==="
+          python3 - <<'PY'
+          import json
+          agents = json.load(open('/tmp/agents.json'))
+          for a in agents:
+              r12 = (a.get('horizons', {}).get('12m') or {}).get('rationale', '')
+              print(f"--- [{a.get('agent_id')}] {a.get('agent_name')} ---")
+              print((r12 or '')[:400])
+          PY
+
+      - name: Forecast shapes and report
+        run: |
+          echo "=== /api/forecast/horizons (full) ==="
+          curl -sS --max-time 30 "$BASE/api/forecast/horizons" | python3 -m json.tool || true
+          echo ""
+          echo "=== /api/forecast/history (first 15) ==="
+          curl -sS --max-time 30 "$BASE/api/forecast/history" | python3 -c "
+          import sys, json
+          for row in json.load(sys.stdin)[:15]: print(row)
+          " || true
+          echo ""
+          echo "=== /api/forecast/report?lang=ko (first 6000 chars) ==="
+          curl -sS --max-time 30 "$BASE/api/forecast/report?lang=ko" | head -c 6000 || true
+          echo ""
+          echo "=== /api/forecast/report?lang=en (first 2000 chars) ==="
+          curl -sS --max-time 30 "$BASE/api/forecast/report?lang=en" | head -c 2000 || true
+
+      - name: Accuracy, quality, backtest (full)
+        run: |
+          echo "=== /api/accuracy/summary (full) ==="
+          curl -sS --max-time 30 "$BASE/api/accuracy/summary" | python3 -m json.tool || true
+          echo ""
+          echo "=== /api/accuracy/quality (full) ==="
+          curl -sS --max-time 30 "$BASE/api/accuracy/quality" | python3 -m json.tool || true
+          echo ""
+          echo "=== /api/backtest/skill (full) ==="
+          curl -sS --max-time 30 "$BASE/api/backtest/skill" | python3 -m json.tool || true
+          echo ""
+          echo "=== /api/weights/adaptive ==="
+          curl -sS --max-time 30 "$BASE/api/weights/adaptive" | head -c 2000 || true
+
+      - name: Frontend methodology and UI text
+        run: |
+          curl -sS --max-time 30 "$BASE/" -o /tmp/root.html || true
+          SCRIPTS=$(grep -oiE 'src="[^"]+\.js[^"]*"' /tmp/root.html | sed 's/^src="//;s/"$//')
+          : > /tmp/alljs.txt
+          for s in $SCRIPTS; do
+            case "$s" in
+              http*) u="$s" ;;
+              /fed/*) u="${BASE%/fed}$s" ;;
+              /*) u="$BASE$s" ;;
+              *) u="$BASE/$s" ;;
+            esac
+            curl -sS --max-time 30 "$u" >> /tmp/alljs.txt || true
+            echo >> /tmp/alljs.txt
+          done
+          wc -c /tmp/alljs.txt
+          echo ""
+          echo "=== Korean strings in the bundle (methodology/org chart/labels) ==="
+          python3 - <<'PY'
+          import re, collections
+          js = open('/tmp/alljs.txt', encoding='utf-8', errors='replace').read()
+          # Korean-containing string fragments, longest and most informative first
+          frags = re.findall(r'[가-힣][^"`\\<>{}]{4,180}', js)
+          seen = set()
+          out = []
+          for f in frags:
+              f = f.strip()
+              if f and f not in seen:
+                  seen.add(f)
+                  out.append(f)
+          out.sort(key=len, reverse=True)
+          for f in out[:250]:
+              print(" |", f)
+          PY
