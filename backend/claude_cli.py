@@ -65,6 +65,17 @@ _NODE_HEAP_MB: str = os.getenv("CLAUDE_NODE_MAX_OLD_SPACE_MB", "256")
 _MAX_RETRIES: int = int(os.getenv("CLAUDE_MAX_RETRIES", "2"))
 _RETRY_BASE_DELAY: float = float(os.getenv("CLAUDE_RETRY_DELAY", "3.0"))
 
+# Default per-call timeout for agent/report calls. Small, throttled hosts (e.g.
+# Render free tier) run `claude -p` much slower than a dev box, so be generous.
+# Tunable via CLAUDE_CALL_TIMEOUT (seconds).
+_CALL_TIMEOUT: float = float(os.getenv("CLAUDE_CALL_TIMEOUT", "240"))
+
+# Auth-probe timeout. The FIRST `claude -p` call on a cold, memory-constrained
+# host does one-time Node/CLI init and can take far longer than a warm call, so
+# allow generous time before calling the probe a transient failure.
+# Tunable via CLAUDE_AUTH_PROBE_TIMEOUT (seconds).
+_AUTH_PROBE_TIMEOUT: float = float(os.getenv("CLAUDE_AUTH_PROBE_TIMEOUT", "180"))
+
 _semaphore: Optional[asyncio.Semaphore] = None
 
 # Cached result of the most recent verify_auth() ping so /health and the cycle
@@ -162,12 +173,14 @@ async def _run_once(system_prompt: str, user_message: str, timeout: float) -> st
     raise RuntimeError(f"claude CLI exited {proc.returncode}: {detail}")
 
 
-async def call_claude(system_prompt: str, user_message: str, timeout: float = 120.0) -> str:
+async def call_claude(system_prompt: str, user_message: str, timeout: Optional[float] = None) -> str:
     """
     Call Claude via CLI in non-interactive print mode.
     Passes system_prompt via --system-prompt-file, user_message via stdin.
     Retries transient failures with exponential backoff. Returns the result text.
     """
+    if timeout is None:
+        timeout = _CALL_TIMEOUT
     async with _sem():
         last_exc: Optional[Exception] = None
         for attempt in range(_MAX_RETRIES + 1):
@@ -195,14 +208,19 @@ async def call_claude(system_prompt: str, user_message: str, timeout: float = 12
         raise last_exc
 
 
-async def verify_auth(timeout: float = 30.0) -> tuple[bool, str]:
-    """Single tiny `claude -p` ping to confirm the CLI can authenticate.
+async def verify_auth(timeout: Optional[float] = None) -> tuple[bool, str]:
+    """Single tiny `claude -p` ping used as a cycle preflight.
 
-    Returns ``(ok, detail)``. ``ok`` is True only when a live call succeeds.
-    On failure ``detail`` explains why (auth vs transient) so callers can log a
-    precise, actionable message and skip dispatching a doomed multi-agent cycle.
+    Returns ``(ok, detail)``. ``ok`` is False ONLY on a *definitive* auth failure
+    (HTTP 401/403) — that is the case worth aborting a 21-agent cycle for. A
+    transient failure (slow cold start on a throttled host, timeout, OOM) returns
+    ``ok=True`` with a TRANSIENT detail: the real work has its own retries and
+    longer timeouts, so a merely-slow host must NOT be permanently blocked from
+    ever running a cycle. ``detail`` always records what actually happened.
     """
     global _last_auth_ok, _last_auth_detail
+    if timeout is None:
+        timeout = _AUTH_PROBE_TIMEOUT
     try:
         out = await _run_once(
             "You are a health probe. Reply with the single word: OK.",
@@ -211,7 +229,8 @@ async def verify_auth(timeout: float = 30.0) -> tuple[bool, str]:
         )
         _last_auth_ok, _last_auth_detail = True, (out.strip()[:60] or "ok")
     except ClaudeAuthError as e:
+        # The one case we hard-block on: credentials are missing/invalid.
         _last_auth_ok, _last_auth_detail = False, f"AUTH: {e}"
-    except Exception as e:  # timeout / OOM / CLI crash — transient, not auth
-        _last_auth_ok, _last_auth_detail = False, f"TRANSIENT: {str(e)[:200]}"
+    except Exception as e:  # timeout / OOM / cold-start slowness — not an auth failure
+        _last_auth_ok, _last_auth_detail = True, f"TRANSIENT(allowed): {str(e)[:160]}"
     return _last_auth_ok, _last_auth_detail

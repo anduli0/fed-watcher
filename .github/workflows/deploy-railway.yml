@@ -2,7 +2,7 @@ name: Deploy to Render
 
 on:
   push:
-    branches: [main, master, claude/affectionate-bell-InnQ6]
+    branches: [main, master, claude/krw-watched-web-deploy-ny4ym8]
     paths-ignore:
       - 'frontend/**'
       - '**.md'
@@ -28,6 +28,7 @@ jobs:
           ADMIN_PASSWORD_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           CLAUDE_CREDENTIALS: ${{ secrets.CLAUDE_CREDENTIALS }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
           set -e
 
@@ -143,6 +144,11 @@ jobs:
             {'key': 'ADMIN_PASSWORD_HASH','value': os.environ['ADMIN_PASSWORD_HASH']},
             {'key': 'FRED_API_KEY',       'value': os.environ['FRED_API_KEY']},
           ]
+          # Prefer the long-lived OAuth token (claude setup-token) — it does not
+          # expire like a .credentials.json snapshot. Fall back to CLAUDE_CREDENTIALS.
+          oauth = os.environ.get('CLAUDE_CODE_OAUTH_TOKEN','')
+          if oauth:
+            vars.append({'key': 'CLAUDE_CODE_OAUTH_TOKEN', 'value': oauth})
           creds = os.environ.get('CLAUDE_CREDENTIALS','')
           if creds:
             vars.append({'key': 'CLAUDE_CREDENTIALS', 'value': creds})
@@ -174,7 +180,7 @@ jobs:
           echo "URL=$URL" >> render-deployment.txt
           git add render-deployment.txt || true
           (git diff --staged --quiet || git commit -m "ci: update Render deployment info [skip ci]") || true
-          git push origin claude/affectionate-bell-InnQ6 || true
+          git push origin claude/krw-watched-web-deploy-ny4ym8 || true
           echo "Saved SERVICE_ID=$SERVICE_ID and URL=$URL"
 
           SKIP_DEPLOY="${{ github.event.inputs.skip_deploy }}"
@@ -250,7 +256,7 @@ jobs:
           echo "DEPLOY_STATUS=$FINAL_STATUS" >> render-deployment.txt
           git add render-deployment.txt || true
           (git diff --staged --quiet || git commit -m "ci: add verification results [skip ci]") || true
-          git push origin claude/affectionate-bell-InnQ6 || true
+          git push origin claude/krw-watched-web-deploy-ny4ym8 || true
   
   check-deploy:
     runs-on: ubuntu-latest
@@ -261,14 +267,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/affectionate-bell-InnQ6
+          ref: claude/krw-watched-web-deploy-ny4ym8
       - name: Trigger deploy, poll status, write results
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set +e
           # Read the (possibly freshly recreated) service id written by the deploy job
-          git pull --rebase origin claude/affectionate-bell-InnQ6 || true
+          git pull --rebase origin claude/krw-watched-web-deploy-ny4ym8 || true
           SERVICE_ID=$(grep '^SERVICE_ID=' render-deployment.txt | cut -d= -f2)
           echo "Service ID from deploy job: $SERVICE_ID"
 
@@ -535,7 +541,7 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin claude/affectionate-bell-InnQ6 || true
+          git pull --rebase origin claude/krw-watched-web-deploy-ny4ym8 || true
           git add render-status.txt
           git commit -m "ci: render deploy status [skip ci]" --allow-empty
-          git push origin claude/affectionate-bell-InnQ6 || true
+          git push origin claude/krw-watched-web-deploy-ny4ym8 || true

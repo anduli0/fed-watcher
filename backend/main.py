@@ -297,6 +297,32 @@ async def _startup_warmup():
         logger.error("Startup briefing failed: %s", e, exc_info=True)
 
 
+# ── Free-tier keep-alive (anti-sleep) ────────────────────────────────────────
+# Render's free tier spins the container down after ~15 min with no INBOUND
+# requests, which kills any long background cycle mid-run ("끊김"). A background
+# cycle generates no inbound traffic on its own, so we periodically GET our own
+# public URL — that round-trips through Render's router as a real inbound request
+# and resets the idle timer. Auto-uses RENDER_EXTERNAL_URL (set by Render); set
+# KEEPALIVE_URL to override, or KEEPALIVE_INTERVAL_SEC=0 to disable. No-op when
+# no public URL is known (e.g. local dev), so it's safe everywhere.
+async def _keepalive_pinger():
+    url = os.getenv("KEEPALIVE_URL") or os.getenv("RENDER_EXTERNAL_URL", "")
+    interval = int(os.getenv("KEEPALIVE_INTERVAL_SEC", "600"))
+    if not url or interval <= 0:
+        logger.info("Keep-alive pinger disabled (no public URL or interval<=0).")
+        return
+    ping_url = url.rstrip("/") + "/health"
+    logger.info("Keep-alive pinger active: %s every %ds", ping_url, interval)
+    import httpx
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                await client.get(ping_url)
+        except Exception as e:
+            logger.warning("Keep-alive ping failed: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
@@ -306,6 +332,7 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(_startup_warmup())
     else:
         asyncio.create_task(run_data_collection())
+    asyncio.create_task(_keepalive_pinger())
     logger.info("Fed-Watcher started. Model: %s", settings.MODEL_ID)
     yield
     try:
