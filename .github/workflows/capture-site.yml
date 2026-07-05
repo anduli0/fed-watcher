@@ -1,0 +1,88 @@
+name: Capture reference site
+
+# Fetches the owner's PC krw-watcher (Tailscale funnel) in FULL — the complete
+# HTML page and every API response its inline script references — and commits
+# them under reference/ on the working branch, so the site can be replicated
+# verbatim on the Render deployment. Read-only GETs against the source site.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Base URL of the reference site"
+        default: "https://krw-watcher.tail3e31a9.ts.net"
+      branch:
+        description: "Branch to commit the capture to"
+        default: "claude/krw-watched-web-deploy-ny4ym8"
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+      - name: Capture page + APIs
+        run: |
+          set -e
+          BASE="${{ github.event.inputs.url }}"
+          BASE="${BASE%/}"
+          mkdir -p reference/api
+
+          echo "=== GET / ==="
+          curl -sS --max-time 40 "$BASE/" -o reference/root.html \
+            -w "HTTP %{http_code} %{size_download}B\n"
+          wc -c reference/root.html
+
+          echo "=== extracting endpoints from the page ==="
+          python3 - << 'PY' > /tmp/endpoints.txt
+          import re
+          html = open("reference/root.html", encoding="utf-8", errors="replace").read()
+          eps = set()
+          for m in re.finditer(r"""["'`](/(?:api|health)[A-Za-z0-9_./?=&{}$-]*)["'`]""", html):
+              ep = m.group(1)
+              # skip template-literal params like /api/x/${id}
+              if "$" in ep or "{" in ep:
+                  ep = ep.split("$")[0].split("{")[0].rstrip("/")
+                  if not ep or ep in ("/api", "/api/"):
+                      continue
+              eps.add(ep)
+          extra = ["/health", "/api/forecast", "/api/activity", "/api/activity?limit=300",
+                   "/api/news", "/api/accuracy", "/api/trading", "/api/track-record",
+                   "/api/today", "/api/backtest", "/api/brief", "/api/briefs",
+                   "/api/agents", "/api/agents/status", "/api/status", "/api/config",
+                   "/api/vol", "/api/history", "/api/chart", "/api/spot"]
+          eps.update(extra)
+          for e in sorted(eps):
+              print(e)
+          PY
+          cat /tmp/endpoints.txt
+
+          echo "=== fetching endpoints ==="
+          while read -r ep; do
+            [ -z "$ep" ] && continue
+            SAFE=$(echo "$ep" | sed 's#^/##; s#[/?&=]#_#g')
+            CODE=$(curl -sS --max-time 40 "$BASE$ep" -o "reference/api/$SAFE.json" \
+              -w "%{http_code}" || echo "ERR")
+            SIZE=$(wc -c < "reference/api/$SAFE.json" 2>/dev/null || echo 0)
+            echo "  $ep -> $CODE (${SIZE}B)"
+            # drop 404s and empties to keep the capture clean
+            if [ "$CODE" != "200" ] || [ "$SIZE" -lt 3 ]; then
+              rm -f "reference/api/$SAFE.json"
+            fi
+            # cap any single file at 2MB
+            if [ -f "reference/api/$SAFE.json" ] && [ "$SIZE" -gt 2000000 ]; then
+              head -c 2000000 "reference/api/$SAFE.json" > /tmp/c && mv /tmp/c "reference/api/$SAFE.json"
+            fi
+          done < /tmp/endpoints.txt
+
+          ls -la reference/api/ || true
+
+          echo "=== committing capture ==="
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reference/
+          git commit -m "capture: reference site snapshot for verbatim port [skip ci]" || echo "nothing to commit"
+          git push origin "HEAD:${{ github.event.inputs.branch }}"
