@@ -2,7 +2,7 @@ name: Deploy to Render
 
 on:
   push:
-    branches: [main, master, claude/krw-watched-web-deploy-ny4ym8]
+    branches: [main, master]
     paths-ignore:
       - 'frontend/**'
       - '**.md'
@@ -12,6 +12,12 @@ on:
         description: "Skip redeploy; just run the AI cycle on the current live container"
         type: boolean
         default: false
+
+# Never let two deploys race each other (they PATCH the same Render service);
+# queue instead of cancelling so a triggered deploy always completes.
+concurrency:
+  group: render-deploy
+  cancel-in-progress: false
 
 jobs:
   deploy:
