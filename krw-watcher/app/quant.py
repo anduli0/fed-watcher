@@ -102,6 +102,23 @@ def _proxy_pred(closes: list[float], horizon_days: int, lookback: int = 20) -> f
     return mom * horizon_days * 0.35 + mr * min(scale / 4, 1.5)
 
 
+def theory_anchors() -> dict:
+    """호라이즌별 정량 이론 앵커 — 모멘텀+평균회귀 프록시(추세), 250일 평균으로의
+    회귀(장기 균형/PPP형). 수석 프롬프트에 수치로 제공되고 최종 블렌딩에도 쓰인다."""
+    rows = daily_history()
+    closes = [r["c"] for r in rows]
+    if len(closes) < 60:
+        return {}
+    out = {}
+    ma = statistics.mean(closes[-250:]) if len(closes) >= 250 else statistics.mean(closes)
+    for h, hd in H_DAYS.items():
+        mm = _proxy_pred(closes, hd)
+        ppp = (ma - closes[-1]) * min(hd / 365, 1.0) * 0.5
+        out[h] = {"momentum_mr": round(mm, 1), "meanrev_250d": round(ppp, 1),
+                  "mean": round((mm + ppp) / 2, 1)}
+    return out
+
+
 def track_payload(horizon: str, live_forecasts: list[dict]) -> dict:
     rows = daily_history()
     hd = H_DAYS.get(horizon, 30)

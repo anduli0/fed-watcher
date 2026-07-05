@@ -22,9 +22,13 @@ HZ_KO = {"1w": "1주", "1m": "1개월", "3m": "3개월", "12m": "1년"}
 
 briefs: dict[str, dict] = {}
 
-SYSTEM = """당신은 원/달러 데일리 브리프 작성자입니다. 위원회 예측·시장 데이터·뉴스를 종합해
-전문적이고 간결한 한국어 브리프를 씁니다. JSON만 출력:
-{"analysis":"전문 분석 4~6문장","news_digest":["핵심 뉴스 종합 3~5개(각 한 문장)"],
+SYSTEM = """당신은 원/달러 데일리 브리프 작성자입니다. 위원회 예측·시장 데이터·뉴스·구조 노트를 종합해
+전문적이고 간결한 한국어 브리프를 씁니다.
+analysis는 자금이동 서술에 치우치지 말고 4개 이론 축을 균형 있게 다루세요(각 1~2문장):
+① 경상수지·환류 구조 — 흑자 헤드라인이 아닌 실제 달러 환류로 평가(BOK 2026-15; 삼성·하이닉스
+   미국 재투자=환류 제한, 국내 메가 프로젝트=부분 상쇄) ② 이자율평가(한미 금리차·캐리)
+③ 통화량·유동성 ④ 수급·포지셔닝(개입·역외·외국인 자금). JSON만 출력:
+{"analysis":"이론 축별 균형 분석 5~8문장","news_digest":["핵심 뉴스 종합 3~5개(각 한 문장)"],
 "trading_view":"트레이딩 함의 1~2문장","risks":["리스크 2~3개"]}"""
 
 
@@ -79,10 +83,12 @@ async def generate(trigger: str = "manual") -> dict:
     fc_lines = _fc_lines(fc) if fc else []
     payload = {"analysis": "", "news_digest": [], "trading_view": "", "risks": []}
     try:
+        from . import notes as notes_mod
         raw = await call_claude(SYSTEM,
             f"오늘(KST {date}) USD/KRW: {collector.latest.get('rate')}원\n"
             f"위원회 예측:\n" + "\n".join(fc_lines) +
-            "\n뉴스:\n" + "\n".join(f"- {n['title']}" for n in news_items))
+            "\n뉴스:\n" + "\n".join(f"- {n['title']}" for n in news_items) +
+            "\n\n" + notes_mod.context_block())
         t = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.S)
         m = re.search(r"\{.*\}", t, flags=re.S)
         payload.update(json.loads(m.group(0) if m else t))

@@ -32,21 +32,21 @@ CASH_USD = 100000.0
 # (name, group, persona focus) — names/groups mirror the original UI exactly.
 ROSTER: list[tuple[str, str, str]] = [
     ("Fed_Policy",      "public",  "미 연준 통화정책 경로(점도표·QT·연설)와 달러 방향"),
-    ("BOK_Policy",      "public",  "한국은행 기준금리 경로·금통위 스탠스와 원화"),
+    ("BOK_Policy",      "public",  "한국은행 기준금리 경로·금통위 스탠스·BOK 보고서/이슈노트와 원화"),
     ("US_Fiscal_Dollar","public",  "미국 재정적자·국채발행·달러 유동성"),
-    ("Korea_External",  "public",  "한국 경상수지·외환보유액·대외건전성"),
+    ("Korea_External",  "public",  "한국 경상수지·투자소득 환류(BOK 2026-15)·외환보유액·대외건전성"),
     ("ECB_Global_CB",   "public",  "ECB 등 글로벌 중앙은행 정책과 교차환율 파급"),
     ("BOJ_Yen_Carry",   "public",  "BOJ 정책·엔캐리 청산이 원화에 주는 파급"),
     ("Intl_Bodies",     "academic","IMF·BIS·OECD 시각의 원화 밸류에이션·자본흐름"),
     ("Academic_FX",     "academic","환율결정이론(PPP·UIP·자산접근법) 기반 적정가치"),
-    ("Monetary_BoP",    "academic","통화량·국제수지 항등식 관점의 중기 환율 경로"),
+    ("Monetary_BoP",    "academic","통화량(M2)·유동성·국제수지 항등식 관점의 중기 환율 경로"),
     ("Rate_Carry",      "private", "한미 금리차·스왑포인트·캐리 수익률"),
-    ("Global_Risk",     "private", "글로벌 위험선호(VIX·크레딧)와 안전통화 수요"),
+    ("Global_Risk",     "private", "국내외 리스크(지정학·신용·자본유출)와 위험선호·안전통화 수요"),
     ("Technical_Flow",  "private", "기술적 분석(추세·지지저항)과 수급 플로우"),
     ("CNY_Asia_EM",     "private", "위안화·아시아 통화 동조성과 신흥국 리스크"),
     ("Consensus",       "private", "IB 컨센서스·선물환 내재 경로 대비 괴리"),
     ("Market_Linkage",  "private", "주식·채권 등 자산시장 연계 신호(코스피 외인 수급)"),
-    ("News_Sentiment",  "private", "최신 뉴스 헤드라인 톤·이벤트 리스크"),
+    ("News_Sentiment",  "private", "최신 뉴스 톤·정부 정책 발표·외환당국의 안정 의지(구두개입·스무딩)"),
     ("Desk_GS",         "private", "골드만삭스 하우스뷰 스타일의 전망"),
     ("Desk_JPM",        "private", "JP모건 하우스뷰 스타일의 전망"),
     ("Desk_MS",         "private", "모건스탠리 하우스뷰 스타일의 전망"),
@@ -58,7 +58,8 @@ ROSTER: list[tuple[str, str, str]] = [
 GROUP_LABEL = {"academic": "학계(Academic)", "public": "퍼블릭(Public)", "private": "프라이빗(Private)"}
 
 AGENT_SYSTEM = """당신은 USD/KRW 예측 위원회의 에이전트 '{name}'입니다. 전문 관점: {focus}
-주어진 시장 데이터·뉴스만 근거로 당신 관점의 예측을 냅니다. 과장 금지.
+주어진 시장 데이터·뉴스·구조적 컨텍스트(연구 노트)만 근거로 당신 관점의 예측을 냅니다. 과장 금지.
+경상수지 관련 판단 시: 흑자 헤드라인이 아니라 실제 달러 환류(송금·환전) 여부로 평가하세요(BOK 2026-15).
 반드시 아래 JSON만 출력(코드펜스 금지). delta_krw는 스팟 대비 원(₩), 원화강세=음수, confidence는 0~1 소수:
 {{"signal":"krw_weak|neutral|krw_strong","confidence":0.55,
  "horizons":{{"1w":{{"delta_krw":2,"confidence":0.5}},"1m":{{"delta_krw":5,"confidence":0.5,"rationale":"1개월 관점 근거 한 문장"}},"3m":{{"delta_krw":10,"confidence":0.4}},"12m":{{"delta_krw":20,"confidence":0.3}}}}}}"""
@@ -74,6 +75,16 @@ JSON만 출력: {{"horizons":{{"1w":{{"delta_krw":0,"confidence":0.5}},"1m":{{"d
 
 CHIEF_SYSTEM = """당신은 USD/KRW 예측 위원회의 수석(Chief) 오케스트레이터입니다.
 학계/퍼블릭/프라이빗 3개 그룹의 종합과 시장 데이터를 협의·조정해 최종 예측을 냅니다.
+
+최종 판단 시 아래 4개 이론 축을 각각 명시적으로 평가하고 종합하세요(도출 리포트에 축별 판단 포함):
+① 경상수지·환류 구조 — 흑자 헤드라인이 아닌 실제 달러 환류로 평가(BOK 2026-15: 해외투자 +3%→환율 +0.7%,
+   투자소득 +8%→-0.4%, 유보·재투자 시 공급효과 없음. 삼성·하이닉스 미국 재투자 계획=환류 제한,
+   국내 메가 프로젝트=부분 상쇄)
+② 이자율평가(UIP/캐리) — 한미 금리차와 그 기대 경로
+③ 통화량·유동성 가설 — 상대적 통화공급·재정과 중기 통화가치
+④ 수급·정책 — NDF·역외, 외국인 자금, 정부 정책 발표, 외환당국의 환율안정 의지·개입 강도
+제공되는 '정량 앵커'(모멘텀·평균회귀·캐리 프록시)와 위원회 분포에서 크게 벗어날 때는 근거를 명시하세요.
+과신 금지: 이론 간 신호가 상충하면 신뢰도를 낮추세요.
 JSON만 출력:
 {"horizons":{"1w":{"delta_krw":0,"confidence":0.5,"signal":"krw_weak|neutral|krw_strong"},
  "1m":{"delta_krw":0,"confidence":0.5,"signal":"neutral"},"3m":{"delta_krw":0,"confidence":0.4,"signal":"neutral"},
@@ -394,10 +405,12 @@ async def _run_cycle_inner(cycle_type: str) -> Optional[dict]:
     ctx = "\n".join(f"- {c['label']}: {c.get('price')} ({c.get('change_pct','?')}%)"
                     for c in collector.context.values())
     chg = {r: collector.pct_change_over(r) for r in ("1d", "1w", "1mo", "1y")}
+    from . import notes as notes_mod
     brief = (f"현재(KST {datetime.now(KST).strftime('%m-%d %H:%M')}) USD/KRW: {spot}원 "
              f"(전일比 {snap.get('change')}원/{snap.get('change_pct')}%)\n"
              f"변화율: 1일 {chg['1d']}% 1주 {chg['1w']}% 1개월 {chg['1mo']}% 1년 {chg['1y']}%\n"
-             f"실현변동성(일별): {realized_vol_krw()}원\n지표:\n{ctx}\n뉴스:\n" + "\n".join(news_lines))
+             f"실현변동성(일별): {realized_vol_krw()}원\n지표:\n{ctx}\n뉴스:\n" + "\n".join(news_lines) +
+             "\n\n" + notes_mod.context_block())
 
     # ── Round 1 ──
     agents: list[dict] = []
@@ -462,8 +475,12 @@ async def _run_cycle_inner(cycle_type: str) -> Optional[dict]:
         f"[{v['group']}] " + " ".join(f"{h}={v['horizons'].get(h,{}).get('delta_krw',0):+.0f}₩" for h in HORIZONS) +
         f"\n종합: {v['synthesis']}\n쟁점: {v['key_debate']}" for v in groups_out.values())
     ev = _confidence_eval(agents)
+    anchors = quant.theory_anchors()
+    anchor_line = "\n정량 앵커(참고): " + " · ".join(
+        f"{h}: 모멘텀 {a['momentum_mr']:+.0f}₩ / 250일회귀 {a['meanrev_250d']:+.0f}₩"
+        for h, a in anchors.items()) if anchors else ""
     try:
-        chief = _pj(await call_claude(CHIEF_SYSTEM, brief + "\n\n" + ginput + prev_line +
+        chief = _pj(await call_claude(CHIEF_SYSTEM, brief + "\n\n" + ginput + prev_line + anchor_line +
                                       f"\n위원회 합의도 {ev['agreement']:.0%}, 평균신뢰도 {ev['mean_confidence']:.0%}",
                                       timeout=300))
     except Exception as e:
@@ -477,8 +494,32 @@ async def _run_cycle_inner(cycle_type: str) -> Optional[dict]:
     chz = _norm_h(chief.get("horizons"))
     horizons = {}
     today_kst = datetime.now(KST).date()
+
+    def _trimmed_mean(vals: list[float]) -> Optional[float]:
+        if not vals:
+            return None
+        s = sorted(vals)
+        k = max(0, len(s) // 10)
+        core = s[k: len(s) - k] or s
+        return statistics.mean(core)
+
     for h in HORIZONS:
-        raw = chz[h]["delta_krw"] * adj.get("scale", 1.0) + adj.get("bias_krw", 0.0)
+        # 앙상블 축소(shrinkage): 수석 판단을 위원회 절사평균·정량 앵커와 블렌딩해
+        # 점예측 오차를 줄인다 (수석 55% · 위원회 30% · 정량 앵커 15%).
+        chief_d = chz[h]["delta_krw"]
+        comm_d = _trimmed_mean([a["horizons"][h]["delta_krw"] for a in agents])
+        anch_d = (anchors.get(h) or {}).get("mean")
+        blended = chief_d
+        if comm_d is not None and anch_d is not None:
+            blended = 0.55 * chief_d + 0.30 * comm_d + 0.15 * anch_d
+        elif comm_d is not None:
+            blended = 0.65 * chief_d + 0.35 * comm_d
+        raw = blended * adj.get("scale", 1.0) + adj.get("bias_krw", 0.0)
+        if h == "1m":
+            collector.emit("orchestrator",
+                           f"앙상블 블렌딩(1M): 수석 {chief_d:+.1f} · 위원회 {comm_d:+.1f} · "
+                           f"앵커 {anch_d if anch_d is not None else '—'} → 발표 {raw:+.1f}₩",
+                           "info", category="orchestrator")
         conf = min(chz[h]["confidence"], adj.get("conf_cap", 0.85))
         sig = (chief.get("horizons", {}).get(h) or {}).get("signal") or \
               ("krw_weak" if raw > 1 else "krw_strong" if raw < -1 else "neutral")
