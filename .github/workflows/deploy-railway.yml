@@ -190,7 +190,7 @@ jobs:
           echo "URL=$URL" >> render-deployment.txt
           git add render-deployment.txt || true
           (git diff --staged --quiet || git commit -m "ci: update Render deployment info [skip ci]") || true
-          git push origin claude/krw-watched-web-deploy-ny4ym8 || true
+          git push origin HEAD:"${GITHUB_REF_NAME}" || true
           echo "Saved SERVICE_ID=$SERVICE_ID and URL=$URL"
 
           SKIP_DEPLOY="${{ github.event.inputs.skip_deploy }}"
@@ -266,7 +266,7 @@ jobs:
           echo "DEPLOY_STATUS=$FINAL_STATUS" >> render-deployment.txt
           git add render-deployment.txt || true
           (git diff --staged --quiet || git commit -m "ci: add verification results [skip ci]") || true
-          git push origin claude/krw-watched-web-deploy-ny4ym8 || true
+          git push origin HEAD:"${GITHUB_REF_NAME}" || true
   
   check-deploy:
     runs-on: ubuntu-latest
@@ -277,14 +277,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/krw-watched-web-deploy-ny4ym8
+          ref: ${{ github.ref_name }}
       - name: Trigger deploy, poll status, write results
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
         run: |
           set +e
           # Read the (possibly freshly recreated) service id written by the deploy job
-          git pull --rebase origin claude/krw-watched-web-deploy-ny4ym8 || true
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
           SERVICE_ID=$(grep '^SERVICE_ID=' render-deployment.txt | cut -d= -f2)
           echo "Service ID from deploy job: $SERVICE_ID"
 
@@ -551,7 +551,7 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin claude/krw-watched-web-deploy-ny4ym8 || true
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
           git add render-status.txt
           git commit -m "ci: render deploy status [skip ci]" --allow-empty
-          git push origin claude/krw-watched-web-deploy-ny4ym8 || true
+          git push origin HEAD:"${GITHUB_REF_NAME}" || true
