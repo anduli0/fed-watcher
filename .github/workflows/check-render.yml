@@ -33,6 +33,26 @@ jobs:
           echo "=== /api/briefings (latest) ==="
           curl -sf --max-time 30 "$BASE_URL/api/briefings?limit=1" | python3 -m json.tool 2>/dev/null | head -20 || echo "FAILED or empty"
 
+      - name: New tab endpoints (today / trading / track-record / frontend)
+        run: |
+          echo "=== /api/today ==="
+          curl -sf --max-time 30 "$BASE_URL/api/today" | python3 -m json.tool 2>/dev/null | head -25 || echo "FAILED"
+          echo ""
+          echo "=== /api/trading (summary) ==="
+          curl -sf --max-time 30 "$BASE_URL/api/trading" | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d['summary'])); print('open:', len(d['open_positions']), 'closed:', len(d['closed_trades']))" 2>/dev/null || echo "FAILED"
+          echo ""
+          echo "=== /api/track-record (stats) ==="
+          curl -sf --max-time 30 "$BASE_URL/api/track-record" | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d['stats'])); print('records:', len(d['records']))" 2>/dev/null || echo "FAILED"
+          echo ""
+          echo "=== frontend bundle contains new tabs? ==="
+          HTML=$(curl -sf --max-time 30 "$BASE_URL/" || echo "")
+          CHUNKS=$(echo "$HTML" | grep -o '/_next/static/chunks/[^"]*\.js' | sort -u | head -10)
+          FOUND=no
+          for c in $CHUNKS; do
+            if curl -sf --max-time 20 "$BASE_URL$c" | grep -q "적중기록"; then FOUND=yes; break; fi
+          done
+          echo "tab-label '적중기록' in JS bundle: $FOUND"
+
       - name: Recent agent activity
         run: |
           echo "=== /api/activity (last 25 events) ==="
