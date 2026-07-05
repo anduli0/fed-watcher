@@ -1,0 +1,99 @@
+name: Probe reference site
+
+# One-shot inspection helper: fetches the owner's existing (Tailscale-funnel)
+# krw-watcher site from a runner with open egress and prints its structure,
+# UI labels, and API surface into the job log, so the features can be ported
+# to the Render deployment. Read-only GETs; nothing is stored.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Base URL of the reference site"
+        default: "https://krw-watcher.tail3e31a9.ts.net"
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Fetch root page
+        run: |
+          BASE="${{ github.event.inputs.url }}"
+          BASE="${BASE%/}"
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+          echo "=== GET / (code, type, size) ==="
+          curl -sS -o /tmp/root.html -w "HTTP %{http_code} %{content_type} %{size_download}B\n" \
+            --max-time 30 "$BASE/" || { echo "ROOT FETCH FAILED"; exit 0; }
+          echo ""
+          echo "=== <title> & meta ==="
+          grep -oiE "<title>[^<]*" /tmp/root.html | head -3 || true
+          echo ""
+          echo "=== script/link/src refs ==="
+          grep -oiE '(src|href)="[^"]+"' /tmp/root.html | sort -u | head -40 || true
+          echo ""
+          echo "=== visible text (structure) ==="
+          python3 - << 'PY'
+          from html.parser import HTMLParser
+          class P(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.skip=0; self.out=[]
+              def handle_starttag(self,t,a):
+                  if t in ("script","style"): self.skip+=1
+              def handle_endtag(self,t):
+                  if t in ("script","style") and self.skip: self.skip-=1
+              def handle_data(self,d):
+                  if not self.skip:
+                      s=" ".join(d.split())
+                      if s: self.out.append(s)
+          p=P(); p.feed(open("/tmp/root.html",encoding="utf-8",errors="replace").read())
+          for line in p.out[:200]: print(" |", line)
+          PY
+
+      - name: Extract API surface from scripts
+        run: |
+          echo "=== same-origin scripts ==="
+          SCRIPTS=$(grep -oiE 'src="[^"]+\.js[^"]*"' /tmp/root.html | sed 's/^src="//;s/"$//' | head -8)
+          echo "$SCRIPTS"
+          : > /tmp/alljs.txt
+          for s in $SCRIPTS; do
+            case "$s" in
+              http*) u="$s" ;;
+              /*) u="$BASE$s" ;;
+              *) u="$BASE/$s" ;;
+            esac
+            echo "--- fetching $u ---"
+            curl -sS --max-time 30 "$u" | head -c 500000 >> /tmp/alljs.txt || true
+            echo >> /tmp/alljs.txt
+          done
+          # inline scripts too
+          python3 - << 'PY' >> /tmp/alljs.txt
+          import re
+          html=open("/tmp/root.html",encoding="utf-8",errors="replace").read()
+          for m in re.finditer(r"<script[^>]*>(.*?)</script>", html, re.S|re.I):
+              print(m.group(1))
+          PY
+          wc -c /tmp/alljs.txt
+          echo ""
+          echo "=== endpoint paths referenced in JS/HTML ==="
+          grep -ohE '"(/[a-zA-Z0-9_./-]*(api|health|ws|trigger|analysis|brief|rate|chart|history|alert|setting|status)[a-zA-Z0-9_./?=&-]*)"' /tmp/alljs.txt /tmp/root.html \
+            | sort -u | head -60 || true
+          echo ""
+          echo "=== fetch()/axios/XHR call sites (context) ==="
+          grep -ohE '(fetch|axios[a-z.]*|XMLHttpRequest)\s*\(\s*[`"'"'"'][^`"'"'"']{3,120}' /tmp/alljs.txt | sort -u | head -40 || true
+          echo ""
+          echo "=== Korean UI labels (tabs/buttons/sections) ==="
+          grep -ohE '[가-힣][가-힣0-9 %/·().:-]{1,24}' /tmp/root.html /tmp/alljs.txt | sort | uniq -c | sort -rn | head -80 || true
+          echo ""
+          echo "=== intervals / schedules in JS ==="
+          grep -ohE 'setInterval[^;]{0,120}|cron[^;]{0,80}' /tmp/alljs.txt | head -20 || true
+
+      - name: Probe API endpoints
+        run: |
+          DISCOVERED=$(grep -ohE '"(/[a-zA-Z0-9_./-]*api[a-zA-Z0-9_./-]*)"' /tmp/alljs.txt /tmp/root.html | tr -d '"' | sort -u | head -25)
+          COMMON="/health /api/status /api/latest /api/rate /api/rates /api/history /api/chart /api/analysis /api/analyses /api/briefing /api/briefings /api/forecast /api/activity /api/alerts /api/settings /api/summary /api/news"
+          for ep in $DISCOVERED $COMMON; do
+            printf "\n===== GET %s =====\n" "$ep"
+            curl -sS --max-time 20 "$BASE$ep" -w "\n[HTTP %{http_code} %{content_type}]\n" 2>&1 | head -c 900 || true
+          done
