@@ -452,9 +452,13 @@ async def backtest_skill():
         realized = (fwd[target] - row[target]) * 100.0
         return 0 if abs(realized) < NEUTRAL_BAND else (1 if realized > 0 else -1)
 
+    # All horizons share the 12-month cutoff so 6m and 12m score the SAME
+    # decision months (matches the reference build's uniform n).
+    MAX_H = 12
+
     def eval_sign(signal_fn, horizon_m: int, excl_zlb: bool, target: str):
         n = hits = n_dir = hits_dir = 0
-        for i in range(12 + INFL_LAG, len(months) - horizon_m):
+        for i in range(12 + INFL_LAG, len(months) - MAX_H):
             if excl_zlb and by_date[months[i]]["dff"] < ZLB:
                 continue
             rs = realized_sign(i, horizon_m, target)
@@ -476,9 +480,8 @@ async def backtest_skill():
         }
 
     def eval_magnitude(horizon_m: int, excl_zlb: bool, target: str):
-        errs = base_errs = []
         errs, base_errs, n = [], [], 0
-        for i in range(12 + INFL_LAG, len(months) - horizon_m):
+        for i in range(12 + INFL_LAG, len(months) - MAX_H):
             row = by_date[months[i]]
             if excl_zlb and row["dff"] < ZLB:
                 continue
@@ -518,7 +521,7 @@ async def backtest_skill():
     # Regime breakdown for DFF 6m: classify by the realized DFF move
     regimes = {"cutting": [0, 0, 0, 0], "hiking": [0, 0, 0, 0],
                "on_hold": [0, 0, 0, 0], "zlb": [0, 0, 0, 0]}
-    for i in range(12 + INFL_LAG, len(months) - 6):
+    for i in range(12 + INFL_LAG, len(months) - MAX_H):
         row = by_date[months[i]]
         rs = realized_sign(i, 6, "dff")
         if rs is None:

@@ -154,6 +154,22 @@ jobs:
               -o /dev/null -w "branch PATCH -> HTTP %{http_code}\n"
           fi
 
+          # ── State export (history survives the container swap) ─────────────
+          # The free tier has no persistent disk, so grab the old container's
+          # forecasts/ledger/trades/briefings BEFORE the new build swaps in;
+          # they are POSTed back to the new container after it goes live.
+          EARLY_URL=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('service',d).get('serviceDetails',{}).get('url',''))" 2>/dev/null || echo "")
+          : > /tmp/state.json
+          if [ -n "$EARLY_URL" ]; then
+            echo "=== Exporting state from old container ($EARLY_URL) ==="
+            curl -sf --max-time 60 -H "X-State-Key: $JWT_SECRET" \
+              "$EARLY_URL/api/state/export" -o /tmp/state.json \
+              && echo "state export: $(wc -c < /tmp/state.json) bytes" \
+              || echo "state export unavailable (old build predates the endpoint, or container asleep) — continuing"
+          fi
+
           # CI-only / docs-only / krw-only pushes must not rebuild+restart this
           # service (every restart kills any in-flight forecast cycle). Idempotent.
           if [ "${{ github.event.inputs.skip_deploy }}" != "true" ]; then
@@ -308,6 +324,15 @@ jobs:
             sleep 10
           done
           echo "Health response: ${HEALTH:-OFFLINE}"
+
+          # ── State restore into the fresh container ──────────────────────────
+          if [ "$SKIP_DEPLOY" != "true" ] && [ -s /tmp/state.json ] && [ -n "$HEALTH" ]; then
+            echo "=== Restoring state into new container ==="
+            curl -sf --max-time 120 -X POST "$URL/api/state/import" \
+              -H "X-State-Key: $JWT_SECRET" -H "Content-Type: application/json" \
+              --data-binary @/tmp/state.json || echo "state import failed (fresh history will accumulate instead)"
+            echo ""
+          fi
 
           echo ""
           echo "=== Endpoint probes ==="
