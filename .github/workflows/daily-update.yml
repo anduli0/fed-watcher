@@ -1,33 +1,32 @@
 name: Daily 8AM KST auto-update
 
-# 매일 아침 08:00 KST까지 PC 퍼널 사이트(krw-watcher.tail3e31a9.ts.net)의
-# 위원회 예측과 데일리 브리프가 "완료"되도록 06:40 KST에 사이클을 기동하고
-# 완료를 확인한다. AI 분석은 사이트 서버가 소유자의 클로드 구독(`claude -p`)
-# 으로 실행하며, 이 워크플로우는 트리거와 검증만 담당한다.
+# PC 퍼널 사이트(krw-watcher.tail3e31a9.ts.net)의 "08:00 KST까지 업데이트
+# 완료"를 검증하고, 미완료 시 경보를 남기는 워크플로우.
 #
-# 이 사이트는 소유자 PC에서 호스팅되므로 PC가 꺼져 있으면 사이트 자체가
-# 내려간다. 그 경우 이 잡은 실패로 끝나고, 07:40~14:40 KST 매시 스윕이
-# PC가 켜지는 대로 업데이트를 수행한다("8시에 안 되면 되는 대로 바로").
+# 실측으로 확인된 사실 (2026-07-06 run #4):
+#   - 원본 PC 앱은 자체 스케줄러로 아침 사이클을 돌려 ~07:30 KST에 완료한다.
+#   - 퍼널(공개) 경유의 변경성 POST(/api/cycle 등)는 HTTP 401 Unauthorized.
+#     테일넷 신원이 있는 요청만 허용되므로 GitHub 러너로는 강제할 수 없다.
+#   - 타임스탬프는 naive UTC (completed_at), 스키마는 리포 포트와 다름
+#     (/health에 cycle_running 없음, /api/forecast에 created_kst 없음).
 #
-# 라이브 사이트는 이 리포의 포트와 API 스키마가 다르다(원본 PC 앱):
-#   - /health 에 cycle_running 없음
-#   - /api/forecast 에 created_kst 없음
-#   - /api/agents 의 run.completed_at 이 naive 타임스탬프(TZ 불명)
-# 따라서 신선도는 created_kst(포트)와 run.completed_at(원본, UTC/KST 이중
-# 해석)을 모두 보고, 사이클 시작은 /api/activity 의 seq 증가로 감지한다.
+# 따라서 이 워크플로우는: 07:50 KST에 오늘 아침 완료 여부를 검증하고,
+# 미완료면 (혹시 허용될 경우를 대비해) POST를 1회 시도한 뒤 최대 60분
+# 완료를 기다린다. PC가 꺼져 있으면 실패로 끝나고 매시 스윕이 PC가
+# 켜진 뒤(앱의 부팅 워밍업이 스스로 사이클을 돌린다) 완료를 재확인한다.
+# 08:10 KST의 클로드 감시견 루틴이 실패를 진단·보고한다.
 
 on:
   schedule:
-    - cron: "40 21 * * *"   # 06:40 KST — 본 실행 (08:00 전 완료 목표)
-    - cron: "40 22-23 * * *" # 07:40, 08:40 KST — 재시도 스윕
-    - cron: "40 0-5 * * *"  # 09:40~14:40 KST 매시 — 재시도 스윕 (신선하면 no-op)
+    - cron: "50 22-23 * * *"  # 07:50, 08:50 KST — 아침 완료 검증
+    - cron: "50 0-5 * * *"    # 09:50~14:50 KST 매시 — PC 늦게 켜진 경우 따라잡기 확인
   workflow_dispatch:
     inputs:
       url:
         description: "Base URL of the krw-watcher site"
         default: "https://krw-watcher.tail3e31a9.ts.net"
       force:
-        description: "Trigger a cycle even if today's forecast is fresh"
+        description: "Attempt a cycle POST even if today's forecast is fresh"
         type: boolean
         default: false
 
@@ -38,11 +37,11 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    timeout-minutes: 80
     permissions:
       contents: read
     steps:
-      - name: Trigger and verify the daily update
+      - name: Verify (and if possible trigger) the daily update
         env:
           BASE: ${{ github.event.inputs.url || 'https://krw-watcher.tail3e31a9.ts.net' }}
           FORCE: ${{ github.event.inputs.force || 'false' }}
@@ -53,8 +52,8 @@ jobs:
           echo "target=$BASE today(KST)=$TODAY force=$FORCE"
 
           # 신선도: 오늘(KST) 06:00 이후 완료된 예측이 있으면 yes.
-          # created_kst(포트, KST aware/naive)와 run.completed_at(원본, naive
-          # TZ 불명 → KST/UTC 양쪽 해석) 중 하나라도 조건을 만족하면 신선.
+          # created_kst(포트, KST)와 run.completed_at(원본, naive → KST/UTC
+          # 이중 해석) 중 하나라도 조건을 만족하면 신선.
           fresh_check () {
             FC=$(curl -sf --max-time 20 "$BASE/api/forecast" 2>/dev/null || echo '{}')
             AG=$(curl -sf --max-time 20 "$BASE/api/agents" 2>/dev/null || echo '{}')
@@ -94,33 +93,6 @@ jobs:
           PY
           }
 
-          max_seq () {
-            curl -sf --max-time 20 "$BASE/api/activity" 2>/dev/null | python3 -c "
-          import sys, json
-          try:
-              evs = json.load(sys.stdin).get('events') or []
-              print(max((int(e.get('seq', 0)) for e in evs), default=0))
-          except Exception:
-              print(0)
-          " || echo 0
-          }
-
-          # SEQ0 이후에 에이전트/오케스트레이터 활동 이벤트가 생겼는지
-          cycle_activity_after () {
-            curl -sf --max-time 20 "$BASE/api/activity" 2>/dev/null | SEQ0="$1" python3 -c "
-          import sys, os, json
-          try:
-              seq0 = int(os.environ['SEQ0'])
-              evs = json.load(sys.stdin).get('events') or []
-              hit = [e for e in evs if int(e.get('seq', 0)) > seq0
-                     and (e.get('category') in ('agent', 'orchestrator')
-                          or '사이클' in str(e.get('message', '')))]
-              print('yes' if hit else 'no')
-          except Exception:
-              print('no')
-          " || echo no
-          }
-
           echo "=== 1. Reachability (5 tries, 30s backoff) ==="
           HEALTH=""
           for i in $(seq 1 5); do
@@ -130,43 +102,26 @@ jobs:
             sleep 30
           done
           if [ -z "$HEALTH" ]; then
-            echo "SITE OFFLINE — 호스트 PC가 꺼져 있을 수 있습니다. 다음 매시 스윕이 재시도합니다."
+            echo "SITE OFFLINE — 호스트 PC가 꺼져 있을 수 있습니다. PC가 켜지면 앱이 스스로"
+            echo "워밍업 사이클을 돌리고, 다음 매시 스윕이 완료를 확인합니다."
             echo "### daily-update(funnel): SITE OFFLINE ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
           echo "health: $(echo "$HEALTH" | head -c 300)"
 
-          echo "=== 2. Forecast freshness ==="
+          echo "=== 2. Morning-completion check ==="
           FOUT=$(fresh_check); echo "$FOUT"
           FRESH=$(echo "$FOUT" | tail -1 | cut -d= -f2)
 
           CYCLE="already_fresh"
           if [ "$FORCE" = "true" ] || [ "$FRESH" != "yes" ]; then
-            SEQ0=$(max_seq)
-            echo "=== 3. Trigger committee cycle (activity seq baseline: $SEQ0) ==="
-            STARTED="no"
-            for attempt in 1 2 3; do
-              CODE=$(curl -s -o /tmp/cycle_resp -w '%{http_code}' -X POST --max-time 120 "$BASE/api/cycle" || echo "ERR")
-              echo "  attempt $attempt: POST /api/cycle -> HTTP $CODE body: $(head -c 300 /tmp/cycle_resp 2>/dev/null)"
-              for i in $(seq 1 6); do
-                sleep 30
-                ACT=$(cycle_activity_after "$SEQ0")
-                echo "    [$i] new cycle activity: $ACT"
-                if [ "$ACT" = "yes" ]; then STARTED="yes"; break; fi
-              done
-              if [ "$STARTED" = "yes" ]; then break; fi
-              echo "  no cycle activity after attempt $attempt — retrying in 60s"
-              sleep 60
-            done
-            if [ "$STARTED" != "yes" ]; then
-              echo "사이클이 시작되지 않았습니다. 위 HTTP 코드로 원인을 확인하세요."
-              echo "### daily-update(funnel): cycle failed to start ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
-              exit 1
-            fi
+            echo "=== 3. Attempt external cycle trigger (funnel POSTs are expected to 401) ==="
+            CODE=$(curl -s -o /tmp/cycle_resp -w '%{http_code}' -X POST --max-time 120 "$BASE/api/cycle" || echo "ERR")
+            echo "POST /api/cycle -> HTTP $CODE body: $(head -c 300 /tmp/cycle_resp 2>/dev/null)"
 
-            echo "=== 4. Wait for cycle completion (up to 75 min) ==="
-            CYCLE="timeout"
-            for i in $(seq 1 75); do
+            echo "=== 4. Wait for the app to complete the update itself (up to 60 min) ==="
+            CYCLE="not_completed"
+            for i in $(seq 1 60); do
               sleep 60
               FOUT=$(fresh_check)
               FRESH=$(echo "$FOUT" | tail -1 | cut -d= -f2)
@@ -174,15 +129,16 @@ jobs:
               if [ "$FRESH" = "yes" ]; then CYCLE="updated"; break; fi
             done
             if [ "$CYCLE" != "updated" ]; then
-              echo "사이클이 제한 시간 내 완료되지 않았습니다."
-              echo "### daily-update(funnel): cycle timeout ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+              echo "오늘 아침 완료된 예측이 아직 없습니다. 외부 강제는 401로 차단되어 있어"
+              echo "PC 앱의 자체 스케줄/워밍업이 돌아야 합니다. 다음 스윕이 재확인합니다."
+              echo "### daily-update(funnel): not completed yet ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
               exit 1
             fi
           else
-            echo "오늘 아침 예측이 이미 신선합니다 — 사이클 생략."
+            echo "오늘 아침 예측이 이미 완료되어 있습니다."
           fi
 
-          echo "=== 5. Daily briefing (generate only if today's is missing) ==="
+          echo "=== 5. Daily briefing check ==="
           has_brief () {
             curl -sf --max-time 20 "$BASE/api/briefing/latest?date=$TODAY" 2>/dev/null | python3 -c "
           import sys, json
@@ -196,7 +152,7 @@ jobs:
           if [ "$(has_brief)" != "yes" ]; then
             CODE=$(curl -s -o /tmp/brief_resp -w '%{http_code}' -X POST --max-time 900 "$BASE/api/briefing/generate" || echo "ERR")
             echo "POST /api/briefing/generate -> HTTP $CODE body: $(head -c 300 /tmp/brief_resp 2>/dev/null)"
-            BRIEF="generate_failed"
+            BRIEF="missing"
             for i in $(seq 1 10); do
               if [ "$(has_brief)" = "yes" ]; then BRIEF="generated"; break; fi
               sleep 30
@@ -212,5 +168,5 @@ jobs:
             echo "cycle=$CYCLE briefing=$BRIEF"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          [ "$BRIEF" = "generate_failed" ] && exit 1
+          [ "$BRIEF" = "missing" ] && exit 1
           exit 0
