@@ -21,6 +21,10 @@ on:
         description: Run a committee cycle even if today's forecast is fresh
         required: false
         default: 'false'
+      regen_brief:
+        description: Regenerate today's briefing even if it already exists
+        required: false
+        default: 'false'
 
 concurrency:
   group: krw-daily-update
@@ -116,7 +120,7 @@ jobs:
               | python3 -c "import sys,json; print('yes' if json.load(sys.stdin).get('brief') else 'no')" 2>/dev/null || echo "no"
           }
 
-          if [ "$(has_brief)" = "yes" ]; then
+          if [ "${{ inputs.regen_brief }}" != "true" ] && [ "$(has_brief)" = "yes" ]; then
             echo "Briefing for $TODAY already exists"
             echo "BRIEF=exists" >> "$GITHUB_ENV"
             exit 0
