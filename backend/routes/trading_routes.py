@@ -212,6 +212,164 @@ async def get_trading(db: AsyncSession = Depends(get_db)):
     }
 
 
+# ── Treasury trading desk — positions by maturity (2Y/5Y/10Y/30Y) ────────────
+
+# (label, spot instrument, futures sym, futures name, cash mod-duration,
+#  futures DV01 $/bp per contract, fed-path beta, yield series, horizon blend)
+# fed-path beta = how much this maturity's yield moves per bp of the committee's
+# cumulative Fed-path call (front-end tracks the Fed closely; long-end far less).
+# DV01/duration figures are round CTD-based estimates — recompute live before any
+# real order (see disclaimer).
+_DESK = [
+    ("2Y",  "US 2Y Note",  "ZT", "2Y T-Note Future",  1.9,   33.0, 0.85, "GS2",  [("6m", 0.55), ("12m", 0.45)]),
+    ("5Y",  "US 5Y Note",  "ZF", "5Y T-Note Future",  4.4,   46.0, 0.60, "GS5",  [("12m", 0.55), ("3y", 0.45)]),
+    ("10Y", "US 10Y Note", "ZN", "10Y T-Note Future", 8.0,   67.0, 0.42, "GS10", [("3y", 0.55), ("10y", 0.45)]),
+    ("30Y", "US 30Y Bond", "ZB", "30Y T-Bond Future", 17.5, 145.0, 0.30, "GS30", [("10y", 1.0)]),
+]
+_NEUTRAL_BAND_BPS = 8.0      # |expected yield move| below this → stand aside
+_MIN_CONFIDENCE = 0.40       # weighted forecast confidence gate
+_STOP_BPS = 20.0             # adverse yield move that trips the stop
+_RISK_FRACTION_PER_POS = 0.01  # 1% of equity risked per maturity
+
+
+async def _latest_yield(series_id: str) -> float | None:
+    """Latest value for a treasury-yield FRED series, cached like the charts."""
+    cache_key = f"macro_history_{series_id}"
+    cached = data_cache.get(cache_key, ttl_seconds=4 * 3600)
+    if cached and cached.get("data"):
+        return cached["data"][-1]["value"]
+    import httpx
+    from backend.config import settings
+    try:
+        params = {"series_id": series_id, "api_key": settings.FRED_API_KEY,
+                  "file_type": "json", "limit": 5, "sort_order": "desc"}
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get("https://api.stlouisfed.org/fred/series/observations", params=params)
+            r.raise_for_status()
+        obs = [o for o in r.json().get("observations", []) if o["value"] != "."]
+        return float(obs[0]["value"]) if obs else None
+    except Exception:
+        return None
+
+
+async def get_trading_desk(equity: float = 1_000_000.0, db: AsyncSession = None) -> dict:
+    """Map the committee's rate-path curve onto long/short positions across the
+    2Y / 5Y / 10Y / 30Y Treasury complex, with spot & futures legs, targets,
+    stops and sizing. Bonds move inverse to yields: a dovish (yields-down) call
+    is a LONG. All greeks are estimates — see disclaimer."""
+    from backend.database import crud
+
+    horizons = {}
+    for h in ("6m", "12m", "3y", "10y"):
+        f = await crud.get_latest_horizon_forecast(db, h)
+        if f and f.published_delta is not None:
+            horizons[h] = f
+
+    fed_funds = await _latest_yield("GS2")  # placeholder; overwritten by DFF below
+    try:
+        from backend.data.fred_client import fetch_series
+        dff = await fetch_series("DFF")
+        fed_funds = dff.latest_value
+    except Exception:
+        fed_funds = None
+
+    positions = []
+    for label, spot, fsym, fname, mod_dur, dv01, beta, yseries, blend in _DESK:
+        # blended committee delta + confidence over this maturity's driving horizons
+        wsum = dsum = csum = 0.0
+        parts = []
+        for h, w in blend:
+            f = horizons.get(h)
+            if not f:
+                continue
+            dsum += w * float(f.published_delta)
+            csum += w * float(f.confidence or 0.0)
+            wsum += w
+            parts.append(f"{w:.2f}·{h}")
+        if wsum == 0:
+            continue
+        blended_delta = dsum / wsum
+        confidence = round(csum / wsum, 3)
+        horizon_basis = " + ".join(parts)
+
+        expected_dy = round(blended_delta * beta, 1)   # yield move in bps
+        cur = await _latest_yield(yseries)
+        target = round(cur + expected_dy / 100.0, 2) if cur is not None else None
+
+        raw_dir = "long" if expected_dy < 0 else "short" if expected_dy > 0 else "neutral"
+        direction, reason = raw_dir, None
+        if abs(expected_dy) < _NEUTRAL_BAND_BPS:
+            direction, reason = "neutral", f"within neutral band (±{_NEUTRAL_BAND_BPS:.0f}bps)"
+        elif confidence < _MIN_CONFIDENCE:
+            direction, reason = "neutral", f"forecast confidence {confidence:.0%} < {_MIN_CONFIDENCE:.0%}"
+
+        # price impact of holding the cash bond long (positive when yields fall)
+        spot_move = round(-mod_dur * expected_dy / 100.0, 2)
+        target_risk = equity * _RISK_FRACTION_PER_POS
+        contracts = 0
+        risk_dollars = 0.0
+        if direction != "neutral":
+            contracts = max(1, round(target_risk / (_STOP_BPS * dv01)))
+            risk_dollars = round(contracts * _STOP_BPS * dv01)
+        face = contracts * 100_000
+
+        if direction == "long":       # betting yields fall → stop if they rise
+            stop_yield = round(cur + _STOP_BPS / 100.0, 2) if cur is not None else None
+        elif direction == "short":
+            stop_yield = round(cur - _STOP_BPS / 100.0, 2) if cur is not None else None
+        else:
+            stop_yield = None
+
+        positions.append({
+            "label": label,
+            "spot_instrument": spot,
+            "direction": direction,
+            "raw_direction": raw_dir,
+            "reason": reason,
+            "current_yield": cur,
+            "target_yield": target if direction != "neutral" else None,
+            "expected_dy_bps": expected_dy,
+            "confidence": confidence,
+            "horizon_basis": horizon_basis,
+            "fed_path_beta": beta,
+            "cash_mod_duration": mod_dur,
+            "spot_face_value": face,
+            "spot_price_move_pct": spot_move if direction != "neutral" else None,
+            "futures_symbol": fsym,
+            "futures_name": fname,
+            "futures_contracts": contracts,
+            "futures_dv01": dv01,
+            "futures_price_move_pct": spot_move if direction != "neutral" else None,
+            "stop_yield": stop_yield,
+            "take_profit_yield": target if direction != "neutral" else None,
+            "stop_bps": _STOP_BPS,
+            "risk_dollars": risk_dollars,
+        })
+
+    return {
+        "as_of": datetime.now(KST).date().isoformat(),
+        "fed_funds": round(fed_funds, 2) if fed_funds is not None else None,
+        "equity": equity,
+        "positions": positions,
+        "disclaimer": (
+            "Not investment advice. Model/research/paper-trading output derived from a "
+            "probabilistic rate-path forecast. Duration, beta and DV01 are simple estimates "
+            "that shift with the curve and cheapest-to-deliver; recompute with live broker "
+            "data before any real order. Futures leverage can lose more than the margin posted."
+        ),
+    }
+
+
+@router.get("/trading/desk")
+async def trading_desk_route(equity: float = 1_000_000.0, db: AsyncSession = Depends(get_db)):
+    equity = max(10_000.0, min(float(equity or 1_000_000.0), 1_000_000_000.0))
+    try:
+        return await get_trading_desk(equity=equity, db=db)
+    except Exception as e:
+        return {"as_of": None, "fed_funds": None, "equity": equity,
+                "positions": [], "disclaimer": f"desk unavailable: {e}"}
+
+
 # ── Track record (적중기록) ──────────────────────────────────────────────────
 
 @router.get("/track-record")

@@ -442,19 +442,26 @@ async def _generate_derivation_report(
 
     if lang == "ko":
         report_instruction = (
-            "Write a derivation report in KOREAN (한국어) — under 700 characters — covering:\n"
-            "1. **요약**: 4개 horizon 한 줄씩 요약\n"
-            "2. **주요 데이터 동인**: 어떤 macro/연설/이벤트가 신호를 이끌었는지 (2-3개)\n"
-            "3. **주요 이견**: 어느 에이전트들이 다른 방향이었는지, 왜\n"
-            "4. **핵심 리스크**: 이 예측을 무효화할 수 있는 1-2개 시나리오"
+            "아래 데이터를 근거로 **한국어** 도출 보고서를 작성하라. 요약적이되 충실하게 — "
+            "각 절 2~4문장, 전체 900~1400자. 마크다운 소제목(##)과 불릿(-)만 사용하고 표는 쓰지 마라.\n\n"
+            "## 결론 한 줄\n오늘의 금리 경로를 한 문장으로 (방향·핵심 이유).\n\n"
+            "## 기간별 전망\n6개월·1년·3년·10년 각각 한 줄: 변화폭(bps)·기조·신뢰도와 그 근거 한 조각.\n\n"
+            "## 기간구조 읽기\n단기 대비 장기의 방향 차이(정상화/역전/스티프닝 등)가 무엇을 시사하는지 2~3문장.\n\n"
+            "## 핵심 동인\n신호를 이끈 구체적 데이터·연설·이벤트를 수치와 함께 3~4개 불릿.\n\n"
+            "## 컨센서스와 이견\n위원회 합의 강도, 어떤 에이전트가 왜 반대 방향이었는지 2~3문장.\n\n"
+            "## 리스크 시나리오\n이 예측을 뒤집을 1~2개 시나리오와, '무엇을 보면 판단을 바꾸는지'(구체 지표·임계치)."
         )
     else:
         report_instruction = (
-            "Write a derivation report in ENGLISH — under 700 characters — covering:\n"
-            "1. **Summary**: One line per horizon\n"
-            "2. **Key data drivers**: Which macro/speech/event led the signal (2-3 items)\n"
-            "3. **Key divergences**: Which agents differed and why\n"
-            "4. **Key risks**: 1-2 scenarios that would invalidate this forecast"
+            "Using the data below, write an **English** derivation report — summary-style but "
+            "substantive: 2–4 sentences per section, 900–1,400 characters total. Use markdown "
+            "subheadings (##) and bullets (-) only; no tables.\n\n"
+            "## Bottom line\nOne sentence on today's rate path (direction + main reason).\n\n"
+            "## By horizon\nOne line each for 6M / 1Y / 3Y / 10Y: change (bps), stance, confidence, and one supporting fact.\n\n"
+            "## Reading the curve\n2–3 sentences on what the short-vs-long divergence (normalization / inversion / steepening) implies.\n\n"
+            "## Key drivers\n3–4 bullets naming the specific data/speech/event behind the signal, with figures.\n\n"
+            "## Consensus & divergences\n2–3 sentences on committee agreement and which agents dissented and why.\n\n"
+            "## Risk scenarios\n1–2 scenarios that would flip the call, plus the concrete indicators/thresholds that would change the judgment."
         )
 
     prompt = f"""You are the Chief Macroeconomic Orchestrator. Generate a concise markdown derivation report.
@@ -475,7 +482,7 @@ async def _generate_derivation_report(
 - Failed agents: {len(errors)}
 
 ## Macro Snapshot
-{ctx.macro_snapshot_text[:1200]}
+{ctx.macro_snapshot_text[:2000]}
 
 ## Material Event
 {ctx.material_event or "None"}
@@ -486,7 +493,9 @@ Output ONLY the markdown report, no preamble.
 """
     try:
         return await call_claude(
-            "You are a Chief Fed analyst. Write concise markdown reports on Fed rate forecasts.",
+            "You are a Chief Fed analyst. Write clear, well-structured markdown reports on "
+            "Fed rate forecasts — summary-style but substantive, following the requested "
+            "sections and length. Ground every claim in the data provided.",
             prompt,
         )
     except Exception as e:

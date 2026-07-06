@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     MODEL_ID: str = "claude-sonnet-4-6"
     # Set DEV_MODE=true in .env to skip MAC/JWT validation during development
     DEV_MODE: bool = False
+    # Telegram push (daily brief + derivation report). Optional — telegram is a
+    # no-op when unset. Declared here so settings.TELEGRAM_* resolve (extra=ignore
+    # would otherwise drop them and raise AttributeError in telegram_notify).
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_CHAT_ID: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -17,8 +17,12 @@ api.interceptors.response.use(
 
 export default api;
 
-export type Horizon = "6m" | "12m" | "3y" | "10y";
-export const HORIZONS: Horizon[] = ["6m", "12m", "3y", "10y"];
+export type Horizon = "today" | "3m" | "6m" | "12m" | "3y" | "10y";
+// Term-structure order: spot → near-term → analytical horizons.
+export const HORIZONS: Horizon[] = ["today", "3m", "6m", "12m", "3y", "10y"];
+// The four horizons the 21-agent committee actually forecasts (today & 3m are
+// derived anchor points on the same curve).
+export const CORE_HORIZONS: Horizon[] = ["6m", "12m", "3y", "10y"];
 
 export interface HorizonForecast {
   horizon: Horizon;
@@ -30,13 +34,74 @@ export interface HorizonForecast {
   trigger_event: string | null;
   unchanged_streak_days: number;
   change_justification: string | null;
+  dispersion_bps?: number | null;
+  band_low_bps?: number | null;
+  band_high_bps?: number | null;
+  implied_rate_pct?: number | null;   // current Fed Funds + delta
+  synthetic?: boolean;                 // today / 3m derived anchor points
 }
 
-export interface AllHorizons {
-  "6m":  HorizonForecast | null;
-  "12m": HorizonForecast | null;
-  "3y":  HorizonForecast | null;
-  "10y": HorizonForecast | null;
+export type AllHorizons = { [k in Horizon]: HorizonForecast | null };
+
+// ── Trading desk (positions by maturity) ─────────────────────────────────
+export type TradeDir = "long" | "short" | "neutral";
+
+export interface TreasuryPosition {
+  label: string;                 // "2Y" | "5Y" | "10Y" | "30Y"
+  spot_instrument: string;
+  direction: TradeDir;
+  raw_direction: TradeDir;
+  reason: string | null;
+  current_yield: number | null;
+  target_yield: number | null;
+  expected_dy_bps: number | null;
+  confidence: number;
+  horizon_basis: string;
+  fed_path_beta: number;
+  cash_mod_duration: number;
+  spot_face_value: number;
+  spot_price_move_pct: number | null;
+  futures_symbol: string;
+  futures_name: string;
+  futures_contracts: number;
+  futures_dv01: number;
+  futures_price_move_pct: number | null;
+  stop_yield: number | null;
+  take_profit_yield: number | null;
+  stop_bps: number;
+  risk_dollars: number;
+}
+
+export interface TradingDesk {
+  as_of: string | null;
+  fed_funds: number | null;
+  equity: number;
+  positions: TreasuryPosition[];
+  disclaimer: string;
+}
+
+// ── Macro indicators (Today tab) ─────────────────────────────────────────
+export interface MacroIndicator {
+  key: string;
+  series_id: string;
+  name_ko: string;
+  name_en: string;
+  category: "inflation" | "labor" | "growth" | "expectations" | "policy";
+  unit: string;
+  impact: "high" | "medium" | "low";
+  meaning_ko: string;
+  latest_value: number | null;
+  latest_display: string | null;
+  latest_date: string | null;
+  prior_value: number | null;
+  prior_display: string | null;
+  change: number | null;
+  next_release: string | null;
+}
+
+export interface MacroIndicators {
+  as_of: string | null;
+  indicators: MacroIndicator[];
 }
 
 export interface ForecastHistoryItem {

@@ -24,8 +24,8 @@ export const t = {
     confidence: "Confidence",
 
     // Horizons
-    horizonTabs: { "6m": "6 Months", "12m": "1 Year", "3y": "3 Years", "10y": "10 Years" },
-    horizonLabels: { "6m": "6-month horizon", "12m": "12-month horizon", "3y": "3-year horizon", "10y": "10-year horizon" },
+    horizonTabs: { "today": "Today", "3m": "3 Months", "6m": "6 Months", "12m": "1 Year", "3y": "3 Years", "10y": "10 Years" },
+    horizonLabels: { "today": "current rate", "3m": "3-month horizon", "6m": "6-month horizon", "12m": "12-month horizon", "3y": "3-year horizon", "10y": "10-year horizon" },
     horizonNote: "Click any horizon tab above to view that forecast",
     derivationReport: "Derivation Report",
     showReport: "View derivation report",
@@ -56,6 +56,18 @@ export const t = {
     macroData: "Macro Data",
     noChartData: "No data available",
     loadingChart: "Loading…",
+
+    // Macro indicators (Today tab)
+    macroCalTitle: "Rate-Moving Indicators",
+    macroCalSub: "Latest reading, next release, and what it means for the Fed",
+    macroLatest: "Latest",
+    macroPrior: "Prior",
+    macroNext: "Next release",
+    macroReleased: "as of",
+    macroTBD: "schedule TBD",
+    macroImpactHigh: "High impact",
+    macroCat: { inflation: "Inflation", labor: "Labor", growth: "Growth", expectations: "Inflation Expectations", policy: "Policy Rate" },
+    macroNote: "Actuals from FRED. Inflation-expectation series are market/survey-implied. No consensus feed — the prior reading is the reference point.",
 
     // First cycle banner
     firstCycleTitle: "⚡ First cycle has not run yet",
@@ -144,8 +156,8 @@ export const t = {
     horizon: "12개월 전망",
     confidence: "신뢰도",
 
-    horizonTabs: { "6m": "6개월", "12m": "1년", "3y": "3년", "10y": "10년" },
-    horizonLabels: { "6m": "6개월 전망", "12m": "12개월 전망", "3y": "3년 전망", "10y": "10년 전망" },
+    horizonTabs: { "today": "오늘", "3m": "3개월", "6m": "6개월", "12m": "1년", "3y": "3년", "10y": "10년" },
+    horizonLabels: { "today": "현행 기준금리", "3m": "3개월 전망", "6m": "6개월 전망", "12m": "12개월 전망", "3y": "3년 전망", "10y": "10년 전망" },
     horizonNote: "위 탭을 클릭해 다른 시계열을 볼 수 있습니다",
     derivationReport: "도출 보고서",
     showReport: "도출 보고서 보기",
@@ -172,6 +184,18 @@ export const t = {
     macroData: "거시경제 데이터",
     noChartData: "데이터 없음",
     loadingChart: "로딩 중…",
+
+    // Macro indicators (Today tab)
+    macroCalTitle: "금리에 영향을 주는 지표",
+    macroCalSub: "최근 수치 · 다음 발표 일정 · 연준에 주는 의미",
+    macroLatest: "최근",
+    macroPrior: "직전",
+    macroNext: "다음 발표",
+    macroReleased: "기준",
+    macroTBD: "일정 미정",
+    macroImpactHigh: "영향 큼",
+    macroCat: { inflation: "물가", labor: "고용", growth: "성장", expectations: "기대 인플레이션", policy: "정책금리" },
+    macroNote: "실측치는 FRED 기준. 기대 인플레이션은 시장·설문 반영치입니다. 별도 컨센서스 피드가 없어 직전 수치를 기준점으로 표시합니다.",
 
     firstCycleTitle: "⚡ 첫 사이클이 아직 실행되지 않았습니다",
     firstCycleDesc: "사이클 실행 버튼을 클릭하면 FRED 데이터 수집, 연준 커뮤니케이션 분석, 21개 에이전트 추론이 시작됩니다. 무료 서버에서는 20~60분 걸릴 수 있습니다.",

@@ -12,7 +12,7 @@ import MultiHorizonGauges from "@/components/MultiHorizonGauges";
 import DailyBriefingPage from "@/components/DailyBriefingPage";
 import TodayPanel from "@/components/TodayPanel";
 import TrackRecordPanel from "@/components/TrackRecordPanel";
-import TradingPanel from "@/components/TradingPanel";
+import TradingDeskPanel from "@/components/TradingDeskPanel";
 import { useForecast } from "@/hooks/useForecast";
 import { useLang } from "@/context/LanguageContext";
 import { Horizon } from "@/lib/api";
@@ -241,7 +241,7 @@ export default function DashboardPage() {
 
         {/* ── Tab: Trading ── */}
         {tab === "trading" && (
-          <TradingPanel />
+          <TradingDeskPanel />
         )}
       </div>
 

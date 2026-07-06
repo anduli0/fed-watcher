@@ -38,12 +38,76 @@ def _serialize_horizon(f: HorizonForecast) -> dict:
 
 # ── Multi-horizon forecast endpoints ───────────────────────────────────────
 
+async def _current_dff() -> float | None:
+    """Latest effective Fed Funds Rate (%) — anchor for implied rate levels."""
+    try:
+        from backend.data.fred_client import fetch_series
+        s = await fetch_series("DFF")
+        return s.latest_value
+    except Exception:
+        return None
+
+
+def _synth_today(ref: dict | None, dff: float | None) -> dict:
+    """'Today' horizon = the current policy rate itself (zero forward change).
+    An anchor point for the term structure, not a forecast."""
+    base = dict(ref) if ref else {}
+    base.update({
+        "horizon": "today",
+        "published_delta_bps": 0.0,
+        "smoothed_delta_bps": 0.0,
+        "confidence": 0.99,
+        "signal": "neutral",
+        "dispersion_bps": 0.0,
+        "band_low_bps": 0.0,
+        "band_high_bps": 0.0,
+        "trigger_event": None,
+        "change_justification": "현행 기준금리 — 예측 곡선의 기준점",
+        "synthetic": True,
+    })
+    if dff is not None:
+        base["implied_rate_pct"] = round(dff, 2)
+    return base
+
+
+def _synth_3m(six_m: dict | None, dff: float | None) -> dict | None:
+    """'3-month' horizon interpolated between today (0bps) and the 6-month call
+    (~91/183 of the way). A near-term point on the same curve the agents draw."""
+    if not six_m:
+        return None
+    frac = 0.5  # 91d / 183d ≈ 0.497
+    d6 = six_m.get("published_delta_bps") or 0.0
+    s6 = six_m.get("smoothed_delta_bps") or 0.0
+    delta = round(d6 * frac, 1)
+    disp = six_m.get("dispersion_bps")
+    row = dict(six_m)
+    row.update({
+        "horizon": "3m",
+        "published_delta_bps": delta,
+        "smoothed_delta_bps": round(s6 * frac, 1),
+        "confidence": round((six_m.get("confidence") or 0.5) * 0.95, 3),
+        "signal": _delta_to_signal(delta),
+        "dispersion_bps": round(disp * frac, 1) if disp is not None else None,
+        "band_low_bps": round(delta - disp * frac, 1) if disp is not None else None,
+        "band_high_bps": round(delta + disp * frac, 1) if disp is not None else None,
+        "change_justification": "6개월 콜에서 보간한 근월 추정",
+        "synthetic": True,
+    })
+    if dff is not None:
+        row["implied_rate_pct"] = round(dff + delta / 100.0, 2)
+    return row
+
+
 @router.get("/forecast/horizons")
 async def get_all_horizons(db: AsyncSession = Depends(get_db)):
-    """Latest published forecast for all 4 horizons, with committee dispersion
-    and a ±1σ band around the published delta."""
+    """Latest published forecast across the full term structure. The four
+    analytical horizons (6m/12m/3y/10y) come from the 21-agent committee; two
+    anchor points — 'today' (current rate) and '3m' (near-term, interpolated) —
+    are derived so the front end can draw a complete curve. Each row also carries
+    the implied rate *level* = current Fed Funds + delta."""
     from backend.routes.accuracy_routes import horizon_dispersion
-    out = {}
+    dff = await _current_dff()
+    out: dict = {}
     disp_cache: dict[int, dict[str, float]] = {}
     for h in HORIZONS:
         f = await crud.get_latest_horizon_forecast(db, h)
@@ -58,7 +122,13 @@ async def get_all_horizons(db: AsyncSession = Depends(get_db)):
         pub = f.published_delta or 0.0
         row["band_low_bps"] = round(pub - d, 1) if d is not None else None
         row["band_high_bps"] = round(pub + d, 1) if d is not None else None
+        if dff is not None:
+            row["implied_rate_pct"] = round(dff + pub / 100.0, 2)
         out[h] = row
+
+    # Derived anchor points — always present so the curve renders immediately.
+    out["today"] = _synth_today(out.get("12m") or out.get("6m"), dff)
+    out["3m"] = _synth_3m(out.get("6m"), dff)
     return out
 
 
@@ -181,7 +251,22 @@ async def get_agent_status(db: AsyncSession = Depends(get_db)):
 
 # ── FRED chart data ────────────────────────────────────────────────────────
 
-VALID_SERIES = {"DFF", "GS2", "GS10", "T5YIE", "T10Y2Y", "CPIAUCSL", "PCEPI", "UNRATE", "SOFR", "PAYEMS"}
+VALID_SERIES = {
+    "DFF", "GS2", "GS5", "GS10", "GS30", "T5YIE", "T10YIE", "T10Y2Y",
+    "CPIAUCSL", "CPILFESL", "PCEPI", "PCEPILFE", "UNRATE", "ICSA", "RSAFS",
+    "MICH", "A191RL1Q225SBEA", "SOFR", "PAYEMS",
+}
+
+
+@router.get("/macro/indicators")
+async def get_macro_indicators_route():
+    """Rate-relevant US indicators for the Today tab: latest reading, prior,
+    direction, policy meaning, and next scheduled release date."""
+    from backend.data.macro_calendar import get_macro_indicators
+    try:
+        return await get_macro_indicators()
+    except Exception:
+        return {"as_of": None, "indicators": []}
 
 
 @router.get("/macro/series/{series_id}")

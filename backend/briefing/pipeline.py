@@ -217,6 +217,14 @@ async def _execute_pipeline(date_str: str, force: bool, run_id: int) -> dict:
 
     logger.info("[%s] Pipeline complete. EN=%s KO=%s",
                 date_str, briefing_db_ids.get("en"), briefing_db_ids.get("ko"))
+
+    # ── Push the daily brief to Telegram (SMS-style, idempotent per date) ──
+    try:
+        from backend.telegram_notify import notify_daily_brief
+        await notify_daily_brief(date_str=date_str)
+    except Exception as e:
+        logger.warning("Telegram daily-brief notify failed (non-fatal): %s", e)
+
     return {
         "status": "completed",
         "date": date_str,

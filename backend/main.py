@@ -233,6 +233,7 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         immediate_publish = True
         report_ko = result.get("report_ko", result.get("report_text", ""))
         report_en = result.get("report_en", "")
+        changed_horizons: list[str] = []
         for h in HORIZONS:
             agg = result["horizons"][h]
 
@@ -296,6 +297,9 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                         "#DD6B20", "info")
                 published_delta = 0.0
                 band_neutralized = True
+
+            if abs(published_delta - (prev_delta or 0.0)) >= 1.0:
+                changed_horizons.append(h)
 
             # (3) confidence calibrated to weighted agreement with the call
             conf_published = agg["confidence"]
@@ -412,6 +416,15 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         result["horizons"]["10y"]["weighted_delta_bps"],
         result.get("collaboration", {}).get("agents_revised", []),
     )
+
+    # ── Push the derivation report to Telegram (SMS-style) ─────────────────
+    # Fires when a horizon changed, or once for the day's first cycle. Idempotent
+    # + never fatal — the forecast is already persisted above.
+    try:
+        from backend.telegram_notify import notify_derivation_report
+        await notify_derivation_report(report_ko, changed=changed_horizons)
+    except Exception as e:
+        logger.warning("Telegram derivation-report notify failed (non-fatal): %s", e)
 
 
 async def publish_morning_forecast():
