@@ -1,11 +1,13 @@
 # Fed-Watcher Daily Wake-up — PC 폴백 (클라우드 자동화가 모두 실패할 때만 필요)
 #
-# 매일 07:15 KST에 Render 백엔드를 깨워, 내부 스케줄러(07:30 브리핑 / 08:00 발표)가
-# 실행되도록 한다. Windows 작업 스케줄러 등록 (관리자 PowerShell에서 1회 실행):
+# 매일 06:25 KST에 Render 백엔드를 깨우고(부팅 warm-up이 예측+브리핑 재생성,
+# 최대 30~40분) 08:02 KST까지 5분 간격으로 깨어 있게 유지해, 내부 스케줄러
+# (07:30 브리핑 / 08:00 발표)까지 전부 아침 8시 안에 "완료"되도록 한다.
+# Windows 작업 스케줄러 등록 (관리자 PowerShell에서 1회 실행):
 #
 #   schtasks /Create /TN "FedWatcher Daily Wakeup" `
 #     /TR "powershell -ExecutionPolicy Bypass -File C:\Users\andul\fed-watcher\scheduler\daily_update.ps1" `
-#     /SC DAILY /ST 07:15
+#     /SC DAILY /ST 06:25
 #
 # 컴퓨터가 07:15에 꺼져/잠들어 있어도 켜지는 즉시 실행되게 하려면, 등록 후
 # 작업 스케줄러 GUI에서 해당 작업 → 설정 → "예약된 시작 시간을 놓친 경우
