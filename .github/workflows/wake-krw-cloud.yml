@@ -1,0 +1,53 @@
+name: Wake krw-watcher cloud (before internal 06:40 cycle)
+
+# krw-watcher.onrender.com 은 Render 무료 티어라 15분 무트래픽 시 잠든다.
+# 잠든 동안에는 앱 내부 스케줄러(06:40 KST 위원회 사이클, 07:30 브리핑)가
+# 실행되지 않는다 — 그러면 07:50 검증·복구 워크플로우가 그제서야 사이클을
+# 시작해 ~08:20 에 완료되어 "8시 전 완료" 목표를 놓친다.
+#
+# 이 워크플로우는 06:20~07:40 KST 동안 /health 를 반복 핑해 Render 를 깨워
+# 둔다. 그러면 내부 06:40 사이클이 제때 돌아 ~07:15 에 끝나고, 07:30 브리핑도
+# 8시 전에 완료된다. AI 토큰을 쓰지 않는 단순 GET 이라 비용이 없다.
+# (앱 자체 keepalive 는 프로세스가 살아 있을 때만 도므로, 밤새 잠든 상태를
+#  깨우려면 이런 외부 waker 가 필요하다.)
+
+on:
+  schedule:
+    - cron: '20 21 * * *'  # 06:20 KST
+    - cron: '30 21 * * *'  # 06:30 KST — 06:40 사이클 직전 확실히 깨움
+    - cron: '40 21 * * *'  # 06:40 KST
+    - cron: '50 21 * * *'  # 06:50 KST
+    - cron: '0 22 * * *'   # 07:00 KST
+    - cron: '10 22 * * *'  # 07:10 KST
+    - cron: '20 22 * * *'  # 07:20 KST — 07:30 브리핑 직전
+    - cron: '30 22 * * *'  # 07:30 KST
+    - cron: '40 22 * * *'  # 07:40 KST
+  workflow_dispatch: {}
+
+concurrency:
+  group: wake-krw-cloud
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ping until awake
+        run: |
+          URL="https://krw-watcher.onrender.com/health"
+          for i in $(seq 1 8); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "$URL?wake=$GITHUB_RUN_ID-$i" || echo 000)
+            echo "attempt $i -> HTTP $CODE"
+            # 앱이 만든 응답이면(2xx/3xx/4xx) 깨어 있는 것 — 성공.
+            # 000(연결 실패)/5xx(콜드 스타트 라우터)만 재시도.
+            if [ "$CODE" != "000" ] && [ "$CODE" -lt 500 ]; then
+              echo "awake (HTTP $CODE)."
+              exit 0
+            fi
+            sleep 45
+          done
+          echo "::warning::Render did not confirm awake after 8 tries — 07:50 repair workflow will still cover it."
+          exit 0
