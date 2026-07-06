@@ -1,0 +1,42 @@
+name: Daily wake-up (Fed-Watcher backend)
+
+# Render 무료 인스턴스는 유휴 시 잠들고, 잠든 동안에는 백엔드 내부 스케줄러
+# (07:30 KST 브리핑, 08:00 KST 발표)가 실행되지 않는다. 아침 8시 전에 외부에서
+# 서버를 깨워 두면 부팅 warm-up(RUN_CYCLE_ON_STARTUP)과 내부 스케줄러가
+# 예측·브리핑을 알아서 갱신한다 — 깨우는 것 자체가 곧 업데이트다.
+#
+# GitHub 스케줄 크론은 최대 15~30분 지연될 수 있으므로 07:15/07:35/07:55 KST
+# 세 번에 걸쳐 핑을 나눠 보낸다 (8시에 못 맞추면 되는 대로 바로 실행).
+# 주의: schedule 워크플로는 기본 브랜치(master)에 있어야 실제로 동작한다.
+
+on:
+  schedule:
+    - cron: '15 22 * * *'   # 07:15 KST
+    - cron: '35 22 * * *'   # 07:35 KST
+    - cron: '55 22 * * *'   # 07:55 KST
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Ping backend until it responds
+        run: |
+          URL="https://fed-watcher-backend-9rgk.onrender.com/health"
+          for i in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 "$URL?gha=$GITHUB_RUN_ID-$i" || echo 000)
+            echo "attempt $i → HTTP $code"
+            # 403 포함 5xx 미만의 모든 응답 = 앱이 요청을 처리했다 = 깨어 있다.
+            # (403은 백엔드 IP 화이트리스트가 러너 IP를 거른 것일 뿐이다.)
+            # 000(연결 실패)이나 5xx(콜드 스타트 중 라우터 응답)는 재시도.
+            if [ "$code" != "000" ] && [ "$code" -lt 500 ]; then
+              echo "Backend is awake (HTTP $code)."
+              exit 0
+            fi
+            sleep 60
+          done
+          echo "::error::Backend did not respond after 10 attempts — check the Render dashboard."
+          exit 1

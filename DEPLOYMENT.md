@@ -98,3 +98,33 @@ Settings → Secrets and variables → Actions → New repository secret
 The workflow now forwards `CLAUDE_CODE_OAUTH_TOKEN` to Render (preferred over the
 expiring `CLAUDE_CREDENTIALS` snapshot). Other secrets it uses: `RENDER_API_KEY`,
 `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, `FRED_API_KEY`.
+
+## Daily 8AM (KST) auto-update — waking the sleeping instance
+
+The backend already schedules everything itself (07:30 KST briefing, 08:00 KST
+publish, forecast cycles). The only failure mode is a **sleeping Render free
+instance**: while asleep, the internal APScheduler never fires, so the site
+stays stale until someone visits. The fix is simply to have something **ping
+the service before 8AM KST** — waking it triggers the startup warm-up
+(`RUN_CYCLE_ON_STARTUP=true`, forecast + briefing) and keeps the internal
+07:30 / 08:00 jobs on schedule. Three independent layers do this, in order of
+preference:
+
+1. **Claude cloud scheduled session (primary, active now).** A Claude Code
+   trigger (`Fed-Watcher 매일 아침 8시 자동 업데이트`) fires daily at 22:20 UTC
+   (07:20 KST) in the cloud — it runs regardless of whether the owner's PC or
+   phone is on, pings `/health` with retries through the 08:05 KST window, and
+   sends a push notification with the result. Managed from any Claude Code
+   session via the claude-code-remote trigger tools.
+2. **GitHub Actions (backup, no Claude involved).**
+   `.github/workflows/daily-wakeup.yml` pings `/health` at 07:15 / 07:35 /
+   07:55 KST with retry logic. Scheduled workflows only run from the default
+   branch, so this activates once merged to `master`. Can also be fired
+   manually (*Actions → Daily wake-up → Run workflow*).
+3. **PC Task Scheduler (last-resort fallback).** `scheduler/daily_update.ps1`
+   does the same from Windows — registration command is in the script header.
+
+Interpretation note for all pingers: **any** HTTP response from the app —
+including `403 Forbidden` from the IP-whitelist middleware — proves the
+instance is awake and counts as success. Only connection failures / Render
+router 5xx during cold start warrant retries.
