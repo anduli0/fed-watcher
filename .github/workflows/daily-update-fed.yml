@@ -1,0 +1,187 @@
+name: Daily update fed-watcher
+
+# Guarantees https://fed-watcher-backend-9rgk.onrender.com is updated every
+# morning by 08:00 KST, independent of any user device.
+#
+# The app schedules its own morning chain (05:00 KST final committee cycle,
+# 07:30 KST briefing), but the Render free tier spins the service down after
+# ~15 min idle, so those internal jobs silently miss whenever it slept
+# through the night. This workflow is the wake + verify + repair layer:
+#
+#   04:55 KST  wake the service and make sure a morning cycle runs to completion
+#   07:15 KST  wake again, keep it alive through the 07:30 briefing and the
+#              08:00 boundary, force-generate the briefing if missing, verify
+#   09:10/12:10/15:10 KST  catch-up sweeps — no-op when everything is fresh
+#              ("if 8am failed, do it as soon as possible")
+#
+# An 08:10 KST Claude routine watches these runs and re-dispatches on failure.
+# Every step is idempotent, so overlapping layers are harmless.
+
+on:
+  schedule:
+    - cron: '55 19 * * *'    # 04:55 KST — wake before the 05:00 KST final cycle
+    - cron: '15 22 * * *'    # 07:15 KST — briefing keep-alive + verify before 08:00
+    - cron: '10 0,3,6 * * *' # 09:10, 12:10, 15:10 KST — catch-up sweeps
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Run a cycle + briefing even if today's are fresh
+        required: false
+        default: 'false'
+
+concurrency:
+  group: fed-daily-update
+  cancel-in-progress: false
+
+env:
+  BASE_URL: https://fed-watcher-backend-9rgk.onrender.com
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    permissions:
+      contents: read
+    steps:
+      - name: Wake service (Render free tier cold start)
+        run: |
+          set -e
+          for i in $(seq 1 20); do
+            H=$(curl -sf --max-time 25 "$BASE_URL/health" || echo "")
+            if [ -n "$H" ]; then
+              echo "health: $H"
+              exit 0
+            fi
+            echo "  [$i] not up yet, waiting 15s..."
+            sleep 15
+          done
+          echo "ERROR: service did not come up within ~5 min"
+          exit 1
+
+      - name: Ensure a morning committee cycle completed today
+        run: |
+          set -e
+
+          fresh () {
+            # yes ⇔ the latest run is completed and finished today (KST) at or
+            # after 04:30 KST. Naive timestamps are accepted under either a
+            # UTC or a KST reading (the DB stores naive stamps).
+            curl -sf --max-time 25 "$BASE_URL/api/today" | python3 -c '
+          import json, sys
+          from datetime import datetime, timedelta, timezone
+          KST = timezone(timedelta(hours=9))
+          run = (json.load(sys.stdin) or {}).get("latest_run") or {}
+          ok = False
+          if run.get("status") == "completed" and run.get("completed_at"):
+              ts = datetime.fromisoformat(run["completed_at"])
+              cands = ([ts.astimezone(KST)] if ts.tzinfo
+                       else [ts.replace(tzinfo=timezone.utc).astimezone(KST), ts.replace(tzinfo=KST)])
+              now = datetime.now(KST)
+              cutoff = now.replace(hour=4, minute=30, second=0, microsecond=0)
+              ok = any(c.date() == now.date() and c >= cutoff for c in cands)
+          print("yes" if ok else "no")' 2>/dev/null || echo "no"
+          }
+
+          if [ "$(fresh)" = "yes" ] && [ "${{ inputs.force }}" != "true" ]; then
+            echo "Morning cycle already completed today -> skipping"
+            exit 0
+          fi
+
+          echo "=== POST /api/trigger-cycle ==="
+          for a in 1 2 3; do
+            CODE=$(curl -s -o /tmp/resp -w '%{http_code}' --max-time 30 -X POST "$BASE_URL/api/trigger-cycle" || echo "000")
+            echo "attempt $a: HTTP $CODE $(cat /tmp/resp 2>/dev/null | head -c 300)"
+            [ "$CODE" = "200" ] && break
+            sleep 20
+          done
+
+          echo "=== Waiting for the cycle to complete (up to ~50 min) ==="
+          for i in $(seq 1 100); do
+            sleep 30
+            if [ "$(fresh)" = "yes" ]; then
+              echo "cycle completed"
+              exit 0
+            fi
+            ST=$(curl -sf --max-time 20 "$BASE_URL/api/today" \
+              | python3 -c "import sys,json; r=(json.load(sys.stdin) or {}).get('latest_run') or {}; print(r.get('status'), r.get('started_at'))" 2>/dev/null || echo "?")
+            echo "  [$i] latest_run: $ST"
+          done
+          echo "ERROR: cycle did not complete in time"
+          exit 1
+
+      - name: Ensure today's briefing exists (07:00+ KST slots only)
+        run: |
+          set -e
+          HOUR_KST=$(TZ=Asia/Seoul date +%H)
+          if [ "$HOUR_KST" -lt 7 ]; then
+            echo "Early slot ($HOUR_KST h KST) — briefing is handled by the 07:15 KST run"
+            exit 0
+          fi
+          TODAY=$(TZ=Asia/Seoul date +%F)
+
+          has_brief () {
+            curl -sf --max-time 25 "$BASE_URL/api/briefings/latest?lang=ko" | python3 -c '
+          import json, sys
+          try:
+              b = json.load(sys.stdin) or {}
+          except Exception:
+              b = {}
+          print("yes" if b.get("briefing_date") == sys.argv[1] else "no")' "$TODAY" 2>/dev/null || echo "no"
+          }
+
+          # Give the internal 07:30 KST job its chance first (keep-alive pings
+          # while waiting so the service cannot spin down under us).
+          DEADLINE_FORCE=$(TZ=Asia/Seoul date -d "$TODAY 07:45" +%s)
+          while :; do
+            if [ "$(has_brief)" = "yes" ]; then
+              echo "Briefing for $TODAY exists"
+              exit 0
+            fi
+            NOW=$(date +%s)
+            [ "$NOW" -ge "$DEADLINE_FORCE" ] && break
+            echo "  waiting for internal 07:30 briefing job... ($(TZ=Asia/Seoul date +%H:%M) KST)"
+            curl -sf --max-time 15 "$BASE_URL/health" >/dev/null || true
+            sleep 45
+          done
+
+          echo "=== POST /api/briefings/generate (repair) ==="
+          CODE=$(curl -s -o /tmp/bresp -w '%{http_code}' --max-time 30 -X POST \
+            "$BASE_URL/api/briefings/generate?x_cron_secret=${{ secrets.CRON_SECRET }}" || echo "000")
+          echo "HTTP $CODE $(cat /tmp/bresp 2>/dev/null | head -c 300)"
+
+          for i in $(seq 1 40); do
+            sleep 30
+            if [ "$(has_brief)" = "yes" ]; then
+              echo "Briefing generated"
+              exit 0
+            fi
+            echo "  [$i] briefing not published yet"
+          done
+          echo "ERROR: briefing did not appear in time"
+          exit 1
+
+      - name: Keep alive through 08:00 KST, then final verify
+        run: |
+          set -e
+          # Hold the service awake across the 08:00 KST boundary so nothing in
+          # the morning chain is lost to a spin-down (only in the 07:xx slot).
+          H=$(TZ=Asia/Seoul date +%H)
+          if [ "$H" = "07" ]; then
+            END=$(TZ=Asia/Seoul date -d "$(TZ=Asia/Seoul date +%F) 08:02" +%s)
+            while [ "$(date +%s)" -lt "$END" ]; do
+              curl -sf --max-time 15 "$BASE_URL/health" >/dev/null || true
+              sleep 50
+            done
+          fi
+
+          TODAY=$(TZ=Asia/Seoul date +%F)
+          echo "=== Final state ($TODAY KST) ==="
+          RUN=$(curl -sf --max-time 25 "$BASE_URL/api/today" \
+            | python3 -c "import sys,json; r=(json.load(sys.stdin) or {}).get('latest_run') or {}; print(r.get('status'), r.get('cycle_type'), r.get('completed_at'))" 2>/dev/null || echo "?")
+          BRIEF=$(curl -sf --max-time 25 "$BASE_URL/api/briefings/latest?lang=ko" \
+            | python3 -c "import sys,json; b=json.load(sys.stdin) or {}; print(b.get('briefing_date'), b.get('status'))" 2>/dev/null || echo "?")
+          F12=$(curl -sf --max-time 25 "$BASE_URL/api/forecast/horizons" \
+            | python3 -c "import sys,json; f=(json.load(sys.stdin) or {}).get('12m') or {}; print(f.get('published_delta_bps'), f.get('signal'), f.get('published_at'))" 2>/dev/null || echo "?")
+          echo "latest_run: $RUN"
+          echo "briefing:   $BRIEF"
+          echo "12m call:   $F12"
