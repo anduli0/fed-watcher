@@ -20,7 +20,7 @@ krw-watcher의 위원회 예측 사이클 + 당일 브리핑이 매일 아침 **
 | 앱 내부 스케줄러 | 클라우드 | 06:40 사이클 · 07:30 브리핑 (자체 실행) | Render 환경변수 `CYCLE_HOURS_KST=6,13,20` |
 | GitHub Actions `daily-update-krw.yml` | 클라우드 | 07:50 검증·복구 + 09:50/12:50 스윕 | `.github/workflows/daily-update-krw.yml` |
 | GitHub Actions `daily-update.yml` | PC 퍼널 | 06:40 본 실행 + 07:40~14:40 매시 스윕 | `.github/workflows/daily-update.yml` |
-| Claude 클라우드 Routine (감시견) | 둘 다 | 08:10 — 위 워크플로우들의 오늘 성공 여부 검증, 없으면 직접 dispatch·재시도, 실패 시에만 푸시 알림 | claude.ai/code → Routines → "krw-watcher 8시 완료 감시견 (08:10 KST, 통합)" |
+| Claude 클라우드 Routine (감시견) | 전부 (krw 클라우드·PC, Fed 클라우드, KOSPI PC) | 08:10 — `daily-update-krw/-fed/-kospi/daily-update.yml`의 오늘 성공 여부 검증, 없으면 직접 dispatch·재시도, 조치·이상 시에만 푸시 알림 | claude.ai/code → Routines → "아침 8시 업데이트 통합 감시견 (08:10 KST, 4개 대상)" |
 | PC 로컬 폴백 | PC 퍼널 | 06:45, 놓치면 부팅/절전 해제 즉시 (`StartWhenAvailable`) | `scheduler/daily_update_krw.ps1` + `register_daily_update_krw.ps1` |
 
 클라우드 레이어들은 사용자 기기가 전부 꺼져 있어도 동작한다. PC 퍼널
