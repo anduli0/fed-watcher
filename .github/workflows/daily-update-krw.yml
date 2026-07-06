@@ -1,17 +1,20 @@
 name: Daily update krw-watcher
 
-# Ensures https://krw-watcher.onrender.com is updated every morning (KST).
+# Ensures https://krw-watcher.onrender.com is updated every morning (KST),
+# with everything COMPLETED before 08:00 KST.
 #
-# Primary driver: a Claude scheduled routine fires at 08:00 KST, dispatches
-# this workflow (workflow_dispatch), monitors it, and retries on failure.
-# Backup driver: the cron below (08:20 KST) runs even if the routine doesn't,
-# and skips itself when the forecast is already fresh — so double-running is
-# harmless. GitHub cron only fires from the default branch; the routine can
-# dispatch from any branch that has this file.
+# Primary driver: the app's own scheduler (CYCLE_HOURS_KST=6,13,20 at :40,
+# briefing 07:30) finishes the morning update by ~07:35 on its own. This
+# workflow is the verify-and-repair layer: at 07:50 KST it checks the
+# forecast/briefing and forces them only if missing (e.g. the free-tier
+# service slept through the internal schedule). Later sweeps and the 08:10
+# KST Claude watchdog routine retry on failure. Skips itself when fresh, so
+# double-running is harmless.
 
 on:
   schedule:
-    - cron: '20 23 * * *'   # 08:20 KST
+    - cron: '50 22 * * *'   # 07:50 KST — verify & repair before 08:00
+    - cron: '50 0,3 * * *'  # 09:50, 12:50 KST — retry sweeps (no-op when fresh)
   workflow_dispatch:
     inputs:
       force:
