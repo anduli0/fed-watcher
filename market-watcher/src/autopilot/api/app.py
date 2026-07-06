@@ -266,6 +266,45 @@ async def aibrief_run(request: Request) -> dict[str, Any]:
     return {**out, "status": svc.status()}
 
 
+@app.get("/api/v1/diag/claude")
+async def diag_claude(request: Request) -> dict[str, Any]:
+    """TEMP diagnostic: run `claude -p` minimally and return the RAW result so a cloud
+    auth failure can be root-caused (the brief service otherwise masks it with a Korean
+    help string). Reports token presence (bool/len only — never the value)."""
+    import asyncio as _a
+    import os as _os
+    import shutil as _sh
+
+    from autopilot.llm import claude_cli
+
+    settings = request.app.state.settings
+    exe = _sh.which("claude")
+    tok = _os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "")
+    out: dict[str, Any] = {
+        "cli": exe,
+        "token_present": bool(tok),
+        "token_len": len(tok),
+        "token_prefix": tok[:12],
+        "has_credentials_file": (Path("/root/.claude/.credentials.json").exists()),
+    }
+    if exe is None:
+        out["error"] = "claude CLI not found"
+        return out
+    try:
+        proc = await _a.create_subprocess_exec(
+            exe, "-p", "--model", settings.llm_model,
+            stdin=_a.subprocess.PIPE, stdout=_a.subprocess.PIPE, stderr=_a.subprocess.PIPE,
+            env=claude_cli.build_env(settings.data_dir),
+        )
+        ob, eb = await _a.wait_for(proc.communicate(b"reply with exactly: OK"), 90)
+        out["returncode"] = proc.returncode
+        out["stdout"] = (ob or b"").decode("utf-8", "replace")[:500]
+        out["stderr"] = (eb or b"").decode("utf-8", "replace")[:500]
+    except Exception as e:  # noqa: BLE001
+        out["exception"] = f"{type(e).__name__}: {e}"[:300]
+    return out
+
+
 def _require_admin(request: Request, x_admin_key: str | None) -> None:
     settings: Settings = request.app.state.settings
     if not settings.admin_api_key:
