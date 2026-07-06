@@ -1,0 +1,132 @@
+name: Daily 8AM KST KOSPI update
+
+# 매일 아침 08:00 KST까지 KOSPI 워처(https://krw-watcher.tail3e31a9.ts.net:8443)의
+# 오늘자 예측·뉴스·브리프가 완료되도록 07:45 KST에 공개 sync API를 기동하고
+# 완료를 확인한다. AI 분석은 사이트 서버(소유자 PC)가 자체 클로드 구독
+# (claude -p)으로 실행하며, 이 워크플로우는 트리거와 검증만 담당한다.
+#
+# 사이트는 소유자 PC에서 호스팅되므로 PC가 꺼져 있으면 사이트 자체가 내려간다.
+# 그 경우 이 잡은 "SITE OFFLINE"으로 실패하고, 08:45~14:45 KST 매시 스윕이
+# PC가 켜지는 대로 업데이트를 따라잡는다("8시에 안 되면 되는 대로 바로").
+#
+# API (kospi-watcher, :8443 웹이 18080 API로 프록시):
+#   GET  /api/v1/sync/status  — running, ok, finished_at, last_prediction_at(UTC), stale
+#   POST /api/v1/sync/run     — 싱글플라이트 + 10분 쿨다운, stages: news→prediction→brief
+
+on:
+  schedule:
+    - cron: "45 22 * * *"   # 07:45 KST — 본 실행 (08:00 전 완료 목표, 사이클 ~3분)
+    - cron: "45 23 * * *"   # 08:45 KST — 재시도 스윕
+    - cron: "45 0-5 * * *"  # 09:45~14:45 KST 매시 — 재시도 스윕 (신선하면 no-op)
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Base URL of the KOSPI watcher site"
+        default: "https://krw-watcher.tail3e31a9.ts.net:8443"
+      force:
+        description: "Run a sync even if today's prediction is fresh"
+        type: boolean
+        default: false
+
+concurrency:
+  group: daily-update-kospi
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Trigger and verify the daily KOSPI sync
+        env:
+          BASE: ${{ github.event.inputs.url || 'https://krw-watcher.tail3e31a9.ts.net:8443' }}
+          FORCE: ${{ github.event.inputs.force || 'false' }}
+        run: |
+          set -u
+          BASE="${BASE%/}"
+          TODAY=$(TZ=Asia/Seoul date +%F)
+          echo "target=$BASE today(KST)=$TODAY force=$FORCE"
+
+          status_json () {
+            curl -sf --max-time 20 "$BASE/api/v1/sync/status" 2>/dev/null || echo ""
+          }
+
+          # last_prediction_at(UTC)이 오늘(KST) 06:00 이후면 신선
+          fresh_of () {
+            echo "$1" | python3 -c "import sys,json; from datetime import datetime,timezone,timedelta; KST=timezone(timedelta(hours=9)); st=json.load(sys.stdin); s=st.get('last_prediction_at') or ''; ts=datetime.fromisoformat(s.replace('Z','+00:00')); ts=ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc); k=ts.astimezone(KST); n=datetime.now(KST); print('yes' if (k.date()==n.date() and k.hour>=6) else 'no')" 2>/dev/null || echo no
+          }
+
+          echo "=== 1. Reachability (5 tries, 30s backoff) ==="
+          ST=""
+          for i in $(seq 1 5); do
+            ST=$(status_json)
+            if [ -n "$ST" ]; then break; fi
+            echo "  [$i] unreachable, waiting 30s..."
+            sleep 30
+          done
+          if [ -z "$ST" ]; then
+            echo "SITE OFFLINE — 호스트 PC가 꺼져 있을 수 있습니다. 다음 매시 스윕이 재시도합니다."
+            echo "### daily-update(kospi): SITE OFFLINE ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "status: $(echo "$ST" | head -c 400)"
+
+          echo "=== 2. Freshness ==="
+          FRESH=$(fresh_of "$ST")
+          echo "fresh=$FRESH"
+
+          RESULT="already_fresh"
+          if [ "$FORCE" = "true" ] || [ "$FRESH" != "yes" ]; then
+            FIN0=$(echo "$ST" | jq -r '.finished_at // ""')
+            echo "=== 3. Trigger sync (baseline finished_at=$FIN0) ==="
+            STARTED="no"
+            for attempt in 1 2 3; do
+              CODE=$(curl -s -o /tmp/sync_resp -w '%{http_code}' -X POST --max-time 60 "$BASE/api/v1/sync/run" || echo "ERR")
+              echo "  attempt $attempt: POST /api/v1/sync/run -> HTTP $CODE body: $(head -c 300 /tmp/sync_resp 2>/dev/null)"
+              # 409/429 = 이미 실행 중이거나 쿨다운 — 폴링으로 넘어간다
+              case "$CODE" in
+                2*|409|429) STARTED="yes"; break ;;
+              esac
+              sleep 60
+            done
+            if [ "$STARTED" != "yes" ]; then
+              echo "sync 요청이 접수되지 않았습니다. 위 HTTP 코드로 원인을 확인하세요."
+              echo "### daily-update(kospi): sync request failed ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+
+            echo "=== 4. Wait for completion (up to 20 min) ==="
+            RESULT="timeout"
+            for i in $(seq 1 60); do
+              sleep 20
+              ST=$(status_json)
+              [ -z "$ST" ] && { echo "  [$i] status unreachable"; continue; }
+              RUN=$(echo "$ST" | jq -r 'if .running then "yes" else "no" end')
+              FIN=$(echo "$ST" | jq -r '.finished_at // ""')
+              OK=$(echo "$ST" | jq -r 'if .ok then "yes" else "no" end')
+              FRESH=$(fresh_of "$ST")
+              echo "  [$i] running=$RUN ok=$OK fresh=$FRESH finished_at=$FIN"
+              if [ "$RUN" = "no" ] && [ -n "$FIN" ] && [ "$FIN" != "$FIN0" ]; then
+                if [ "$OK" = "yes" ] && [ "$FRESH" = "yes" ]; then RESULT="updated"; else RESULT="sync_error"; fi
+                break
+              fi
+            done
+            if [ "$RESULT" != "updated" ]; then
+              echo "동기화가 정상 완료되지 않았습니다 (RESULT=$RESULT)."
+              echo "### daily-update(kospi): $RESULT ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          else
+            echo "오늘 아침 예측이 이미 신선합니다 — 생략."
+          fi
+
+          LAST=$(echo "$ST" | jq -c '.last_result // {}' | head -c 300)
+          {
+            echo "### daily-update(kospi) $TODAY KST"
+            echo '```'
+            echo "result=$RESULT last_result=$LAST"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
