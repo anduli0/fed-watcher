@@ -1,0 +1,148 @@
+name: Daily 8AM KST MARKET update
+
+# 매일 아침 MARKET 워처(https://krw-watcher.tail3e31a9.ts.net/market)의 오늘자
+# AI 수석 브리프가 완료되도록 감시한다. 1차 수단은 사이트 서버(소유자 PC) 내장
+# 08:00 KST 아침 앵커(자체 claude -p, 놓치면 자동 캐치업)이며, 이 워크플로우는
+# 08:20 KST에 결과를 검증하고 비어 있으면 공개 API로 직접 트리거하는 감시견이다.
+#
+# 사이트는 소유자 PC에서 호스팅되므로 PC가 꺼져 있으면 사이트 자체가 내려간다.
+# 그 경우 이 잡은 "SITE OFFLINE"으로 실패하고, 09:20~14:20 KST 매시 스윕이
+# PC가 켜지는 대로 따라잡는다("8시에 안 되면 되는 대로 바로").
+#
+# API (kiwoom-autopilot :8200, 공개는 443 /market 서브경로):
+#   GET  /api/v1/aibrief      — status{running, brief_date, generated_at_kst, morning_done_date, last_error}
+#   POST /api/v1/aibrief/run  — 싱글플라이트 + 10분 간격 + 일일 상한
+#   GET  /api/v1/state        — 결정론 파이프라인(조회 시 재계산) 웜업
+
+on:
+  schedule:
+    - cron: "20 23 * * *"   # 08:20 KST — 본 검증 (서버 앵커 08:00 결과 확인)
+    - cron: "20 0-5 * * *"  # 09:20~14:20 KST 매시 — 재시도 스윕 (신선하면 no-op)
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Base URL of the MARKET watcher site"
+        default: "https://krw-watcher.tail3e31a9.ts.net/market"
+      force:
+        description: "Generate a brief even if today's is fresh"
+        type: boolean
+        default: false
+
+concurrency:
+  group: daily-update-market
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - name: Verify (and if needed trigger) the morning MARKET brief
+        env:
+          BASE: ${{ github.event.inputs.url || 'https://krw-watcher.tail3e31a9.ts.net/market' }}
+          FORCE: ${{ github.event.inputs.force || 'false' }}
+        run: |
+          set -u
+          BASE="${BASE%/}"
+          TODAY=$(TZ=Asia/Seoul date +%F)
+          echo "target=$BASE today(KST)=$TODAY force=$FORCE"
+
+          brief_json () {
+            curl -sf --max-time 20 "$BASE/api/v1/aibrief" 2>/dev/null || echo ""
+          }
+
+          # 오늘(KST) 06:00 이후 생성된 브리프면 신선
+          fresh_of () {
+            echo "$1" | python3 -c "
+          import sys, json
+          from datetime import datetime, timezone, timedelta
+          KST = timezone(timedelta(hours=9))
+          st = json.load(sys.stdin).get('status') or {}
+          now = datetime.now(KST)
+          ok = st.get('brief_date') == now.date().isoformat()
+          g = st.get('generated_at_kst') or ''
+          if ok and g:
+              try:
+                  ok = datetime.fromisoformat(g).hour >= 6
+              except ValueError:
+                  pass
+          print('yes' if ok else 'no')" 2>/dev/null || echo no
+          }
+
+          echo "=== 1. Reachability (5 tries, 30s backoff) ==="
+          ST=""
+          for i in $(seq 1 5); do
+            ST=$(brief_json)
+            if [ -n "$ST" ]; then break; fi
+            echo "  [$i] unreachable, waiting 30s..."
+            sleep 30
+          done
+          if [ -z "$ST" ]; then
+            echo "SITE OFFLINE — 호스트 PC가 꺼져 있을 수 있습니다. 다음 매시 스윕이 재시도합니다."
+            echo "### daily-update(market): SITE OFFLINE ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "status: $(echo "$ST" | jq -c .status | head -c 400)"
+
+          echo "=== 2. Freshness ==="
+          FRESH=$(fresh_of "$ST")
+          echo "fresh=$FRESH"
+
+          RESULT="already_fresh"
+          if [ "$FORCE" = "true" ] || [ "$FRESH" != "yes" ]; then
+            echo "=== 3. Warm the deterministic pipeline ==="
+            curl -sf --max-time 120 -o /dev/null "$BASE/api/v1/state" && echo "  state warmed" || echo "  state warm-up failed (continuing)"
+
+            echo "=== 4. Trigger the brief ==="
+            ACCEPTED="no"
+            for attempt in 1 2 3; do
+              CODE=$(curl -s -o /tmp/run_resp -w '%{http_code}' -X POST --max-time 60 "$BASE/api/v1/aibrief/run" || echo "ERR")
+              BODY=$(head -c 300 /tmp/run_resp 2>/dev/null)
+              echo "  attempt $attempt: POST /api/v1/aibrief/run -> HTTP $CODE body: $BODY"
+              STARTED=$(jq -r 'if .started then "yes" else "no" end' /tmp/run_resp 2>/dev/null || echo no)
+              RUNNING=$(jq -r 'if .status.running then "yes" else "no" end' /tmp/run_resp 2>/dev/null || echo no)
+              # started=true 또는 이미 생성 중이면 접수된 것 — 폴링으로 넘어간다
+              if [ "$STARTED" = "yes" ] || [ "$RUNNING" = "yes" ]; then ACCEPTED="yes"; break; fi
+              # min-interval(10분) 거절이면 잠시 후 재시도
+              sleep 90
+            done
+            if [ "$ACCEPTED" != "yes" ]; then
+              echo "브리프 생성 요청이 접수되지 않았습니다(사유는 위 body의 reason 참고: 일일 상한/인증 등)."
+              echo "### daily-update(market): run request rejected ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+
+            echo "=== 5. Wait for completion (up to 15 min) ==="
+            RESULT="timeout"
+            for i in $(seq 1 45); do
+              sleep 20
+              ST=$(brief_json)
+              [ -z "$ST" ] && { echo "  [$i] status unreachable"; continue; }
+              RUN=$(echo "$ST" | jq -r 'if .status.running then "yes" else "no" end')
+              ERR=$(echo "$ST" | jq -r '.status.last_error // ""')
+              FRESH=$(fresh_of "$ST")
+              echo "  [$i] running=$RUN fresh=$FRESH err=${ERR:0:120}"
+              if [ "$RUN" = "no" ]; then
+                if [ "$FRESH" = "yes" ]; then RESULT="updated"; break; fi
+                if [ -n "$ERR" ]; then RESULT="brief_error"; break; fi
+              fi
+            done
+            if [ "$RESULT" != "updated" ]; then
+              echo "브리프가 정상 완료되지 않았습니다 (RESULT=$RESULT)."
+              echo "### daily-update(market): $RESULT ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          else
+            echo "오늘 아침 브리프가 이미 신선합니다 — 생략."
+          fi
+
+          FINAL=$(echo "$ST" | jq -c '{brief_date: .status.brief_date, generated_at_kst: .status.generated_at_kst, trigger: .status.trigger, runs_today: .status.runs_today}')
+          {
+            echo "### daily-update(market) $TODAY KST"
+            echo '```'
+            echo "result=$RESULT $FINAL"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
