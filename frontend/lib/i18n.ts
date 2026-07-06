@@ -12,7 +12,7 @@ export const t = {
 
     // Hero
     heroLabel: "LIVE AGENT NETWORK",
-    heroSub: "10 specialized AI agents continuously analyzing Fed communications, macro data, and market signals",
+    heroSub: "21 specialized AI agents continuously analyzing Fed communications, macro data, and market signals",
     systemActive: "System Active",
     agentsOnline: "agents online",
     nextCycle: "Next cycle",
@@ -59,8 +59,8 @@ export const t = {
 
     // First cycle banner
     firstCycleTitle: "⚡ First cycle has not run yet",
-    firstCycleDesc: "Click Run Cycle to fetch FRED data, scrape Fed communications, and run all 10 agents. Takes 1–3 minutes.",
-    cycleRunning: "Cycle running… results in 1–3 min",
+    firstCycleDesc: "Click Run Cycle to fetch FRED data, scrape Fed communications, and run all 21 agents. Takes 20–60 minutes on the free tier.",
+    cycleRunning: "Cycle running… results appear automatically (20–60 min on the free tier)",
     triggerFailed: "Trigger failed",
 
     // Agent names
@@ -95,7 +95,7 @@ export const t = {
       { agent: "FOMC_Minutes",    msg: "Hawkish/dovish ratio: 1.4:1 in latest minutes…" },
       { agent: "Consensus",       msg: "CME FedWatch: 72% probability of hold in June…" },
       { agent: "History",         msg: "Best analog: 2019 mid-cycle adjustment pattern…" },
-      { agent: "Orchestrator",    msg: "Aggregating 10 agent signals…" },
+      { agent: "Orchestrator",    msg: "Aggregating 21 agent signals…" },
       { agent: "Orchestrator",    msg: "Applying EMA stabilization filter…" },
       { agent: "Orchestrator",    msg: "Forecast updated. Next publish: 08:00 KST" },
     ],
@@ -134,7 +134,7 @@ export const t = {
     admin: "🔑 관리자",
 
     heroLabel: "실시간 에이전트 네트워크",
-    heroSub: "10개의 전문 AI 에이전트가 연준 커뮤니케이션, 거시경제 데이터, 시장 신호를 실시간으로 분석합니다",
+    heroSub: "21개의 전문 AI 에이전트가 연준 커뮤니케이션, 거시경제 데이터, 시장 신호를 실시간으로 분석합니다",
     systemActive: "시스템 활성",
     agentsOnline: "에이전트 온라인",
     nextCycle: "다음 사이클",
@@ -174,8 +174,8 @@ export const t = {
     loadingChart: "로딩 중…",
 
     firstCycleTitle: "⚡ 첫 사이클이 아직 실행되지 않았습니다",
-    firstCycleDesc: "사이클 실행 버튼을 클릭하면 FRED 데이터 수집, 연준 커뮤니케이션 분석, 10개 에이전트 추론이 시작됩니다. 1~3분 소요.",
-    cycleRunning: "사이클 실행 중… 1~3분 후 결과 확인",
+    firstCycleDesc: "사이클 실행 버튼을 클릭하면 FRED 데이터 수집, 연준 커뮤니케이션 분석, 21개 에이전트 추론이 시작됩니다. 무료 서버에서는 20~60분 걸릴 수 있습니다.",
+    cycleRunning: "사이클 실행 중… 완료되면 자동으로 반영됩니다 (무료 서버 기준 20~60분)",
     triggerFailed: "실행 실패",
 
     agents: {
@@ -208,7 +208,7 @@ export const t = {
       { agent: "FOMC 의사록",     msg: "최신 의사록 매파/비둘기 비율: 1.4:1…" },
       { agent: "시장 컨센서스",   msg: "CME FedWatch: 6월 동결 확률 72%…" },
       { agent: "역사적 사이클",   msg: "최적 유사 사이클: 2019 중간 조정 패턴…" },
-      { agent: "오케스트레이터",  msg: "10개 에이전트 신호 가중 집계 중…" },
+      { agent: "오케스트레이터",  msg: "21개 에이전트 신호 가중 집계 중…" },
       { agent: "오케스트레이터",  msg: "EMA 안정화 필터 적용 중…" },
       { agent: "오케스트레이터",  msg: "예측 업데이트 완료. 다음 게시: 오전 8시 KST" },
     ],

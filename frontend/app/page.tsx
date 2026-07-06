@@ -28,6 +28,29 @@ export default function DashboardPage() {
   const [triggering, setTriggering] = useState(false);
   const [triggerMsg, setTriggerMsg] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [serverRun, setServerRun] = useState<{ status: string; started_at: string | null } | null>(null);
+  const wasRunning = useRef(false);
+
+  // Server-side cycle indicator: a cycle started by the scheduler or an
+  // automation is invisible to the click-driven banner above, so poll the
+  // actual run state and show/refresh from that.
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      try {
+        const r = await api.get<{ latest_run: { status: string; started_at: string | null } | null }>("/api/today");
+        if (!alive) return;
+        const run = r.data?.latest_run ?? null;
+        setServerRun(run);
+        if (wasRunning.current && run?.status === "completed") refresh();
+        wasRunning.current = run?.status === "running";
+      } catch { /* transient */ }
+    };
+    check();
+    const t = setInterval(check, 30000);
+    return () => { alive = false; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     setTimeStr(lastRefresh.toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul" }) + " KST");
@@ -123,6 +146,18 @@ export default function DashboardPage() {
         {triggerMsg && (
           <div className="card mb-4" style={{ borderColor: "rgba(56,161,105,0.35)" }}>
             <p className="text-xs text-[var(--color-signal-green)]">{triggerMsg}</p>
+          </div>
+        )}
+
+        {/* ── Server-side cycle in progress (scheduler/automation-started too) ── */}
+        {!triggerMsg && serverRun?.status === "running" && (
+          <div className="card mb-4" style={{ borderColor: "rgba(201,168,76,0.35)" }}>
+            <p className="text-xs" style={{ color: "var(--color-gold)" }}>
+              <span className="inline-block animate-pulse mr-1.5">●</span>
+              {lang === "ko"
+                ? `21개 에이전트 사이클 실행 중${serverRun.started_at ? ` (${serverRun.started_at.replace("T", " ").slice(11, 16)} UTC 시작)` : ""} — 완료되면 자동으로 반영됩니다. 무료 서버에서는 20~60분 걸릴 수 있습니다.`
+                : `21-agent cycle in progress${serverRun.started_at ? ` (started ${serverRun.started_at.replace("T", " ").slice(11, 16)} UTC)` : ""} — results appear automatically (20–60 min on the free tier).`}
+            </p>
           </div>
         )}
 
