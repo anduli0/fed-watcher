@@ -1,18 +1,25 @@
 name: Daily 8AM KST auto-update
 
-# 매일 아침 8시(KST)까지 krw-watcher 사이트(Tailscale Funnel)의 위원회 사이클과
-# 데일리 브리프가 "완료"되어 있도록 한다: 06:45 KST에 기동해 사이클(~20-35분)
-# + 브리프(~5-15분)가 8시 전에 끝나게 한다. AI 분석 자체는 사이트 서버가
-# 소유자의 클로드 구독(`claude -p`)으로 실행하므로 이 워크플로우는
-# 트리거/확인만 한다.
+# 매일 아침 8시(KST)까지 krw-watcher의 위원회 사이클 + 데일리 브리프가
+# "완료"되어 있도록 한다: 06:45 KST에 기동해 사이클(~20-35분) + 브리프
+# (~5-15분)가 8시 전에 끝나게 한다.
 #
-# 본 실행이 실패하면(서버 오프라인 등) 07:30, 08:00, 09~14시(KST) 스윕이
-# 신선도 검사 후 성공할 때까지 재시도한다. 이미 오늘 아침 결과가 신선하면
-# 스윕은 no-op — AI 토큰이 이중으로 소모되지 않는다.
+# 대상은 두 곳이다 (둘 다 업데이트):
+#   - 클라우드: https://krw-watcher.onrender.com  — 항상 살아 있음(무료 티어라
+#     잠들어 있으면 깨워서 진행). 여기가 실패하면 이 런은 실패로 처리되어
+#     스윕이 재시도한다.
+#   - PC(Tailscale Funnel): https://krw-watcher.tail3e31a9.ts.net — PC가 꺼져
+#     있으면 정상 상황이므로 건너뛰고(경고만), 이후 매시 스윕과 PC 자체의
+#     로컬 폴백 작업(scheduler/daily_update.ps1)이 켜지는 대로 따라잡는다.
+#
+# 본 실행이 실패하면 07:30, 08:00, 09~14시(KST) 스윕이 신선도 검사 후
+# 성공할 때까지 재시도한다. 이미 오늘 아침 결과가 있으면 no-op이라 AI 토큰이
+# 이중으로 소모되지 않는다.
 #
 # 신선도·완료 판정은 /api/agents 의 run.completed_at / run.id 를 사용한다.
 # (라이브 빌드의 /api/forecast 는 created_kst 를 노출하지 않고, /health 에는
-# cycle_running 이 없어서 그 필드들로는 판정할 수 없다.)
+# cycle_running 이 없다. completed_at 은 PC 빌드가 naive-KST, 클라우드 포트가
+# UTC(+00:00)라서 KST로 정규화해 비교한다.)
 
 on:
   schedule:
@@ -23,8 +30,8 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: "Base URL of the krw-watcher site"
-        default: "https://krw-watcher.tail3e31a9.ts.net"
+        description: "Update ONLY this base URL (empty = both targets)"
+        default: ""
       force:
         description: "Trigger a cycle even if today's forecast is fresh"
         type: boolean
@@ -41,135 +48,162 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Trigger and verify the daily update
+      - name: Trigger and verify the daily update (cloud + PC)
         env:
-          BASE: ${{ github.event.inputs.url || 'https://krw-watcher.tail3e31a9.ts.net' }}
+          URL_OVERRIDE: ${{ github.event.inputs.url || '' }}
           FORCE: ${{ github.event.inputs.force || 'false' }}
         run: |
           set -u
-          BASE="${BASE%/}"
           TODAY=$(TZ=Asia/Seoul date +%F)
-          echo "target=$BASE today(KST)=$TODAY force=$FORCE"
+          CLOUD="https://krw-watcher.onrender.com"
+          PC="https://krw-watcher.tail3e31a9.ts.net"
+          if [ -n "$URL_OVERRIDE" ]; then
+            TARGETS="${URL_OVERRIDE%/}"
+          else
+            TARGETS="$CLOUD $PC"
+          fi
+          echo "targets: $TARGETS | today(KST)=$TODAY force=$FORCE"
 
-          # run_info: prints "<run_id> <completed_at>" from /api/agents
+          # run_info <base>: prints "<run_id>|<completed_at>" from /api/agents
           run_info() {
-            curl -sf --max-time 20 "$BASE/api/agents" 2>/dev/null | python3 -c "
+            curl -sf --max-time 20 "$1/api/agents" 2>/dev/null | python3 -c "
           import sys, json
           try:
               r = (json.load(sys.stdin).get('run') or {})
-              print(r.get('id', ''), r.get('completed_at', ''))
+              print(f\"{r.get('id','')}|{r.get('completed_at','')}\")
           except Exception:
-              print('', '')
-          " || echo " "
+              print('|')
+          " || echo "|"
           }
-          # fresh_check: "yes" if the last completed run is today >= 06:30 KST
-          # (the morning run starts 06:45 KST, so anything completed after
-          #  06:30 is this morning's result)
+          # is_fresh <completed_at>: "yes" if today(KST) >= 06:30. Naive
+          # timestamps are PC-build KST; tz-aware ones are normalized to KST.
           is_fresh() {
             python3 -c "
-          from datetime import datetime, time
+          from datetime import datetime, time, timezone, timedelta
           ts = '''$1'''
           try:
               d = datetime.fromisoformat(ts)
+              if d.tzinfo:
+                  d = d.astimezone(timezone(timedelta(hours=9)))
               print('yes' if d.date().isoformat() == '$TODAY' and d.time() >= time(6, 30) else 'no')
           except Exception:
               print('no')
           "
           }
-
-          echo "=== 1. Reachability (5 tries, 30s backoff) ==="
-          HEALTH=""
-          for i in $(seq 1 5); do
-            HEALTH=$(curl -sf --max-time 20 "$BASE/health" 2>/dev/null || echo "")
-            if [ -n "$HEALTH" ]; then break; fi
-            echo "  [$i] unreachable, waiting 30s..."
-            sleep 30
-          done
-          if [ -z "$HEALTH" ]; then
-            echo "SITE OFFLINE — will be retried by the next hourly sweep."
-            echo "### daily-update: SITE OFFLINE ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          echo "health: $(echo "$HEALTH" | head -c 300)"
-
-          echo "=== 2. Forecast freshness (last completed run today >= 06:30 KST?) ==="
-          INFO=$(run_info)
-          RUN_ID_BEFORE="${INFO%% *}"
-          COMPLETED_AT="${INFO#* }"
-          FRESH=$(is_fresh "$COMPLETED_AT")
-          echo "last run: id=${RUN_ID_BEFORE:-?} completed_at=${COMPLETED_AT:-?} fresh=$FRESH"
-
-          CYCLE="skipped"
-          if [ "$FORCE" != "true" ] && [ "$FRESH" = "yes" ]; then
-            echo "Today's morning forecast is already fresh — no cycle needed."
-            CYCLE="already_fresh"
-          else
-            echo "=== 3. Trigger committee cycle ==="
-            CODE=$(curl -sS -X POST --max-time 60 -o /tmp/cycle.json -w '%{http_code}' "$BASE/api/cycle" || echo "000")
-            echo "POST /api/cycle -> HTTP $CODE, body: $(head -c 300 /tmp/cycle.json 2>/dev/null)"
-            CYCLE=$(python3 -c "import json; print(json.load(open('/tmp/cycle.json')).get('status','?'))" 2>/dev/null || echo "http_$CODE")
-
-            echo "=== 4. Wait for the cycle to COMPLETE (run.id change, up to ~40 min) ==="
-            DONE="no"
-            for i in $(seq 1 80); do
-              sleep 30
-              INFO=$(run_info)
-              RID="${INFO%% *}"
-              CAT="${INFO#* }"
-              ACT=$(curl -sf --max-time 20 "$BASE/api/activity?limit=1" 2>/dev/null | python3 -c "
-          import sys, json
-          try:
-              e = (json.load(sys.stdin).get('events') or [{}])[-1]
-              print(f\"{e.get('ts','')[:19]} {e.get('source','')}: {e.get('message','')[:70]}\")
-          except Exception:
-              print('')
-          " || echo "")
-            echo "  [$i] run.id=${RID:-?} (before=${RUN_ID_BEFORE:-?}) | $ACT"
-              if [ -n "$RID" ] && [ "$RID" != "$RUN_ID_BEFORE" ]; then
-                DONE="yes"
-                echo "New run completed: id=$RID completed_at=$CAT"
-                break
-              fi
-            done
-            if [ "$DONE" = "no" ]; then
-              echo "Cycle did not complete within the window — failing so the next sweep retries."
-              echo "### daily-update: cycle incomplete ($TODAY, POST=$CODE)" >> "$GITHUB_STEP_SUMMARY"
-              exit 1
-            fi
-          fi
-
-          echo "=== 5. Daily briefing (generate only if today's is missing) ==="
-          BRIEF_DATE=$(curl -sf --max-time 20 "$BASE/api/briefing/latest" 2>/dev/null | python3 -c "
-          import sys, json
-          try:
-              b = json.load(sys.stdin).get('brief') or {}
-              print(b.get('date', ''))
-          except Exception:
-              print('')
-          " || echo "")
-          BRIEF="up_to_date"
-          if [ "$BRIEF_DATE" != "$TODAY" ]; then
-            echo "No briefing for $TODAY (latest: '${BRIEF_DATE:-none}') — generating (synchronous, up to 15 min)."
-            BCODE=$(curl -sS -X POST --max-time 900 -o /tmp/brief.json -w '%{http_code}' "$BASE/api/briefing/generate" || echo "000")
-            echo "POST /api/briefing/generate -> HTTP $BCODE, body: $(head -c 200 /tmp/brief.json 2>/dev/null)"
-            # verify against the API rather than trusting the response shape
-            BRIEF_DATE=$(curl -sf --max-time 20 "$BASE/api/briefing/latest" 2>/dev/null | python3 -c "
+          brief_date() {
+            curl -sf --max-time 20 "$1/api/briefing/latest" 2>/dev/null | python3 -c "
           import sys, json
           try:
               print((json.load(sys.stdin).get('brief') or {}).get('date', ''))
           except Exception:
               print('')
-          " || echo "")
-            if [ "$BRIEF_DATE" = "$TODAY" ]; then BRIEF="generated"; else BRIEF="generate_failed"; fi
-            echo "briefing: $BRIEF (latest date now: '${BRIEF_DATE:-none}')"
-            [ "$BRIEF" = "generated" ] || { echo "### daily-update: briefing failed ($TODAY, POST=$BCODE)" >> "$GITHUB_STEP_SUMMARY"; exit 1; }
-          else
-            echo "Briefing for $TODAY already exists."
+          " || echo ""
+          }
+          slug() { case "$1" in "$CLOUD") echo cloud ;; "$PC") echo pc ;; *) echo custom ;; esac; }
+
+          # ── Phase A: per-target wake + freshness + kick the cycle ──────────
+          POLL=""     # targets whose cycle we must wait for
+          for BASE in $TARGETS; do
+            S=$(slug "$BASE")
+            echo "=== [$S] wake $BASE (up to ~3.5 min; Render cold start) ==="
+            HEALTH=""
+            for i in $(seq 1 10); do
+              HEALTH=$(curl -sf --max-time 25 "$BASE/health" 2>/dev/null || echo "")
+              [ -n "$HEALTH" ] && break
+              echo "  [$i] unreachable, waiting 20s..."
+              sleep 20
+            done
+            if [ -z "$HEALTH" ]; then
+              echo "OFFLINE" > "/tmp/$S.state"
+              echo "[$S] OFFLINE"
+              continue
+            fi
+            echo "[$S] health: $(echo "$HEALTH" | head -c 200)"
+
+            INFO=$(run_info "$BASE")
+            RID="${INFO%%|*}"
+            CAT="${INFO#*|}"
+            FRESH=$(is_fresh "$CAT")
+            echo "[$S] last run: id=${RID:-?} completed_at=${CAT:-?} fresh=$FRESH"
+            echo "$RID" > "/tmp/$S.before"
+
+            if [ "$FORCE" != "true" ] && [ "$FRESH" = "yes" ]; then
+              echo "already_fresh" > "/tmp/$S.state"
+              echo "[$S] today's morning forecast already fresh — no cycle."
+            else
+              CODE=$(curl -sS -X POST --max-time 60 -o "/tmp/$S.cycle" -w '%{http_code}' "$BASE/api/cycle" || echo "000")
+              echo "[$S] POST /api/cycle -> HTTP $CODE, body: $(head -c 200 "/tmp/$S.cycle" 2>/dev/null)"
+              echo "cycling" > "/tmp/$S.state"
+              POLL="$POLL $BASE"
+            fi
+          done
+
+          # ── Phase B: wait until every kicked target's run.id changes ───────
+          if [ -n "$POLL" ]; then
+            echo "=== waiting for cycle completion on:$POLL (up to ~40 min) ==="
+            for i in $(seq 1 80); do
+              sleep 30
+              REMAIN=""
+              for BASE in $POLL; do
+                S=$(slug "$BASE")
+                INFO=$(run_info "$BASE")
+                RID="${INFO%%|*}"
+                CAT="${INFO#*|}"
+                BEFORE=$(cat "/tmp/$S.before" 2>/dev/null || echo "")
+                if [ -n "$RID" ] && [ "$RID" != "$BEFORE" ]; then
+                  echo "  [$i][$S] cycle complete: run.id=$RID completed_at=$CAT"
+                  echo "cycle_done" > "/tmp/$S.state"
+                else
+                  REMAIN="$REMAIN $BASE"
+                fi
+              done
+              POLL="$REMAIN"
+              [ -z "$POLL" ] && break
+              echo "  [$i] still cycling:$POLL"
+            done
+            for BASE in $POLL; do
+              S=$(slug "$BASE")
+              echo "cycle_timeout" > "/tmp/$S.state"
+              echo "[$S] cycle did not complete within the window."
+            done
           fi
 
+          # ── Phase C: briefings (only where today's is missing) ─────────────
+          for BASE in $TARGETS; do
+            S=$(slug "$BASE")
+            STATE=$(cat "/tmp/$S.state" 2>/dev/null || echo "?")
+            [ "$STATE" = "OFFLINE" ] && continue
+            BD=$(brief_date "$BASE")
+            if [ "$BD" = "$TODAY" ]; then
+              echo "[$S] briefing for $TODAY already exists."
+              echo "yes" > "/tmp/$S.brief"
+              continue
+            fi
+            echo "[$S] generating today's briefing (blocking, up to 15 min)..."
+            BCODE=$(curl -sS -X POST --max-time 900 -o "/tmp/$S.briefout" -w '%{http_code}' "$BASE/api/briefing/generate" || echo "000")
+            echo "[$S] POST /api/briefing/generate -> HTTP $BCODE"
+            BD=$(brief_date "$BASE")
+            [ "$BD" = "$TODAY" ] && echo "yes" > "/tmp/$S.brief" || echo "no" > "/tmp/$S.brief"
+            echo "[$S] briefing verified: $(cat "/tmp/$S.brief") (latest date: '${BD:-none}')"
+          done
+
+          # ── Verdict ────────────────────────────────────────────────────────
+          RC=0
           {
             echo "### daily-update ($TODAY KST)"
             echo '```'
-            echo "cycle=$CYCLE briefing=$BRIEF"
-            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          for BASE in $TARGETS; do
+            S=$(slug "$BASE")
+            STATE=$(cat "/tmp/$S.state" 2>/dev/null || echo "?")
+            BRIEF=$(cat "/tmp/$S.brief" 2>/dev/null || echo "-")
+            echo "$S: cycle=$STATE briefing=$BRIEF" | tee -a "$GITHUB_STEP_SUMMARY"
+            case "$S:$STATE:$BRIEF" in
+              pc:OFFLINE:*) echo "::warning::PC target offline — normal if the PC is off; sweeps + local task will catch up." ;;
+              *:OFFLINE:*)          RC=1 ;;
+              *:cycle_timeout:*)    RC=1 ;;
+              *:*:no)               RC=1 ;;
+            esac
+          done
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $RC
