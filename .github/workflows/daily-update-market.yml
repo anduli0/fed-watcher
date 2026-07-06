@@ -97,7 +97,8 @@ jobs:
 
             echo "=== 4. Trigger the brief ==="
             ACCEPTED="no"
-            for attempt in 1 2 3; do
+            # 6×2분 = 서버의 10분 실행 간격 보호창을 넘겨서까지 재시도
+            for attempt in 1 2 3 4 5 6; do
               CODE=$(curl -s -o /tmp/run_resp -w '%{http_code}' -X POST --max-time 60 "$BASE/api/v1/aibrief/run" || echo "ERR")
               BODY=$(head -c 300 /tmp/run_resp 2>/dev/null)
               echo "  attempt $attempt: POST /api/v1/aibrief/run -> HTTP $CODE body: $BODY"
@@ -106,7 +107,7 @@ jobs:
               # started=true 또는 이미 생성 중이면 접수된 것 — 폴링으로 넘어간다
               if [ "$STARTED" = "yes" ] || [ "$RUNNING" = "yes" ]; then ACCEPTED="yes"; break; fi
               # min-interval(10분) 거절이면 잠시 후 재시도
-              sleep 90
+              sleep 120
             done
             if [ "$ACCEPTED" != "yes" ]; then
               echo "브리프 생성 요청이 접수되지 않았습니다(사유는 위 body의 reason 참고: 일일 상한/인증 등)."
