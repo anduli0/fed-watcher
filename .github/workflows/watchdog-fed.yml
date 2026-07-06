@@ -1,0 +1,133 @@
+name: Watchdog fed-watcher morning update
+
+# Self-healing watchdog over daily-update-fed.yml. Runs after the morning
+# layers should have finished (08:20 KST) and once more late in the day
+# (16:20 KST). If no run succeeded today it re-dispatches the updater and
+# waits; if the repair also fails it opens a GitHub issue so the failure
+# reaches the user's phone (GitHub mobile/email notifications). Fully
+# cloud-side — no user device and no external service involved.
+
+on:
+  schedule:
+    - cron: '20 23 * * *'  # 08:20 KST — verify the morning layers
+    - cron: '20 7 * * *'   # 16:20 KST — verify the catch-up sweeps
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  issues: write
+  contents: read
+
+concurrency:
+  group: fed-watchdog
+  cancel-in-progress: false
+
+env:
+  WF: daily-update-fed.yml
+  API: https://api.github.com/repos/${{ github.repository }}
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Verify today's update succeeded, repair if not
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          auth () { curl -sf -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$@"; }
+
+          TODAY_KST=$(TZ=Asia/Seoul date +%F)
+          # KST day start in UTC (KST = UTC+9 → 00:00 KST = 15:00 UTC previous day)
+          SINCE_UTC=$(date -u -d "$TODAY_KST 00:00 +0900" +%Y-%m-%dT%H:%M:%SZ)
+          echo "KST today: $TODAY_KST (runs since $SINCE_UTC UTC)"
+
+          runs_today () {
+            auth "$API/actions/workflows/$WF/runs?created=%3E%3D$SINCE_UTC&per_page=30" \
+              | jq -r '.workflow_runs[] | "\(.id) \(.status) \(.conclusion // "-") \(.created_at)"'
+          }
+
+          echo "--- today's $WF runs ---"; runs_today || true
+
+          # Wait out any run still in flight before judging (e.g. the 07:15
+          # layer still finishing a forced cycle at 08:20).
+          for i in $(seq 1 40); do
+            INFLIGHT=$(runs_today | awk '$2=="in_progress" || $2=="queued"' | wc -l)
+            [ "$INFLIGHT" = "0" ] && break
+            echo "  [$i] $INFLIGHT run(s) still in flight — waiting 90s"
+            sleep 90
+          done
+
+          if runs_today | awk '$3=="success"' | grep -q .; then
+            echo "OK: a run already succeeded today — nothing to do"
+            exit 0
+          fi
+
+          echo "=== No successful run today — dispatching repair run ==="
+          BEFORE=$(runs_today | awk '{print $1}' | head -1)
+          curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "$API/actions/workflows/$WF/dispatches" -d '{"ref":"master"}'
+
+          # Find the new run id
+          NEW=""
+          for i in $(seq 1 20); do
+            sleep 15
+            NEW=$(runs_today | awk '{print $1}' | head -1)
+            [ -n "$NEW" ] && [ "$NEW" != "$BEFORE" ] && break
+            NEW=""
+          done
+          if [ -z "$NEW" ]; then
+            echo "ERROR: dispatched run never appeared"
+            echo "REPAIR_FAILED=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "repair run: $NEW"
+
+          # Wait for it (up to ~95 min)
+          for i in $(seq 1 95); do
+            sleep 60
+            read -r ST CONC <<< "$(auth "$API/actions/runs/$NEW" | jq -r '"\(.status) \(.conclusion // "-")"')"
+            echo "  [$i] $ST $CONC"
+            if [ "$ST" = "completed" ]; then
+              if [ "$CONC" = "success" ]; then
+                echo "Repair run succeeded"
+                exit 0
+              fi
+              echo "Repair run finished with: $CONC"
+              echo "REPAIR_FAILED=1" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "Repair run did not finish in time"
+          echo "REPAIR_FAILED=1" >> "$GITHUB_ENV"
+
+      - name: Open alert issue if repair failed
+        if: env.REPAIR_FAILED == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TODAY_KST=$(TZ=Asia/Seoul date +%F)
+          TITLE="🚨 fed-watcher 아침 자동 업데이트 실패 ($TODAY_KST)"
+          # Reuse an open alert for today if one exists
+          EXISTING=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
+            "$API/issues?state=open&labels=fed-watchdog&per_page=10" \
+            | jq -r --arg t "$TITLE" '.[] | select(.title==$t) | .number' | head -1)
+          BODY=$(printf '%s\n' \
+            "daily-update-fed.yml 이 오늘 성공하지 못했고, 워치독의 재실행도 실패했습니다." \
+            "" \
+            "- 실행 기록: https://github.com/${{ github.repository }}/actions/workflows/daily-update-fed.yml" \
+            "- 서비스: https://fed-watcher-backend-9rgk.onrender.com" \
+            "" \
+            "실패한 잡 로그를 확인해 주세요. (자동 생성: watchdog-fed.yml)")
+          if [ -n "$EXISTING" ]; then
+            curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" \
+              "$API/issues/$EXISTING/comments" \
+              -d "$(jq -n --arg b "워치독 재확인: 여전히 실패 상태입니다. ($(TZ=Asia/Seoul date '+%H:%M KST'))" '{body:$b}')"
+          else
+            curl -sf -X POST -H "Authorization: Bearer $GH_TOKEN" "$API/issues" \
+              -d "$(jq -n --arg t "$TITLE" --arg b "$BODY" '{title:$t, body:$b, labels:["fed-watchdog"]}')"
+          fi
+          echo "Alert issue filed/updated"
+          exit 1
