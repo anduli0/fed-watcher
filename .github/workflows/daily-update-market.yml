@@ -1,15 +1,13 @@
 name: Daily 8AM KST MARKET update
 
-# 매일 아침 MARKET 워처(https://krw-watcher.tail3e31a9.ts.net/market)의 오늘자
-# AI 수석 브리프가 완료되도록 감시한다. 1차 수단은 사이트 서버(소유자 PC) 내장
-# 08:00 KST 아침 앵커(자체 claude -p, 놓치면 자동 캐치업)이며, 이 워크플로우는
-# 08:20 KST에 결과를 검증하고 비어 있으면 공개 API로 직접 트리거하는 감시견이다.
+# 매일 아침 MARKET 워처(https://market-watcher-o01v.onrender.com)의 오늘자
+# AI 수석 브리프를 생성한다. 사이트는 이제 Render에 상시 호스팅되므로 소유자 PC와
+# 무관하게 항상 살아 있다(모바일에서 바로 열림). Render 무료 플랜은 유휴 시 잠들기
+# 때문에, 이 08:20 KST 크론이 서비스를 깨우고(health) 브리프를 생성하는 주된 아침
+# 트리거다. 09:20~14:20 매시 스윕은 신선하면 no-op, 아니면 재시도한다("8시에 안 되면
+# 되는 대로 바로"). 콜드스타트로 첫 응답이 잠깐 503일 수 있어 도달성 재시도를 둔다.
 #
-# 사이트는 소유자 PC에서 호스팅되므로 PC가 꺼져 있으면 사이트 자체가 내려간다.
-# 그 경우 이 잡은 "SITE OFFLINE"으로 실패하고, 09:20~14:20 KST 매시 스윕이
-# PC가 켜지는 대로 따라잡는다("8시에 안 되면 되는 대로 바로").
-#
-# API (kiwoom-autopilot :8200, 공개는 443 /market 서브경로):
+# API (market-watcher, Render 루트):
 #   GET  /api/v1/aibrief      — status{running, brief_date, generated_at_kst, morning_done_date, last_error}
 #   POST /api/v1/aibrief/run  — 싱글플라이트 + 10분 간격 + 일일 상한
 #   GET  /api/v1/state        — 결정론 파이프라인(조회 시 재계산) 웜업
@@ -22,7 +20,7 @@ on:
     inputs:
       url:
         description: "Base URL of the MARKET watcher site"
-        default: "https://krw-watcher.tail3e31a9.ts.net/market"
+        default: "https://market-watcher-o01v.onrender.com"
       force:
         description: "Generate a brief even if today's is fresh"
         type: boolean
@@ -41,7 +39,7 @@ jobs:
     steps:
       - name: Verify (and if needed trigger) the morning MARKET brief
         env:
-          BASE: ${{ github.event.inputs.url || 'https://krw-watcher.tail3e31a9.ts.net/market' }}
+          BASE: ${{ github.event.inputs.url || 'https://market-watcher-o01v.onrender.com' }}
           FORCE: ${{ github.event.inputs.force || 'false' }}
         run: |
           set -u
@@ -71,16 +69,16 @@ jobs:
           print('yes' if ok else 'no')" 2>/dev/null || echo no
           }
 
-          echo "=== 1. Reachability (5 tries, 30s backoff) ==="
+          echo "=== 1. Reachability / wake (8 tries, 20s backoff — Render free cold start) ==="
           ST=""
-          for i in $(seq 1 5); do
+          for i in $(seq 1 8); do
             ST=$(brief_json)
             if [ -n "$ST" ]; then break; fi
-            echo "  [$i] unreachable, waiting 30s..."
-            sleep 30
+            echo "  [$i] not awake yet, waiting 20s..."
+            sleep 20
           done
           if [ -z "$ST" ]; then
-            echo "SITE OFFLINE — 호스트 PC가 꺼져 있을 수 있습니다. 다음 매시 스윕이 재시도합니다."
+            echo "SITE OFFLINE — Render 서비스가 응답하지 않습니다(배포 문제 가능). 매시 스윕이 재시도합니다."
             echo "### daily-update(market): SITE OFFLINE ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
