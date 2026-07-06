@@ -1,16 +1,26 @@
 name: Daily 8AM KST auto-update
 
-# 매일 아침 8시(KST)에 krw-watcher 사이트(Tailscale Funnel)의 위원회 사이클과
-# 데일리 브리프를 원격으로 기동한다. AI 분석 자체는 사이트 서버가 소유자의
-# 클로드 구독(`claude -p`)으로 실행하므로 이 워크플로우는 트리거/확인만 한다.
+# 매일 아침 08:00 KST까지 PC 퍼널 사이트(krw-watcher.tail3e31a9.ts.net)의
+# 위원회 예측과 데일리 브리프가 "완료"되도록 06:40 KST에 사이클을 기동하고
+# 완료를 확인한다. AI 분석은 사이트 서버가 소유자의 클로드 구독(`claude -p`)
+# 으로 실행하며, 이 워크플로우는 트리거와 검증만 담당한다.
 #
-# 8시 실행이 실패하면(서버 오프라인 등) 09~14시(KST) 매시 스윕이 신선도 검사
-# 후 성공할 때까지 재시도한다. 이미 오늘 아침 예측이 신선하면 스윕은 no-op.
+# 이 사이트는 소유자 PC에서 호스팅되므로 PC가 꺼져 있으면 사이트 자체가
+# 내려간다. 그 경우 이 잡은 실패로 끝나고, 07:40~14:40 KST 매시 스윕이
+# PC가 켜지는 대로 업데이트를 수행한다("8시에 안 되면 되는 대로 바로").
+#
+# 라이브 사이트는 이 리포의 포트와 API 스키마가 다르다(원본 PC 앱):
+#   - /health 에 cycle_running 없음
+#   - /api/forecast 에 created_kst 없음
+#   - /api/agents 의 run.completed_at 이 naive 타임스탬프(TZ 불명)
+# 따라서 신선도는 created_kst(포트)와 run.completed_at(원본, UTC/KST 이중
+# 해석)을 모두 보고, 사이클 시작은 /api/activity 의 seq 증가로 감지한다.
 
 on:
   schedule:
-    - cron: "0 23 * * *"   # 08:00 KST — 본 실행
-    - cron: "0 0-5 * * *"  # 09:00~14:00 KST 매시 — 재시도 스윕 (신선하면 no-op)
+    - cron: "40 21 * * *"   # 06:40 KST — 본 실행 (08:00 전 완료 목표)
+    - cron: "40 22-23 * * *" # 07:40, 08:40 KST — 재시도 스윕
+    - cron: "40 0-5 * * *"  # 09:40~14:40 KST 매시 — 재시도 스윕 (신선하면 no-op)
   workflow_dispatch:
     inputs:
       url:
@@ -22,12 +32,13 @@ on:
         default: false
 
 concurrency:
-  group: daily-update-krw
+  group: daily-update-krw-funnel
   cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 100
     permissions:
       contents: read
     steps:
@@ -41,6 +52,75 @@ jobs:
           TODAY=$(TZ=Asia/Seoul date +%F)
           echo "target=$BASE today(KST)=$TODAY force=$FORCE"
 
+          # 신선도: 오늘(KST) 06:00 이후 완료된 예측이 있으면 yes.
+          # created_kst(포트, KST aware/naive)와 run.completed_at(원본, naive
+          # TZ 불명 → KST/UTC 양쪽 해석) 중 하나라도 조건을 만족하면 신선.
+          fresh_check () {
+            FC=$(curl -sf --max-time 20 "$BASE/api/forecast" 2>/dev/null || echo '{}')
+            AG=$(curl -sf --max-time 20 "$BASE/api/agents" 2>/dev/null || echo '{}')
+            FC="$FC" AG="$AG" python3 - <<'PY'
+          import os, json
+          from datetime import datetime, timezone, timedelta
+          KST = timezone(timedelta(hours=9))
+          def load(name):
+              try:
+                  return json.loads(os.environ.get(name) or '{}')
+              except Exception:
+                  return {}
+          fc, ag = load('FC'), load('AG')
+          stamps = []
+          if fc.get('created_kst'):
+              stamps.append(('created_kst', fc['created_kst'], 'kst'))
+          ca = (ag.get('run') or {}).get('completed_at')
+          if ca:
+              stamps.append(('completed_at', ca, 'unknown'))
+          today = datetime.now(KST).date()
+          ok = False
+          for name, s, hint in stamps:
+              try:
+                  ts = datetime.fromisoformat(s)
+              except Exception:
+                  continue
+              if ts.tzinfo:
+                  cands = [ts.astimezone(KST)]
+              elif hint == 'kst':
+                  cands = [ts.replace(tzinfo=KST)]
+              else:
+                  cands = [ts.replace(tzinfo=KST), ts.replace(tzinfo=timezone.utc).astimezone(KST)]
+              print(f"  stamp {name}={s}")
+              if any(c.date() == today and c.hour >= 6 for c in cands):
+                  ok = True
+          print('FRESH=yes' if ok else 'FRESH=no')
+          PY
+          }
+
+          max_seq () {
+            curl -sf --max-time 20 "$BASE/api/activity" 2>/dev/null | python3 -c "
+          import sys, json
+          try:
+              evs = json.load(sys.stdin).get('events') or []
+              print(max((int(e.get('seq', 0)) for e in evs), default=0))
+          except Exception:
+              print(0)
+          " || echo 0
+          }
+
+          # SEQ0 이후에 에이전트/오케스트레이터 활동 이벤트가 생겼는지
+          cycle_activity_after () {
+            curl -sf --max-time 20 "$BASE/api/activity" 2>/dev/null | SEQ0="$1" python3 -c "
+          import sys, os, json
+          try:
+              seq0 = int(os.environ['SEQ0'])
+              evs = json.load(sys.stdin).get('events') or []
+              hit = [e for e in evs if int(e.get('seq', 0)) > seq0
+                     and (e.get('category') in ('agent', 'orchestrator')
+                          or '사이클' in str(e.get('message', '')))]
+              print('yes' if hit else 'no')
+          except Exception:
+              print('no')
+          " || echo no
+          }
+
           echo "=== 1. Reachability (5 tries, 30s backoff) ==="
           HEALTH=""
           for i in $(seq 1 5); do
@@ -50,90 +130,87 @@ jobs:
             sleep 30
           done
           if [ -z "$HEALTH" ]; then
-            echo "SITE OFFLINE — will be retried by the next hourly sweep."
-            echo "### daily-update: SITE OFFLINE ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+            echo "SITE OFFLINE — 호스트 PC가 꺼져 있을 수 있습니다. 다음 매시 스윕이 재시도합니다."
+            echo "### daily-update(funnel): SITE OFFLINE ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
           echo "health: $(echo "$HEALTH" | head -c 300)"
-          RUNNING=$(echo "$HEALTH" | python3 -c "import sys,json; print(str(json.load(sys.stdin).get('cycle_running', False)).lower())" 2>/dev/null || echo "false")
 
-          echo "=== 2. Forecast freshness (fresh = created today >= 07:00 KST) ==="
-          FRESH=$(curl -sf --max-time 20 "$BASE/api/forecast" 2>/dev/null | python3 -c "
-          import sys, json
-          from datetime import datetime, time
-          try:
-              d = json.load(sys.stdin)
-              ts = datetime.fromisoformat(d['created_kst'])
-              fresh = ts.date().isoformat() == '$TODAY' and ts.time() >= time(7, 0)
-              print('yes' if fresh else 'no')
-              print('created_kst=', d['created_kst'], file=sys.stderr)
-          except Exception:
-              print('no')
-          " || echo "no")
-          echo "fresh=$FRESH cycle_running=$RUNNING"
+          echo "=== 2. Forecast freshness ==="
+          FOUT=$(fresh_check); echo "$FOUT"
+          FRESH=$(echo "$FOUT" | tail -1 | cut -d= -f2)
 
-          CYCLE="skipped"
-          if [ "$FORCE" != "true" ] && [ "$FRESH" = "yes" ]; then
-            echo "Today's morning forecast is already fresh — no cycle needed."
-            CYCLE="already_fresh"
-          elif [ "$RUNNING" = "true" ]; then
-            echo "A cycle is already in flight — not triggering another."
-            CYCLE="in_flight"
-          else
-            echo "=== 3. Trigger committee cycle ==="
-            RESP=$(curl -sf -X POST --max-time 30 "$BASE/api/cycle" 2>/dev/null || echo '{}')
-            echo "POST /api/cycle -> $RESP"
-            CYCLE=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','?'))" 2>/dev/null || echo "?")
-            echo "=== 4. Confirm the cycle actually started (up to 5 min) ==="
+          CYCLE="already_fresh"
+          if [ "$FORCE" = "true" ] || [ "$FRESH" != "yes" ]; then
+            SEQ0=$(max_seq)
+            echo "=== 3. Trigger committee cycle (activity seq baseline: $SEQ0) ==="
             STARTED="no"
-            for i in $(seq 1 10); do
-              sleep 30
-              H=$(curl -sf --max-time 20 "$BASE/health" 2>/dev/null || echo '{}')
-              R=$(echo "$H" | python3 -c "import sys,json; print(str(json.load(sys.stdin).get('cycle_running', False)).lower())" 2>/dev/null || echo "?")
-              echo "  [$i] cycle_running=$R"
-              if [ "$R" = "true" ]; then STARTED="yes"; break; fi
-              # A very fast cycle may already be done — re-check freshness.
-              F=$(curl -sf --max-time 20 "$BASE/api/forecast" 2>/dev/null | python3 -c "
-          import sys, json
-          from datetime import datetime, time
-          try:
-              d = json.load(sys.stdin)
-              ts = datetime.fromisoformat(d['created_kst'])
-              print('yes' if ts.date().isoformat() == '$TODAY' and ts.time() >= time(7, 0) else 'no')
-          except Exception:
-              print('no')
-          " || echo "no")
-              if [ "$F" = "yes" ]; then STARTED="done"; break; fi
+            for attempt in 1 2 3; do
+              CODE=$(curl -s -o /tmp/cycle_resp -w '%{http_code}' -X POST --max-time 120 "$BASE/api/cycle" || echo "ERR")
+              echo "  attempt $attempt: POST /api/cycle -> HTTP $CODE body: $(head -c 300 /tmp/cycle_resp 2>/dev/null)"
+              for i in $(seq 1 6); do
+                sleep 30
+                ACT=$(cycle_activity_after "$SEQ0")
+                echo "    [$i] new cycle activity: $ACT"
+                if [ "$ACT" = "yes" ]; then STARTED="yes"; break; fi
+              done
+              if [ "$STARTED" = "yes" ]; then break; fi
+              echo "  no cycle activity after attempt $attempt — retrying in 60s"
+              sleep 60
             done
-            if [ "$STARTED" = "no" ]; then
-              echo "Cycle did not visibly start — failing so the next sweep retries."
-              echo "### daily-update: cycle failed to start ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$STARTED" != "yes" ]; then
+              echo "사이클이 시작되지 않았습니다. 위 HTTP 코드로 원인을 확인하세요."
+              echo "### daily-update(funnel): cycle failed to start ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
               exit 1
             fi
+
+            echo "=== 4. Wait for cycle completion (up to 75 min) ==="
+            CYCLE="timeout"
+            for i in $(seq 1 75); do
+              sleep 60
+              FOUT=$(fresh_check)
+              FRESH=$(echo "$FOUT" | tail -1 | cut -d= -f2)
+              echo "  [$i] fresh=$FRESH"
+              if [ "$FRESH" = "yes" ]; then CYCLE="updated"; break; fi
+            done
+            if [ "$CYCLE" != "updated" ]; then
+              echo "사이클이 제한 시간 내 완료되지 않았습니다."
+              echo "### daily-update(funnel): cycle timeout ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+          else
+            echo "오늘 아침 예측이 이미 신선합니다 — 사이클 생략."
           fi
 
           echo "=== 5. Daily briefing (generate only if today's is missing) ==="
-          BRIEF_DATE=$(curl -sf --max-time 20 "$BASE/api/briefing/latest" 2>/dev/null | python3 -c "
+          has_brief () {
+            curl -sf --max-time 20 "$BASE/api/briefing/latest?date=$TODAY" 2>/dev/null | python3 -c "
           import sys, json
           try:
-              b = json.load(sys.stdin).get('brief') or {}
-              print(b.get('date', ''))
+              print('yes' if json.load(sys.stdin).get('brief') else 'no')
           except Exception:
-              print('')
-          " || echo "")
+              print('no')
+          " || echo no
+          }
           BRIEF="up_to_date"
-          if [ "$BRIEF_DATE" != "$TODAY" ]; then
-            echo "No briefing for $TODAY (latest: '${BRIEF_DATE:-none}') — generating (synchronous, up to 15 min)."
-            BR=$(curl -sf -X POST --max-time 900 "$BASE/api/briefing/generate" 2>/dev/null || echo "")
-            if [ -n "$BR" ]; then BRIEF="generated"; else BRIEF="generate_failed"; fi
+          if [ "$(has_brief)" != "yes" ]; then
+            CODE=$(curl -s -o /tmp/brief_resp -w '%{http_code}' -X POST --max-time 900 "$BASE/api/briefing/generate" || echo "ERR")
+            echo "POST /api/briefing/generate -> HTTP $CODE body: $(head -c 300 /tmp/brief_resp 2>/dev/null)"
+            BRIEF="generate_failed"
+            for i in $(seq 1 10); do
+              if [ "$(has_brief)" = "yes" ]; then BRIEF="generated"; break; fi
+              sleep 30
+            done
             echo "briefing: $BRIEF"
           else
-            echo "Briefing for $TODAY already exists."
+            echo "오늘($TODAY) 브리프가 이미 존재합니다."
           fi
 
           {
-            echo "### daily-update ($TODAY KST)"
+            echo "### daily-update(funnel) $TODAY KST"
             echo '```'
             echo "cycle=$CYCLE briefing=$BRIEF"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          [ "$BRIEF" = "generate_failed" ] && exit 1
+          exit 0
