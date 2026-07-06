@@ -96,6 +96,8 @@ jobs:
           done
 
           echo "=== Waiting for the cycle to complete (up to ~75 min) ==="
+          RETRIGGERS=0
+          IDLE=0
           for i in $(seq 1 150); do
             sleep 30
             if [ "$(fresh)" = "yes" ]; then
@@ -105,6 +107,19 @@ jobs:
             ST=$(curl -sf --max-time 20 "$BASE_URL/api/today" \
               | python3 -c "import sys,json; r=(json.load(sys.stdin) or {}).get('latest_run') or {}; print(r.get('status'), r.get('started_at'))" 2>/dev/null || echo "?")
             echo "  [$i] latest_run: $ST"
+            # A deploy swap / OOM kills the cycle mid-run and the row goes
+            # 'failed' (or the service restarts) — kick a fresh cycle instead
+            # of polling a corpse. Allow a couple of repair kicks per run.
+            case "$ST" in
+              running*) IDLE=0 ;;
+              *) IDLE=$((IDLE + 1)) ;;
+            esac
+            if [ "$IDLE" -ge 4 ] && [ "$RETRIGGERS" -lt 2 ]; then
+              RETRIGGERS=$((RETRIGGERS + 1)); IDLE=0
+              echo "  -> no cycle running; re-triggering (attempt $RETRIGGERS/2)"
+              curl -s --max-time 30 -X POST "$BASE_URL/api/trigger-cycle" | head -c 200 || true
+              echo ""
+            fi
           done
           echo "ERROR: cycle did not complete in time"
           exit 1
