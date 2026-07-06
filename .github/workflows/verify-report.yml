@@ -1,0 +1,91 @@
+name: Verify daily report
+
+# Fetches the live daily brief from a krw-watcher instance and checks that the
+# upgraded analyst-report sections (market_summary, committee_view, analysis,
+# news_analysis, scenarios, trading_view, risks) are actually populated —
+# a content-quality gate that plain "brief exists" checks miss.
+#
+# Runs on GitHub runners (open egress), so it can reach both the Render
+# instance and the PC funnel. Read-only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Base URL to verify
+        default: https://krw-watcher.onrender.com
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Fetch and validate the brief
+        env:
+          BASE: ${{ github.event.inputs.url || 'https://krw-watcher.onrender.com' }}
+        run: |
+          set -u
+          BASE="${BASE%/}"
+          echo "verifying: $BASE"
+          curl -sf --max-time 30 "$BASE/api/briefing/latest" -o /tmp/brief.json || { echo "FETCH FAILED"; exit 1; }
+
+          python3 - <<'PY' | tee /tmp/report.txt
+          import json
+          b = (json.load(open("/tmp/brief.json")) or {}).get("brief") or {}
+          if not b:
+              print("NO BRIEF"); raise SystemExit(1)
+          print(f"date: {b.get('date')}  title: {b.get('title')}")
+          print(f"headline: {b.get('headline')}\n")
+
+          def has(v):
+              if isinstance(v, list): return len(v) > 0
+              return bool(str(v or '').strip())
+
+          checks = {
+              "market_summary":  b.get("market_summary"),
+              "committee_view":  b.get("committee_view"),
+              "analysis":        b.get("analysis"),
+              "news_analysis":   b.get("news_analysis"),
+              "scenarios":       b.get("scenarios"),
+              "trading_view":    b.get("trading_view"),
+              "risks":           b.get("risks"),
+          }
+          missing, ok = [], []
+          for k, v in checks.items():
+              (ok if has(v) else missing).append(k)
+
+          # analysis must not be a failure stub
+          a = str(b.get("analysis") or "")
+          failed = a.startswith("Report generation failed")
+
+          na = b.get("news_analysis") or []
+          print("news_analysis themes:")
+          for t in (na if isinstance(na, list) else [])[:5]:
+              if isinstance(t, dict):
+                  print(f"  • {t.get('theme','')[:60]} — impl: {str(t.get('implication',''))[:80]}")
+          sc = b.get("scenarios") or []
+          print("scenarios:")
+          for s in (sc if isinstance(sc, list) else [])[:4]:
+              if isinstance(s, dict):
+                  print(f"  • {s.get('name','')} ({s.get('prob','')})")
+
+          print(f"\nPRESENT ({len(ok)}): {', '.join(ok)}")
+          print(f"MISSING ({len(missing)}): {', '.join(missing) or 'none'}")
+          print(f"analysis_failed_stub: {failed}")
+
+          # Pass = new sections present and analysis is real. news_analysis is the
+          # headline new feature; require it plus analysis + market_summary.
+          core = all(has(checks[k]) for k in ("market_summary", "analysis", "news_analysis"))
+          verdict = "PASS" if (core and not failed) else "FAIL"
+          print(f"\nVERDICT: {verdict}")
+          raise SystemExit(0 if verdict == "PASS" else 2)
+          PY
+          rc=$?
+          {
+            echo "### verify-report ($BASE)"
+            echo '```'
+            cat /tmp/report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
