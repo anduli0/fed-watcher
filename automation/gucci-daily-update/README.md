@@ -8,8 +8,13 @@ https://anduli0.github.io/gucci-intel-site/ 를 **매일 아침 08:00 KST까지 
 ```
 [1차] 클라우드 정기 실행   매일 06:50 KST 시작 → 08:00 전 완료  ← Claude(Max 구독) 클라우드 예약 작업
 [2차] 클라우드 보정 실행   매일 08:05 KST 체크                  ← 1차 미완료 감지 시에만 즉시 대신 실행
-[3차] PC 폴백 (선택)       매일 09:00 KST 체크                  ← 1·2차 모두 실패 시에만 실제 동작
+[3차] 배포 검증 (GitHub)   매일 08:20 KST 체크                  ← 라이브 사이트가 오늘자인지 GitHub Actions가 검증.
+                                                                  배포만 실패했으면 자동 재배포, 업데이트 자체가
+                                                                  누락됐으면 실패 처리 → GitHub이 실패 메일 발송
+[4차] PC 폴백 (선택)       매일 09:00 KST 체크                  ← 위가 모두 실패 시에만 실제 동작
 ```
+
+3차는 사이트 저장소의 `.github/workflows/verify-freshness.yml`이며 Claude와 무관하게 GitHub 서버에서 실행된다.
 
 - **1·2차는 폰/PC가 꺼져 있어도 실행된다.** Anthropic 클라우드에서 도는 예약 작업(Routine)이라
   기기와 무관하며, Claude 모바일 앱(claude.ai)의 Code 탭에서 실행 내역·결과를 확인할 수 있다.
