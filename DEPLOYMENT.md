@@ -98,3 +98,36 @@ Settings → Secrets and variables → Actions → New repository secret
 The workflow now forwards `CLAUDE_CODE_OAUTH_TOKEN` to Render (preferred over the
 expiring `CLAUDE_CREDENTIALS` snapshot). Other secrets it uses: `RENDER_API_KEY`,
 `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, `FRED_API_KEY`.
+
+## Daily auto-update — complete by 8AM KST
+
+The backend already schedules everything itself (07:30 KST briefing, 08:00 KST
+publish, forecast cycles). The only failure mode is a **sleeping Render free
+instance**: it spins down after 15 min without inbound traffic (internal
+warm-up CPU work does not count), and while asleep the internal APScheduler
+never fires, so the site stays stale until someone visits. The fix: **wake the
+service at 06:25 KST and keep pinging every ≤10 min until just past 08:00** —
+waking triggers the startup warm-up (`RUN_CYCLE_ON_STARTUP=true`, forecast +
+briefing, up to ~30–40 min on the small instance → done by ~07:05), and the
+keep-alive pings carry it through the internal 07:30 briefing and 08:00
+publish. Result: the update is *finished* by 8AM, not merely started. Three
+independent layers, in order of preference:
+
+1. **GitHub Actions (primary — no Claude, no user device involved).**
+   `.github/workflows/daily-wakeup.yml` pings `/health` every 10 minutes from
+   06:25 to 07:55 KST with cold-start retry logic. Scheduled workflows run
+   from the default branch (`master`). Can also be fired manually
+   (*Actions → Daily wake-up → Run workflow*).
+2. **Claude cloud scheduled session (second layer + morning push report).**
+   A Claude Code trigger fires daily in the cloud — it runs regardless of
+   whether the owner's PC or phone is on, pings `/health` through the 08:00
+   KST window, and sends a push notification with the result. Managed from any
+   Claude Code session via the claude-code-remote trigger tools.
+3. **PC Task Scheduler (last-resort fallback).** `scheduler/daily_update.ps1`
+   does the same from Windows (06:25 → 08:05 KST) — registration command is
+   in the script header.
+
+Interpretation note for all pingers: **any** HTTP response from the app —
+including `403 Forbidden` from the IP-whitelist middleware — proves the
+instance is awake and counts as success. Only connection failures / Render
+router 5xx during cold start warrant retries.
