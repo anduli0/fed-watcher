@@ -1,16 +1,25 @@
 name: Daily 8AM KST auto-update
 
-# 매일 아침 8시(KST)에 krw-watcher 사이트(Tailscale Funnel)의 위원회 사이클과
-# 데일리 브리프를 원격으로 기동한다. AI 분석 자체는 사이트 서버가 소유자의
-# 클로드 구독(`claude -p`)으로 실행하므로 이 워크플로우는 트리거/확인만 한다.
+# 매일 아침 8시(KST)까지 krw-watcher 사이트(Tailscale Funnel)의 위원회 사이클과
+# 데일리 브리프가 "완료"되어 있도록 한다: 06:45 KST에 기동해 사이클(~20-35분)
+# + 브리프(~5-15분)가 8시 전에 끝나게 한다. AI 분석 자체는 사이트 서버가
+# 소유자의 클로드 구독(`claude -p`)으로 실행하므로 이 워크플로우는
+# 트리거/확인만 한다.
 #
-# 8시 실행이 실패하면(서버 오프라인 등) 09~14시(KST) 매시 스윕이 신선도 검사
-# 후 성공할 때까지 재시도한다. 이미 오늘 아침 예측이 신선하면 스윕은 no-op.
+# 본 실행이 실패하면(서버 오프라인 등) 07:30, 08:00, 09~14시(KST) 스윕이
+# 신선도 검사 후 성공할 때까지 재시도한다. 이미 오늘 아침 결과가 신선하면
+# 스윕은 no-op — AI 토큰이 이중으로 소모되지 않는다.
+#
+# 신선도·완료 판정은 /api/agents 의 run.completed_at / run.id 를 사용한다.
+# (라이브 빌드의 /api/forecast 는 created_kst 를 노출하지 않고, /health 에는
+# cycle_running 이 없어서 그 필드들로는 판정할 수 없다.)
 
 on:
   schedule:
-    - cron: "0 23 * * *"   # 08:00 KST — 본 실행
-    - cron: "0 0-5 * * *"  # 09:00~14:00 KST 매시 — 재시도 스윕 (신선하면 no-op)
+    - cron: "45 21 * * *"  # 06:45 KST — 본 실행 (8시 전 완료 목표)
+    - cron: "30 22 * * *"  # 07:30 KST — 조기 재시도 스윕 (신선하면 no-op)
+    - cron: "0 23 * * *"   # 08:00 KST — 재시도 스윕
+    - cron: "0 0-5 * * *"  # 09:00~14:00 KST 매시 — 재시도 스윕
   workflow_dispatch:
     inputs:
       url:
@@ -28,6 +37,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -40,6 +50,32 @@ jobs:
           BASE="${BASE%/}"
           TODAY=$(TZ=Asia/Seoul date +%F)
           echo "target=$BASE today(KST)=$TODAY force=$FORCE"
+
+          # run_info: prints "<run_id> <completed_at>" from /api/agents
+          run_info() {
+            curl -sf --max-time 20 "$BASE/api/agents" 2>/dev/null | python3 -c "
+          import sys, json
+          try:
+              r = (json.load(sys.stdin).get('run') or {})
+              print(r.get('id', ''), r.get('completed_at', ''))
+          except Exception:
+              print('', '')
+          " || echo " "
+          }
+          # fresh_check: "yes" if the last completed run is today >= 06:30 KST
+          # (the morning run starts 06:45 KST, so anything completed after
+          #  06:30 is this morning's result)
+          is_fresh() {
+            python3 -c "
+          from datetime import datetime, time
+          ts = '''$1'''
+          try:
+              d = datetime.fromisoformat(ts)
+              print('yes' if d.date().isoformat() == '$TODAY' and d.time() >= time(6, 30) else 'no')
+          except Exception:
+              print('no')
+          "
+          }
 
           echo "=== 1. Reachability (5 tries, 30s backoff) ==="
           HEALTH=""
@@ -55,59 +91,49 @@ jobs:
             exit 1
           fi
           echo "health: $(echo "$HEALTH" | head -c 300)"
-          RUNNING=$(echo "$HEALTH" | python3 -c "import sys,json; print(str(json.load(sys.stdin).get('cycle_running', False)).lower())" 2>/dev/null || echo "false")
 
-          echo "=== 2. Forecast freshness (fresh = created today >= 07:00 KST) ==="
-          FRESH=$(curl -sf --max-time 20 "$BASE/api/forecast" 2>/dev/null | python3 -c "
-          import sys, json
-          from datetime import datetime, time
-          try:
-              d = json.load(sys.stdin)
-              ts = datetime.fromisoformat(d['created_kst'])
-              fresh = ts.date().isoformat() == '$TODAY' and ts.time() >= time(7, 0)
-              print('yes' if fresh else 'no')
-              print('created_kst=', d['created_kst'], file=sys.stderr)
-          except Exception:
-              print('no')
-          " || echo "no")
-          echo "fresh=$FRESH cycle_running=$RUNNING"
+          echo "=== 2. Forecast freshness (last completed run today >= 06:30 KST?) ==="
+          INFO=$(run_info)
+          RUN_ID_BEFORE="${INFO%% *}"
+          COMPLETED_AT="${INFO#* }"
+          FRESH=$(is_fresh "$COMPLETED_AT")
+          echo "last run: id=${RUN_ID_BEFORE:-?} completed_at=${COMPLETED_AT:-?} fresh=$FRESH"
 
           CYCLE="skipped"
           if [ "$FORCE" != "true" ] && [ "$FRESH" = "yes" ]; then
             echo "Today's morning forecast is already fresh — no cycle needed."
             CYCLE="already_fresh"
-          elif [ "$RUNNING" = "true" ]; then
-            echo "A cycle is already in flight — not triggering another."
-            CYCLE="in_flight"
           else
             echo "=== 3. Trigger committee cycle ==="
-            RESP=$(curl -sf -X POST --max-time 30 "$BASE/api/cycle" 2>/dev/null || echo '{}')
-            echo "POST /api/cycle -> $RESP"
-            CYCLE=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','?'))" 2>/dev/null || echo "?")
-            echo "=== 4. Confirm the cycle actually started (up to 5 min) ==="
-            STARTED="no"
-            for i in $(seq 1 10); do
+            CODE=$(curl -sS -X POST --max-time 60 -o /tmp/cycle.json -w '%{http_code}' "$BASE/api/cycle" || echo "000")
+            echo "POST /api/cycle -> HTTP $CODE, body: $(head -c 300 /tmp/cycle.json 2>/dev/null)"
+            CYCLE=$(python3 -c "import json; print(json.load(open('/tmp/cycle.json')).get('status','?'))" 2>/dev/null || echo "http_$CODE")
+
+            echo "=== 4. Wait for the cycle to COMPLETE (run.id change, up to ~40 min) ==="
+            DONE="no"
+            for i in $(seq 1 80); do
               sleep 30
-              H=$(curl -sf --max-time 20 "$BASE/health" 2>/dev/null || echo '{}')
-              R=$(echo "$H" | python3 -c "import sys,json; print(str(json.load(sys.stdin).get('cycle_running', False)).lower())" 2>/dev/null || echo "?")
-              echo "  [$i] cycle_running=$R"
-              if [ "$R" = "true" ]; then STARTED="yes"; break; fi
-              # A very fast cycle may already be done — re-check freshness.
-              F=$(curl -sf --max-time 20 "$BASE/api/forecast" 2>/dev/null | python3 -c "
+              INFO=$(run_info)
+              RID="${INFO%% *}"
+              CAT="${INFO#* }"
+              ACT=$(curl -sf --max-time 20 "$BASE/api/activity?limit=1" 2>/dev/null | python3 -c "
           import sys, json
-          from datetime import datetime, time
           try:
-              d = json.load(sys.stdin)
-              ts = datetime.fromisoformat(d['created_kst'])
-              print('yes' if ts.date().isoformat() == '$TODAY' and ts.time() >= time(7, 0) else 'no')
+              e = (json.load(sys.stdin).get('events') or [{}])[-1]
+              print(f\"{e.get('ts','')[:19]} {e.get('source','')}: {e.get('message','')[:70]}\")
           except Exception:
-              print('no')
-          " || echo "no")
-              if [ "$F" = "yes" ]; then STARTED="done"; break; fi
+              print('')
+          " || echo "")
+            echo "  [$i] run.id=${RID:-?} (before=${RUN_ID_BEFORE:-?}) | $ACT"
+              if [ -n "$RID" ] && [ "$RID" != "$RUN_ID_BEFORE" ]; then
+                DONE="yes"
+                echo "New run completed: id=$RID completed_at=$CAT"
+                break
+              fi
             done
-            if [ "$STARTED" = "no" ]; then
-              echo "Cycle did not visibly start — failing so the next sweep retries."
-              echo "### daily-update: cycle failed to start ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$DONE" = "no" ]; then
+              echo "Cycle did not complete within the window — failing so the next sweep retries."
+              echo "### daily-update: cycle incomplete ($TODAY, POST=$CODE)" >> "$GITHUB_STEP_SUMMARY"
               exit 1
             fi
           fi
@@ -124,9 +150,19 @@ jobs:
           BRIEF="up_to_date"
           if [ "$BRIEF_DATE" != "$TODAY" ]; then
             echo "No briefing for $TODAY (latest: '${BRIEF_DATE:-none}') — generating (synchronous, up to 15 min)."
-            BR=$(curl -sf -X POST --max-time 900 "$BASE/api/briefing/generate" 2>/dev/null || echo "")
-            if [ -n "$BR" ]; then BRIEF="generated"; else BRIEF="generate_failed"; fi
-            echo "briefing: $BRIEF"
+            BCODE=$(curl -sS -X POST --max-time 900 -o /tmp/brief.json -w '%{http_code}' "$BASE/api/briefing/generate" || echo "000")
+            echo "POST /api/briefing/generate -> HTTP $BCODE, body: $(head -c 200 /tmp/brief.json 2>/dev/null)"
+            # verify against the API rather than trusting the response shape
+            BRIEF_DATE=$(curl -sf --max-time 20 "$BASE/api/briefing/latest" 2>/dev/null | python3 -c "
+          import sys, json
+          try:
+              print((json.load(sys.stdin).get('brief') or {}).get('date', ''))
+          except Exception:
+              print('')
+          " || echo "")
+            if [ "$BRIEF_DATE" = "$TODAY" ]; then BRIEF="generated"; else BRIEF="generate_failed"; fi
+            echo "briefing: $BRIEF (latest date now: '${BRIEF_DATE:-none}')"
+            [ "$BRIEF" = "generated" ] || { echo "### daily-update: briefing failed ($TODAY, POST=$BCODE)" >> "$GITHUB_STEP_SUMMARY"; exit 1; }
           else
             echo "Briefing for $TODAY already exists."
           fi

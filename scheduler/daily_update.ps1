@@ -1,4 +1,5 @@
-# KRW-Watcher daily 08:00 KST update — PC fallback runner
+# KRW-Watcher daily morning update — PC fallback runner
+# Registered at 06:45 KST so the cycle + briefing COMPLETE before 08:00.
 # Register via scheduler/register_daily_update.ps1 (Windows Task Scheduler).
 # Idempotent: skips work already done today, so it can run alongside the
 # GitHub Actions / Claude Routine cloud path without double token spend.
@@ -52,15 +53,19 @@ try {
     Write-Log "latest briefing: $($latest.brief.date) (today=$today) -> needBrief=$needBrief"
 } catch { Write-Log "briefing check failed: $_" }
 
-$needCycle = $true
+# The live build doesn't expose forecast.created_kst — the reliable signal
+# is /api/agents run.completed_at (last finished committee cycle).
+$needCycle  = $true
+$runIdBefore = $null
 try {
-    $fc = Invoke-RestMethod -Uri "$BaseUrl/api/forecast" -TimeoutSec 20
-    if ($fc.created_kst -and $fc.created_kst.StartsWith($today)) {
-        $hour = [int]$fc.created_kst.Substring(11, 2)
-        if ($hour -ge 7) { $needCycle = $false }
+    $ag = Invoke-RestMethod -Uri "$BaseUrl/api/agents" -TimeoutSec 20
+    $runIdBefore = $ag.run.id
+    $completed   = [DateTime]::Parse($ag.run.completed_at)
+    if ($completed.ToString("yyyy-MM-dd") -eq $today -and $completed.TimeOfDay -ge [TimeSpan]"06:30") {
+        $needCycle = $false
     }
-    Write-Log "forecast created_kst: $($fc.created_kst) -> needCycle=$needCycle"
-} catch { Write-Log "forecast check failed: $_" }
+    Write-Log "last run: id=$($ag.run.id) completed_at=$($ag.run.completed_at) -> needCycle=$needCycle"
+} catch { Write-Log "run check failed: $_" }
 
 if (-not $needBrief -and -not $needCycle) {
     Write-Log "Already updated today — nothing to do."
@@ -77,23 +82,24 @@ if ($needBrief) {
     } catch { Write-Log "briefing generate failed: $_" }
 }
 
-# ── 4. Forecast cycle (async endpoint; poll until the forecast changes) ─────
+# ── 4. Forecast cycle (async endpoint; poll run.id until it changes) ────────
 if ($needCycle) {
-    $before = ""
-    try { $before = (Invoke-RestMethod -Uri "$BaseUrl/api/forecast" -TimeoutSec 20 | ConvertTo-Json -Depth 10 -Compress) } catch {}
     Write-Log "POST /api/cycle ..."
     try {
         $resp = Invoke-RestMethod -Uri "$BaseUrl/api/cycle" -Method Post -TimeoutSec 60
         Write-Log "cycle response: $($resp.status)"
     } catch { Write-Log "cycle start failed: $_"; exit 1 }
 
-    for ($i = 1; $i -le 140; $i++) {
-        Start-Sleep -Seconds 15
+    for ($i = 1; $i -le 80; $i++) {
+        Start-Sleep -Seconds 30
         try {
-            $now = (Invoke-RestMethod -Uri "$BaseUrl/api/forecast" -TimeoutSec 20 | ConvertTo-Json -Depth 10 -Compress)
-            if ($now -and $now -ne $before) { Write-Log "forecast updated — cycle complete."; break }
+            $ag = Invoke-RestMethod -Uri "$BaseUrl/api/agents" -TimeoutSec 20
+            if ($ag.run.id -and $ag.run.id -ne $runIdBefore) {
+                Write-Log "cycle complete: run.id=$($ag.run.id) completed_at=$($ag.run.completed_at)"
+                break
+            }
         } catch {}
-        if ($i -eq 140) { Write-Log "WARNING: forecast unchanged after 35 min — cycle may still be running." }
+        if ($i -eq 80) { Write-Log "WARNING: no new run after 40 min — cycle may have failed; cloud sweeps will retry." }
     }
 }
 
