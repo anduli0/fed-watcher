@@ -8,7 +8,7 @@ export const t = {
     runCycle: "Run Cycle",
     running: "Running…",
     refresh: "Refresh",
-    admin: "Admin",
+    admin: "🔑 Admin",
 
     // Hero
     heroLabel: "LIVE AGENT NETWORK",
@@ -131,7 +131,7 @@ export const t = {
     runCycle: "사이클 실행",
     running: "실행 중…",
     refresh: "새로고침",
-    admin: "관리자",
+    admin: "🔑 관리자",
 
     heroLabel: "실시간 에이전트 네트워크",
     heroSub: "10개의 전문 AI 에이전트가 연준 커뮤니케이션, 거시경제 데이터, 시장 신호를 실시간으로 분석합니다",

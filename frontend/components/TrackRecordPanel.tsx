@@ -62,12 +62,31 @@ interface Quality {
   } | null;
 }
 
+interface SignStat {
+  n: number;
+  hit_rate: number | null;
+  hit_rate_directional_only: number | null;
+  n_directional: number;
+}
+
+interface MagnitudeStat {
+  n: number;
+  mae_bps: number | null;
+  baseline_no_change_mae_bps: number | null;
+  skill_vs_no_change: number | null;
+}
+
 interface Backtest {
   data_range?: { start: string | null; end: string | null; n_decision_months: number };
   headline_excl_zlb?: {
-    DFF_6m?: { hit_rate: number | null; hit_rate_directional_only: number | null; n: number };
-    DFF_12m?: { hit_rate: number | null; hit_rate_directional_only: number | null; n: number };
+    sign__market_only__DFF__6m?: SignStat;
+    sign__market_only__DFF__12m?: SignStat;
+    sign__composite__DFF__6m?: SignStat;
+    sign__composite__DFF__12m?: SignStat;
+    magnitude__DFF__6m?: MagnitudeStat;
+    magnitude__DFF__12m?: MagnitudeStat;
   };
+  regime_breakdown_DFF_6m?: Record<string, SignStat>;
   error?: string;
 }
 
@@ -152,9 +171,9 @@ export default function TrackRecordPanel() {
             {ko ? "예측 vs 실제 · 적중 기록" : "Forecast vs Realized"}
           </p>
           <div className="flex gap-3 text-[9px] text-[var(--color-text-muted)]">
-            <span><span style={{ color: "var(--color-signal-green)" }}>━</span> {ko ? "실제 기준금리" : "Actual DFF"}</span>
-            <span><span style={{ color: "var(--color-gold)" }}>┅</span> {ko ? "예측 경로" : "Forecast path"}</span>
-            <span><span style={{ color: "var(--color-gold)" }}>○</span> {ko ? "과거 예측치" : "Past targets"}</span>
+            <span><span style={{ color: "var(--color-signal-green)" }}>━</span> {ko ? "실제 기준금리 (초록 실선)" : "Actual DFF (solid green)"}</span>
+            <span><span style={{ color: "var(--color-gold)" }}>┅</span> {ko ? "예측 경로 (금색 점선)" : "Forecast path (dashed gold)"}</span>
+            <span><span style={{ color: "var(--color-gold)" }}>○</span> {ko ? "과거 예측치 (빈 점)" : "Past targets (hollow dots)"}</span>
           </div>
         </div>
         <p className="text-[10px] text-[var(--color-text-muted)] mb-2">
@@ -194,7 +213,7 @@ export default function TrackRecordPanel() {
       <div className="card overflow-x-auto">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest">
-            {ko ? "만기 추적 — 예측 vs 실제 정책금리(DFF)" : "Maturity Tracking — Calls vs Realized DFF"}
+            {ko ? "근시 추종 & 만기 카운트다운" : "Near-Term Tracking & Maturity Countdown"}
           </p>
           {acc?.dff_now != null && (
             <span className="text-[10px] text-[var(--color-text-muted)]">DFF {acc.dff_now.toFixed(2)}%</span>
@@ -271,7 +290,7 @@ export default function TrackRecordPanel() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="card">
           <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-3">
-            {ko ? "프로세스 자가평가" : "Process Self-Review"}
+            {ko ? "프로세스 품질 · 자가개선 루프" : "Process Quality · Self-Improvement Loop"}
           </p>
           {q ? (
             <div>
@@ -298,7 +317,12 @@ export default function TrackRecordPanel() {
                 ))}
               </div>
               {q.critique && (
-                <p className="text-[10px] text-[var(--color-gold)] leading-relaxed mt-2">{q.critique}</p>
+                <div className="mt-2">
+                  <p className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-widest mb-0.5">
+                    {ko ? "다음 사이클에 주입되는 자기비평 →" : "Self-critique injected into the next cycle →"}
+                  </p>
+                  <p className="text-[10px] text-[var(--color-gold)] leading-relaxed">{q.critique}</p>
+                </div>
               )}
             </div>
           ) : (
@@ -309,23 +333,74 @@ export default function TrackRecordPanel() {
         </div>
         <div className="card">
           <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-3">
-            {ko ? "기계적 백테스트 (참조 하한선)" : "Mechanical Backtest (reference floor)"}
+            {ko ? "핵심 로직 백테스트 (역사적 스킬)" : "Core-Logic Backtest (historical skill)"}
           </p>
           {bt ? (
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">{ko ? "6M 방향 적중률 (DFF)" : "6M direction hit (DFF)"}</span>
-                <span className="font-medium" style={{ color: "var(--color-gold)" }}>
-                  {bt.DFF_6m?.hit_rate_directional_only != null ? `${Math.round(bt.DFF_6m.hit_rate_directional_only * 100)}%` : "—"}
-                </span>
+            <div className="space-y-3 text-xs">
+              <div>
+                <p className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-widest mb-1">
+                  {ko ? "방향(부호) 적중률" : "Directional (sign) hit rate"}
+                </p>
+                {([
+                  ["6M", bt.sign__market_only__DFF__6m],
+                  ["12M", bt.sign__market_only__DFF__12m],
+                ] as const).map(([label, s]) => (
+                  <div key={label} className="flex justify-between py-0.5">
+                    <span className="text-[var(--color-text-muted)]">DFF {label}</span>
+                    <span className="font-medium" style={{ color: "var(--color-gold)" }}>
+                      {s?.hit_rate != null ? `${(s.hit_rate * 100).toFixed(1)}%` : "—"}
+                      <span className="text-[var(--color-text-muted)] font-normal"> (n={s?.n ?? "—"})</span>
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--color-text-muted)]">{ko ? "12M 방향 적중률 (DFF)" : "12M direction hit (DFF)"}</span>
-                <span className="font-medium" style={{ color: "var(--color-gold)" }}>
-                  {bt.DFF_12m?.hit_rate_directional_only != null ? `${Math.round(bt.DFF_12m.hit_rate_directional_only * 100)}%` : "—"}
-                </span>
+              <div>
+                <p className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-widest mb-1">
+                  {ko ? "점예측 magnitude 스킬 (점예측 · 별도 지표)" : "Point-forecast magnitude skill (separate metric)"}
+                </p>
+                {([
+                  ["6M", bt.magnitude__DFF__6m],
+                  ["12M", bt.magnitude__DFF__12m],
+                ] as const).map(([label, m]) => (
+                  <div key={label} className="flex justify-between py-0.5">
+                    <span className="text-[var(--color-text-muted)]">DFF {label}</span>
+                    <span>
+                      MAE {m?.mae_bps != null ? `${m.mae_bps}bps` : "—"}
+                      <span className="font-medium ml-1.5" style={{ color: "var(--color-gold)" }}>
+                        {m?.skill_vs_no_change != null
+                          ? `${m.skill_vs_no_change > 0 ? "+" : ""}${Math.round(m.skill_vs_no_change * 100)}%`
+                          : "—"}
+                      </span>
+                      <span className="text-[var(--color-text-muted)]"> {ko ? "vs 무변화" : "vs no-change"}</span>
+                    </span>
+                  </div>
+                ))}
               </div>
-              <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed mt-2">
+              {backtest?.regime_breakdown_DFF_6m && (
+                <div>
+                  <p className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-widest mb-1">
+                    {ko ? "국면별 (6개월 방향 적중)" : "By regime (6-month sign hit)"}
+                  </p>
+                  {([
+                    ["cutting", ko ? "인하기" : "Cutting"],
+                    ["hiking", ko ? "인상기" : "Hiking"],
+                    ["on_hold", ko ? "동결기" : "On hold"],
+                    ["zlb", "ZLB"],
+                  ] as const).map(([key, label]) => {
+                    const r = backtest.regime_breakdown_DFF_6m?.[key];
+                    return (
+                      <div key={key} className="flex justify-between py-0.5">
+                        <span className="text-[var(--color-text-muted)]">{label}</span>
+                        <span className="font-medium" style={{ color: "var(--color-gold)" }}>
+                          {r?.hit_rate != null ? `${(r.hit_rate * 100).toFixed(1)}%` : "—"}
+                          <span className="text-[var(--color-text-muted)] font-normal"> (n={r?.n ?? 0})</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">
                 {ko
                   ? `${backtest?.data_range?.start ?? ""}~${backtest?.data_range?.end ?? ""} 시장내재+인플레갭 기계 시그널의 과거 적중률 — 21에이전트 앙상블의 참조 하한선입니다 (ZLB 제외).`
                   : `${backtest?.data_range?.start ?? ""}–${backtest?.data_range?.end ?? ""} market-implied + inflation-gap mechanical signal — a reference floor for the 21-agent ensemble (ZLB months excluded).`}
