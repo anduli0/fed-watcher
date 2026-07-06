@@ -1,12 +1,16 @@
-# KRW-Watcher daily morning update — PC fallback runner
-# Registered at 06:45 KST so the cycle + briefing COMPLETE before 08:00.
-# Register via scheduler/register_daily_update_krw.ps1 (Windows Task Scheduler).
+# KRW-Watcher daily morning update — PC repair runner
+# Registered at 07:45 KST: the app's own scheduler completes the morning
+# cycle ~07:30 KST, so this only repairs mornings the internal schedule
+# missed (e.g. the app was down at 07:30). Register via
+# scheduler/register_daily_update_krw.ps1 (Windows Task Scheduler).
 # (scheduler/daily_update.ps1 is the separate Fed-Watcher wake-up fallback.)
-# Idempotent: skips work already done today, so it can run alongside the
-# GitHub Actions / Claude Routine cloud path without double token spend.
+# Idempotent: exits immediately when today's morning result already exists.
+#
+# NOTE: POSTs through the funnel URL are rejected with 401 (external), so
+# this runs against localhost where the app itself listens.
 
 param(
-    [string]$BaseUrl = "https://krw-watcher.tail3e31a9.ts.net"
+    [string]$BaseUrl = "http://localhost:8000"
 )
 
 $ProjectDir = "C:\Users\andul\fed-watcher"
@@ -19,11 +23,11 @@ function Write-Log($msg) {
 }
 
 $BaseUrl = $BaseUrl.TrimEnd("/")
-Write-Log "=== Daily update triggered (target: $BaseUrl) ==="
+Write-Log "=== Daily update check (target: $BaseUrl) ==="
 
-# ── 1. Wake / reach the site (localhost fallback since the app runs here) ───
+# ── 1. Reach the app (localhost first — funnel URL 401s on POST) ────────────
 $reachable = $null
-foreach ($candidate in @($BaseUrl, "http://localhost:8000")) {
+foreach ($candidate in @($BaseUrl, "https://krw-watcher.tail3e31a9.ts.net")) {
     for ($i = 1; $i -le 8; $i++) {
         try {
             $health = Invoke-RestMethod -Uri "$candidate/health" -TimeoutSec 20
@@ -38,7 +42,7 @@ foreach ($candidate in @($BaseUrl, "http://localhost:8000")) {
     if ($reachable) { break }
 }
 if (-not $reachable) {
-    Write-Log "ERROR: site unreachable — is the server running? (scheduler/boot_server.ps1)"
+    Write-Log "ERROR: app unreachable — is the server running? (scheduler/boot_server.ps1)"
     exit 1
 }
 $BaseUrl = $reachable
@@ -54,16 +58,20 @@ try {
     Write-Log "latest briefing: $($latest.brief.date) (today=$today) -> needBrief=$needBrief"
 } catch { Write-Log "briefing check failed: $_" }
 
-# The live build doesn't expose forecast.created_kst — the reliable signal
-# is /api/agents run.completed_at (last finished committee cycle).
-$needCycle  = $true
+# The live build's /api/agents run.completed_at is a naive timestamp that is
+# actually UTC (measured: internal 07:30 KST cycle logs 22:30 previous-day).
+# Interpret it BOTH ways (UTC and KST) — fresh if either reading says the
+# last cycle completed today >= 06:00 KST.
+$needCycle   = $true
 $runIdBefore = $null
 try {
     $ag = Invoke-RestMethod -Uri "$BaseUrl/api/agents" -TimeoutSec 20
     $runIdBefore = $ag.run.id
-    $completed   = [DateTime]::Parse($ag.run.completed_at)
-    if ($completed.ToString("yyyy-MM-dd") -eq $today -and $completed.TimeOfDay -ge [TimeSpan]"06:30") {
-        $needCycle = $false
+    $naive = [DateTime]::Parse($ag.run.completed_at)
+    $asUtc = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId(
+        [DateTime]::SpecifyKind($naive, "Utc"), "Korea Standard Time")
+    foreach ($cand in @($naive, $asUtc)) {
+        if ($cand.ToString("yyyy-MM-dd") -eq $today -and $cand.Hour -ge 6) { $needCycle = $false }
     }
     Write-Log "last run: id=$($ag.run.id) completed_at=$($ag.run.completed_at) -> needCycle=$needCycle"
 } catch { Write-Log "run check failed: $_" }
@@ -80,7 +88,7 @@ if ($needBrief) {
         $brief = Invoke-RestMethod -Uri "$BaseUrl/api/briefing/generate" -Method Post -TimeoutSec 900
         $briefDate = if ($brief.brief.date) { $brief.brief.date } else { $brief.date }
         Write-Log "briefing done: $briefDate"
-    } catch { Write-Log "briefing generate failed: $_" }
+    } catch { Write-Log "briefing generate failed (401 = app requires auth even locally; its internal scheduler will handle it): $_" }
 }
 
 # ── 4. Forecast cycle (async endpoint; poll run.id until it changes) ────────
@@ -89,7 +97,7 @@ if ($needCycle) {
     try {
         $resp = Invoke-RestMethod -Uri "$BaseUrl/api/cycle" -Method Post -TimeoutSec 60
         Write-Log "cycle response: $($resp.status)"
-    } catch { Write-Log "cycle start failed: $_"; exit 1 }
+    } catch { Write-Log "cycle start failed (401 = app requires auth even locally): $_"; exit 1 }
 
     for ($i = 1; $i -le 80; $i++) {
         Start-Sleep -Seconds 30
@@ -100,7 +108,7 @@ if ($needCycle) {
                 break
             }
         } catch {}
-        if ($i -eq 80) { Write-Log "WARNING: no new run after 40 min — cycle may have failed; cloud sweeps will retry." }
+        if ($i -eq 80) { Write-Log "WARNING: no new run after 40 min — cycle may have failed." }
     }
 }
 
