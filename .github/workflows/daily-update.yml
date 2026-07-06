@@ -1,145 +1,139 @@
-name: Daily 8AM KST update
+name: Daily 8AM KST auto-update
 
-# Wakes the live krw-watcher site every morning at 08:00 KST and makes it
-# produce the day's briefing + a fresh forecast cycle. Layers:
-#   1. This workflow's own cron (23:00 UTC = 08:00 KST) — primary executor.
-#   2. A second cron 45 min later re-runs it; the freshness guard makes the
-#      retry a no-op when the 08:00 run already succeeded, so a delayed or
-#      failed first run is retried "as soon as possible".
-#   3. A Claude Code cloud Routine dispatches this workflow and verifies the
-#      result (see scheduler/README.md), retrying later in the morning if the
-#      site was unreachable.
-# Everything is idempotent: if today's briefing exists and the forecast is
-# fresh, the run exits early without burning AI tokens.
+# 매일 아침 8시(KST)에 krw-watcher 사이트(Tailscale Funnel)의 위원회 사이클과
+# 데일리 브리프를 원격으로 기동한다. AI 분석 자체는 사이트 서버가 소유자의
+# 클로드 구독(`claude -p`)으로 실행하므로 이 워크플로우는 트리거/확인만 한다.
+#
+# 8시 실행이 실패하면(서버 오프라인 등) 09~14시(KST) 매시 스윕이 신선도 검사
+# 후 성공할 때까지 재시도한다. 이미 오늘 아침 예측이 신선하면 스윕은 no-op.
 
 on:
   schedule:
-    - cron: "0 23 * * *"   # 08:00 KST
-    - cron: "45 23 * * *"  # 08:45 KST — retry; no-op if already updated
+    - cron: "0 23 * * *"   # 08:00 KST — 본 실행
+    - cron: "0 0-5 * * *"  # 09:00~14:00 KST 매시 — 재시도 스윕 (신선하면 no-op)
   workflow_dispatch:
     inputs:
       url:
-        description: "Base URL of the site to update"
+        description: "Base URL of the krw-watcher site"
         default: "https://krw-watcher.tail3e31a9.ts.net"
       force:
-        description: "Run even if today's briefing/forecast already exist"
+        description: "Trigger a cycle even if today's forecast is fresh"
         type: boolean
         default: false
 
 concurrency:
-  group: daily-update
+  group: daily-update-krw
   cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 55
     permissions:
       contents: read
     steps:
-      - name: Wake the site
+      - name: Trigger and verify the daily update
+        env:
+          BASE: ${{ github.event.inputs.url || 'https://krw-watcher.tail3e31a9.ts.net' }}
+          FORCE: ${{ github.event.inputs.force || 'false' }}
         run: |
-          BASE="${{ github.event.inputs.url || 'https://krw-watcher.tail3e31a9.ts.net' }}"
+          set -u
           BASE="${BASE%/}"
-          echo "BASE=$BASE" >> "$GITHUB_ENV"
-          echo "=== Waking $BASE (up to ~5 min) ==="
-          OK=""
-          for i in $(seq 1 20); do
-            HEALTH=$(curl -sf --max-time 25 "$BASE/health" 2>/dev/null || echo "")
-            if [ -n "$HEALTH" ]; then
-              echo "health: $HEALTH"
-              OK=1
-              break
-            fi
-            echo "  [$i] no answer, waiting 15s..."
-            sleep 15
+          TODAY=$(TZ=Asia/Seoul date +%F)
+          echo "target=$BASE today(KST)=$TODAY force=$FORCE"
+
+          echo "=== 1. Reachability (5 tries, 30s backoff) ==="
+          HEALTH=""
+          for i in $(seq 1 5); do
+            HEALTH=$(curl -sf --max-time 20 "$BASE/health" 2>/dev/null || echo "")
+            if [ -n "$HEALTH" ]; then break; fi
+            echo "  [$i] unreachable, waiting 30s..."
+            sleep 30
           done
-          if [ -z "$OK" ]; then
-            echo "::error::Site unreachable at $BASE — is the host / Tailscale funnel up?"
+          if [ -z "$HEALTH" ]; then
+            echo "SITE OFFLINE — will be retried by the next hourly sweep."
+            echo "### daily-update: SITE OFFLINE ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+          echo "health: $(echo "$HEALTH" | head -c 300)"
+          RUNNING=$(echo "$HEALTH" | python3 -c "import sys,json; print(str(json.load(sys.stdin).get('cycle_running', False)).lower())" 2>/dev/null || echo "false")
 
-      - name: Freshness check (skip if already updated today)
-        id: fresh
-        run: |
-          FORCE="${{ github.event.inputs.force || 'false' }}"
-          TODAY_KST=$(TZ=Asia/Seoul date +%F)
-          echo "today (KST): $TODAY_KST  force=$FORCE"
+          echo "=== 2. Forecast freshness (fresh = created today >= 07:00 KST) ==="
+          FRESH=$(curl -sf --max-time 20 "$BASE/api/forecast" 2>/dev/null | python3 -c "
+          import sys, json
+          from datetime import datetime, time
+          try:
+              d = json.load(sys.stdin)
+              ts = datetime.fromisoformat(d['created_kst'])
+              fresh = ts.date().isoformat() == '$TODAY' and ts.time() >= time(7, 0)
+              print('yes' if fresh else 'no')
+              print('created_kst=', d['created_kst'], file=sys.stderr)
+          except Exception:
+              print('no')
+          " || echo "no")
+          echo "fresh=$FRESH cycle_running=$RUNNING"
 
-          BRIEF_DATE=$(curl -sf --max-time 25 "$BASE/api/briefing/latest" 2>/dev/null \
-            | python3 -c "import sys,json; d=json.load(sys.stdin); print((d.get('brief') or {}).get('date',''))" 2>/dev/null || echo "")
-          echo "latest briefing date: ${BRIEF_DATE:-none}"
-
-          FC_KST=$(curl -sf --max-time 25 "$BASE/api/forecast" 2>/dev/null \
-            | python3 -c "import sys,json; print(json.load(sys.stdin).get('created_kst',''))" 2>/dev/null || echo "")
-          echo "forecast created_kst: ${FC_KST:-not exposed}"
-
-          NEED_BRIEF=yes
-          [ "$BRIEF_DATE" = "$TODAY_KST" ] && NEED_BRIEF=no
-          NEED_CYCLE=yes
-          # Only skip the cycle when the API proves a forecast from >= 07:00
-          # KST today already exists; if created_kst isn't exposed, run it —
-          # POST /api/cycle is guarded server-side against double runs.
-          case "$FC_KST" in
-            "$TODAY_KST"T0[7-9]:*|"$TODAY_KST"T1*|"$TODAY_KST"T2*) NEED_CYCLE=no ;;
-          esac
-          if [ "$FORCE" = "true" ]; then NEED_BRIEF=yes; NEED_CYCLE=yes; fi
-
-          echo "need_brief=$NEED_BRIEF" >> "$GITHUB_OUTPUT"
-          echo "need_cycle=$NEED_CYCLE" >> "$GITHUB_OUTPUT"
-          echo "today=$TODAY_KST" >> "$GITHUB_OUTPUT"
-          if [ "$NEED_BRIEF" = "no" ] && [ "$NEED_CYCLE" = "no" ]; then
-            echo "Already updated today — nothing to do."
-          fi
-
-      - name: Generate daily briefing
-        if: steps.fresh.outputs.need_brief == 'yes'
-        run: |
-          echo "=== POST /api/briefing/generate (blocking, up to 15 min) ==="
-          RESP=$(curl -sS -X POST --max-time 900 "$BASE/api/briefing/generate" || echo "")
-          echo "$RESP" | head -c 800; echo
-          BRIEF_DATE=$(echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); d=d.get('brief',d); print(d.get('date',''))" 2>/dev/null || echo "")
-          if [ "$BRIEF_DATE" = "${{ steps.fresh.outputs.today }}" ]; then
-            echo "Briefing for today generated."
+          CYCLE="skipped"
+          if [ "$FORCE" != "true" ] && [ "$FRESH" = "yes" ]; then
+            echo "Today's morning forecast is already fresh — no cycle needed."
+            CYCLE="already_fresh"
+          elif [ "$RUNNING" = "true" ]; then
+            echo "A cycle is already in flight — not triggering another."
+            CYCLE="in_flight"
           else
-            # The endpoint may return a wrapper; re-check the latest briefing.
-            BRIEF_DATE=$(curl -sf --max-time 25 "$BASE/api/briefing/latest" \
-              | python3 -c "import sys,json; d=json.load(sys.stdin); print((d.get('brief') or {}).get('date',''))" 2>/dev/null || echo "")
-            [ "$BRIEF_DATE" = "${{ steps.fresh.outputs.today }}" ] \
-              && echo "Briefing for today confirmed." \
-              || echo "::warning::Briefing date is '${BRIEF_DATE:-unknown}' — generation may have failed."
+            echo "=== 3. Trigger committee cycle ==="
+            RESP=$(curl -sf -X POST --max-time 30 "$BASE/api/cycle" 2>/dev/null || echo '{}')
+            echo "POST /api/cycle -> $RESP"
+            CYCLE=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','?'))" 2>/dev/null || echo "?")
+            echo "=== 4. Confirm the cycle actually started (up to 5 min) ==="
+            STARTED="no"
+            for i in $(seq 1 10); do
+              sleep 30
+              H=$(curl -sf --max-time 20 "$BASE/health" 2>/dev/null || echo '{}')
+              R=$(echo "$H" | python3 -c "import sys,json; print(str(json.load(sys.stdin).get('cycle_running', False)).lower())" 2>/dev/null || echo "?")
+              echo "  [$i] cycle_running=$R"
+              if [ "$R" = "true" ]; then STARTED="yes"; break; fi
+              # A very fast cycle may already be done — re-check freshness.
+              F=$(curl -sf --max-time 20 "$BASE/api/forecast" 2>/dev/null | python3 -c "
+          import sys, json
+          from datetime import datetime, time
+          try:
+              d = json.load(sys.stdin)
+              ts = datetime.fromisoformat(d['created_kst'])
+              print('yes' if ts.date().isoformat() == '$TODAY' and ts.time() >= time(7, 0) else 'no')
+          except Exception:
+              print('no')
+          " || echo "no")
+              if [ "$F" = "yes" ]; then STARTED="done"; break; fi
+            done
+            if [ "$STARTED" = "no" ]; then
+              echo "Cycle did not visibly start — failing so the next sweep retries."
+              echo "### daily-update: cycle failed to start ($TODAY)" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
           fi
 
-      - name: Run forecast cycle
-        if: steps.fresh.outputs.need_cycle == 'yes'
-        run: |
-          BEFORE=$(curl -sf --max-time 25 "$BASE/api/forecast" 2>/dev/null | sha256sum | cut -d' ' -f1)
-          echo "=== POST /api/cycle ==="
-          curl -sS -X POST --max-time 60 "$BASE/api/cycle" | head -c 400; echo
-          echo "=== Waiting for the forecast to update (up to ~35 min) ==="
-          DONE=""
-          for i in $(seq 1 140); do
-            sleep 15
-            NOW=$(curl -sf --max-time 25 "$BASE/api/forecast" 2>/dev/null | sha256sum | cut -d' ' -f1)
-            if [ -n "$NOW" ] && [ "$NOW" != "$BEFORE" ]; then
-              echo "  [$i] forecast changed — cycle complete."
-              DONE=1
-              break
-            fi
-            echo "  [$i] unchanged, waiting..."
-          done
-          [ -n "$DONE" ] || echo "::warning::Forecast unchanged after 35 min — the cycle may still be running server-side."
+          echo "=== 5. Daily briefing (generate only if today's is missing) ==="
+          BRIEF_DATE=$(curl -sf --max-time 20 "$BASE/api/briefing/latest" 2>/dev/null | python3 -c "
+          import sys, json
+          try:
+              b = json.load(sys.stdin).get('brief') or {}
+              print(b.get('date', ''))
+          except Exception:
+              print('')
+          " || echo "")
+          BRIEF="up_to_date"
+          if [ "$BRIEF_DATE" != "$TODAY" ]; then
+            echo "No briefing for $TODAY (latest: '${BRIEF_DATE:-none}') — generating (synchronous, up to 15 min)."
+            BR=$(curl -sf -X POST --max-time 900 "$BASE/api/briefing/generate" 2>/dev/null || echo "")
+            if [ -n "$BR" ]; then BRIEF="generated"; else BRIEF="generate_failed"; fi
+            echo "briefing: $BRIEF"
+          else
+            echo "Briefing for $TODAY already exists."
+          fi
 
-      - name: Summary
-        if: always()
-        run: |
           {
-            echo "### Daily 08:00 KST update — ${{ steps.fresh.outputs.today }}"
+            echo "### daily-update ($TODAY KST)"
             echo '```'
-            echo "site   : $BASE"
-            echo "brief  : ran=${{ steps.fresh.outputs.need_brief }}"
-            echo "cycle  : ran=${{ steps.fresh.outputs.need_cycle }}"
-            echo "health : $(curl -sf --max-time 20 "$BASE/health" | head -c 300)"
-            echo "brief@ : $(curl -sf --max-time 20 "$BASE/api/briefing/latest" | python3 -c "import sys,json; d=json.load(sys.stdin); print((d.get('brief') or {}).get('date','?'))" 2>/dev/null)"
+            echo "cycle=$CYCLE briefing=$BRIEF"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
