@@ -54,7 +54,7 @@ export default function TodayPanel({
       <div className="card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest">
-            {ko ? "오늘" : "Today"}
+            {ko ? "연준은 어디로 가는가 — 한눈에" : "Where Is The Fed Headed — At a Glance"}
           </p>
           <p className="text-xl font-light mt-0.5">
             {today ? `${today.date_kst} (${weekday})` : "…"}
@@ -81,7 +81,7 @@ export default function TodayPanel({
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest">
-            {ko ? "현재 금리 경로 전망" : "Current Rate Path Call"}
+            {ko ? "오늘의 금리 경로 콜" : "Today's Rate Path Call"}
           </p>
           <button onClick={() => onNavigate("forecast")}
             className="text-xs text-[var(--color-gold)] hover:underline">
@@ -113,7 +113,7 @@ export default function TodayPanel({
           </div>
         ) : (
           <p className="text-sm text-[var(--color-text-muted)]">
-            {ko ? "첫 예측 생성 중 — 잠시 후 다시 확인해주세요." : "Generating the first forecast — check back soon."}
+            {ko ? "오늘의 금리 경로 불러오는 중…" : "Loading today's rate path…"}
           </p>
         )}
       </div>

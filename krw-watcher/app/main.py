@@ -30,7 +30,10 @@ KST = ZoneInfo("Asia/Seoul")
 MODEL_ID = os.getenv("MODEL_ID", "claude-sonnet-4-6")
 
 COLLECT_EVERY_MIN = int(os.getenv("COLLECT_EVERY_MIN", "10"))
-CYCLE_HOURS_KST = os.getenv("CYCLE_HOURS_KST", "8,13,20")
+# 아침 사이클은 06:40에 시작해 위원회(≈35분)와 07:30 브리프까지 08:00 KST 전에
+# 완료되어야 한다. 나머지 사이클은 오후/저녁 시각을 유지한다.
+CYCLE_HOURS_KST = os.getenv("CYCLE_HOURS_KST", "6,13,20")
+CYCLE_MINUTE_KST = int(os.getenv("CYCLE_MINUTE_KST", "40"))
 BRIEF_HOURS_KST = os.getenv("BRIEF_HOURS_KST", "7")
 RUN_ON_STARTUP = os.getenv("RUN_ON_STARTUP", "true").lower() in ("1", "true", "yes", "on")
 STARTUP_DELAY_SEC = float(os.getenv("STARTUP_DELAY_SEC", "10"))
@@ -100,7 +103,7 @@ async def lifespan(app: FastAPI):
     _scheduler.add_job(lambda: asyncio.ensure_future(asyncio.to_thread(quant.daily_tick)),
                        CronTrigger(hour="0,9,16", minute=10, timezone=str(KST)), id="daily")
     _scheduler.add_job(lambda: asyncio.ensure_future(engine.run_cycle("scheduled")),
-                       CronTrigger(hour=CYCLE_HOURS_KST, minute=20, timezone=str(KST)),
+                       CronTrigger(hour=CYCLE_HOURS_KST, minute=CYCLE_MINUTE_KST, timezone=str(KST)),
                        id="cycle", max_instances=1, coalesce=True)
     _scheduler.add_job(lambda: asyncio.ensure_future(briefing.generate("scheduled")),
                        CronTrigger(hour=BRIEF_HOURS_KST, minute=30, timezone=str(KST)),
@@ -109,7 +112,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(_warmup())
     asyncio.create_task(_keepalive())
     collector.emit("system",
-                   f"KRW-Watcher 시작 — 사이클 KST {CYCLE_HOURS_KST}시20분 · 브리프 {BRIEF_HOURS_KST}시30분 "
+                   f"KRW-Watcher 시작 — 사이클 KST {CYCLE_HOURS_KST}시{CYCLE_MINUTE_KST}분 · 브리프 {BRIEF_HOURS_KST}시30분 "
                    f"· 에이전트 {len(engine.ROSTER)} · 2-round", "info")
     yield
     try:
