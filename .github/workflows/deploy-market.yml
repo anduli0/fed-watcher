@@ -1,0 +1,227 @@
+name: Deploy market-watcher to Render
+
+# MARKET WATCHER (종합 금융 애널리스트) — cloud-hosted so https://<market>.onrender.com
+# is reachable from mobile INDEPENDENTLY of the owner's PC. The deterministic pipeline
+# runs from keyless sources + the cloud-hosted fed/krw siblings; the AI 수석 브리프 runs
+# the Max subscription via CLAUDE_CODE_OAUTH_TOKEN, and the server's own 08:00 KST anchor
+# generates the daily brief with catch-up. No PC involvement at view time.
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'market-watcher/**'
+      - '.github/workflows/deploy-market.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: render-deploy-market
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Setup service, deploy, verify
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          CLAUDE_CREDENTIALS: ${{ secrets.CLAUDE_CREDENTIALS }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          set -e
+
+          echo "=== Render owner ==="
+          OWNER_ID=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/owners?limit=1" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['owner']['id'])")
+          echo "Owner ID: $OWNER_ID"
+
+          echo "=== Locate market-watcher service ==="
+          SERVICES=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services?limit=50")
+          SERVICE_ID=$(echo "$SERVICES" | python3 -c "
+          import sys, json
+          for item in json.load(sys.stdin):
+            svc = item.get('service', {})
+            if svc.get('name','').lower() == 'market-watcher':
+              print(svc['id']); break
+          " 2>/dev/null || true)
+
+          if [ -z "$SERVICE_ID" ]; then
+            echo "=== Creating market-watcher service (Docker, branch ${GITHUB_REF_NAME}) ==="
+            CREATE_RESP=$(curl -s -X POST "https://api.render.com/v1/services" \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"type\": \"web_service\",
+                \"name\": \"market-watcher\",
+                \"ownerId\": \"$OWNER_ID\",
+                \"repo\": \"https://github.com/anduli0/fed-watcher\",
+                \"branch\": \"${GITHUB_REF_NAME}\",
+                \"autoDeploy\": \"yes\",
+                \"rootDir\": \"market-watcher\",
+                \"serviceDetails\": {
+                  \"env\": \"docker\",
+                  \"plan\": \"free\",
+                  \"region\": \"oregon\",
+                  \"healthCheckPath\": \"/health\",
+                  \"envSpecificDetails\": {
+                    \"dockerfilePath\": \"./Dockerfile\",
+                    \"dockerContext\": \".\"
+                  }
+                }
+              }")
+            echo "Create response: $CREATE_RESP"
+            SERVICE_ID=$(echo "$CREATE_RESP" | python3 -c "
+          import sys, json
+          d = json.load(sys.stdin)
+          d = d.get('service', d)
+          print(d.get('id',''))
+          " 2>/dev/null || echo "")
+          fi
+          echo "Service ID: $SERVICE_ID"
+          if [ -z "$SERVICE_ID" ]; then echo "ERROR: no service id"; exit 1; fi
+
+          echo "=== Env vars (non-destructive merge) ==="
+          EXISTING_JSON=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID/env-vars?limit=100" || echo '[]')
+          ENV_VARS=$(EXISTING_JSON="$EXISTING_JSON" python3 -c "
+          import json, os
+          existing = {}
+          try:
+            for item in json.loads(os.environ.get('EXISTING_JSON') or '[]'):
+              ev = item.get('envVar', item) if isinstance(item, dict) else {}
+              if ev.get('key'):
+                existing[ev['key']] = ev.get('value', '')
+          except Exception:
+            pass
+          # Subscription auth for the AI brief + the daily 08:00 KST anchor + sibling
+          # feeds. fed/krw are cloud-hosted (always up); kospi/us are the owner's PC
+          # funnel (best-effort enrichment — MARKET degrades gracefully when absent).
+          desired = {
+            'CLAUDE_CODE_OAUTH_TOKEN': os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', ''),
+            'CLAUDE_CREDENTIALS': os.environ.get('CLAUDE_CREDENTIALS', ''),
+            'LLM_ENABLED': 'true',
+            'LLM_MORNING_HOUR': '8',
+            'TZ': 'Asia/Seoul',
+            'FED_WATCHER_BASE_URL': 'https://fed-watcher-backend-9rgk.onrender.com',
+            'KRW_WATCHER_BASE_URL': 'https://krw-watcher.onrender.com',
+            'KOSPI_WATCHER_BASE_URL': 'https://krw-watcher.tail3e31a9.ts.net:8443',
+            'US_WATCHER_BASE_URL': 'https://krw-watcher.tail3e31a9.ts.net:10000',
+          }
+          merged = dict(existing)
+          for k, v in desired.items():
+            if v:
+              merged[k] = v
+          if merged == existing:
+            print('UNCHANGED')
+          else:
+            print(json.dumps([{'key': k, 'value': v} for k, v in merged.items()]))
+          ")
+          if [ "$ENV_VARS" = "UNCHANGED" ]; then
+            echo "Env vars already up to date -> skipping PUT"
+          else
+            curl -sf -X PUT \
+              "https://api.render.com/v1/services/$SERVICE_ID/env-vars" \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$ENV_VARS" -o /dev/null -w "env-vars PUT HTTP %{http_code}\n"
+          fi
+
+          echo "=== Service URL ==="
+          URL=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE_ID" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('service',d).get('serviceDetails',{}).get('url',''))" 2>/dev/null || echo "")
+          echo "URL: $URL"
+
+          NEW_DEPLOY_ID=""
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "=== Waiting for Render's webhook build of $GITHUB_SHA ==="
+            for i in $(seq 1 6); do
+              LATEST=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+                "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=1" \
+                | python3 -c "import sys,json; d=json.load(sys.stdin); dep=(d[0].get('deploy',d[0]) if d else {}); print(dep.get('id','') + ' ' + dep.get('commit',{}).get('id',''))" 2>/dev/null || echo " ")
+              LATEST_ID="${LATEST%% *}"
+              LATEST_COMMIT="${LATEST#* }"
+              if [ "$LATEST_COMMIT" = "$GITHUB_SHA" ]; then
+                NEW_DEPLOY_ID="$LATEST_ID"
+                echo "  webhook build found: $NEW_DEPLOY_ID"
+                break
+              fi
+              echo "  [$i] latest deploy is for '$LATEST_COMMIT'; waiting 15s..."
+              sleep 15
+            done
+          fi
+          if [ -z "$NEW_DEPLOY_ID" ]; then
+            echo "=== Triggering deploy via API ==="
+            NEW_DEPLOY_ID=$(curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              "https://api.render.com/v1/services/$SERVICE_ID/deploys" \
+              -d '{"clearCache":"do_not_clear"}' \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id', d.get('deploy',{}).get('id','')))" 2>/dev/null || echo "")
+            echo "New deploy ID: ${NEW_DEPLOY_ID:-'(none — will follow latest)'}"
+          fi
+
+          echo "=== Polling deploy status (up to 20 min) ==="
+          FINAL_STATUS="unknown"
+          for i in $(seq 1 80); do
+            sleep 15
+            if [ -n "$NEW_DEPLOY_ID" ]; then
+              STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+                "https://api.render.com/v1/services/$SERVICE_ID/deploys/$NEW_DEPLOY_ID" \
+                | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status', d.get('deploy',{}).get('status','?')))" 2>/dev/null || echo "?")
+            else
+              STATUS=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+                "https://api.render.com/v1/services/$SERVICE_ID/deploys?limit=1" \
+                | python3 -c "import sys,json; d=json.load(sys.stdin); print((d[0].get('deploy',d[0])).get('status','?')) if d else print('?')" 2>/dev/null || echo "?")
+            fi
+            echo "  [$i] status=$STATUS"
+            FINAL_STATUS="$STATUS"
+            case "$STATUS" in
+              live) echo "Deploy live."; break ;;
+              build_failed|update_failed|canceled|pre_deploy_failed|deactivated) echo "Deploy failed: $STATUS"; break ;;
+            esac
+          done
+
+          echo "=== Health & endpoint probes ==="
+          HEALTH=""
+          for i in $(seq 1 9); do
+            HEALTH=$(curl -sf --max-time 15 "$URL/health" 2>/dev/null || echo "")
+            if [ -n "$HEALTH" ]; then break; fi
+            echo "  [$i] not ready, waiting 10s..."
+            sleep 10
+          done
+          echo "health: ${HEALTH:-OFFLINE}"
+          ROOT_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$URL/" || echo ERR)
+          STATE_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "$URL/api/v1/state" || echo ERR)
+          echo "probes: root=$ROOT_CODE state=$STATE_CODE"
+
+          echo "=== AI brief status (subscription via claude -p) ==="
+          BRIEF=$(curl -sf --max-time 30 "$URL/api/v1/aibrief" 2>/dev/null | python3 -c "
+          import sys, json
+          try:
+            s = json.load(sys.stdin).get('status', {})
+            print(f\"enabled={s.get('enabled')} cli_found={s.get('cli_found')} auth_ok={s.get('auth_ok')} morning_hour={s.get('morning_hour_kst')} has_brief={s.get('has_brief')}\")
+          except Exception as e:
+            print('aibrief unavailable:', e)
+          " 2>/dev/null || echo "aibrief probe failed")
+          echo "aibrief: $BRIEF"
+
+          {
+            echo "### market-watcher deploy"
+            echo '```'
+            echo "SERVICE_ID=$SERVICE_ID"
+            echo "URL=$URL"
+            echo "DEPLOY_STATUS=$FINAL_STATUS"
+            echo "HEALTH=${HEALTH:-OFFLINE}"
+            echo "probes: root=$ROOT_CODE state=$STATE_CODE"
+            echo "aibrief: $BRIEF"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          case "$FINAL_STATUS" in
+            live) exit 0 ;;
+            *) echo "Deploy did not reach live (status=$FINAL_STATUS)"; exit 1 ;;
+          esac
