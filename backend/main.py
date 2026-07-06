@@ -530,9 +530,30 @@ async def _keepalive_pinger():
             logger.warning("Keep-alive ping failed: %s", e)
 
 
+async def _fail_orphaned_runs():
+    """Mark run_log rows stuck in 'running' as failed at boot.
+
+    A container kill (deploy swap, OOM, health-check SIGKILL) leaves the
+    in-flight run's row 'running' forever, so the UI shows a phantom cycle
+    that never finishes. A fresh process cannot have a running cycle, so
+    anything still 'running' here is dead by definition.
+    """
+    try:
+        async with AsyncSessionLocal() as db:
+            res = await db.execute(text(
+                "UPDATE run_log SET status = 'failed' WHERE status = 'running'"
+            ))
+            await db.commit()
+            if res.rowcount:
+                logger.warning("Marked %d orphaned running cycle(s) as failed.", res.rowcount)
+    except Exception as e:
+        logger.warning("Orphaned-run cleanup failed: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await _fail_orphaned_runs()
     _restore_admin_weights()
     init_scheduler(trigger_cycle, publish_morning_forecast, graceful_shutdown, run_data_collection)
     if os.getenv("RUN_CYCLE_ON_STARTUP", "true").lower() in ("1", "true", "yes", "on"):

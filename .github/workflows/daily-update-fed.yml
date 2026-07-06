@@ -95,8 +95,8 @@ jobs:
             sleep 20
           done
 
-          echo "=== Waiting for the cycle to complete (up to ~50 min) ==="
-          for i in $(seq 1 100); do
+          echo "=== Waiting for the cycle to complete (up to ~75 min) ==="
+          for i in $(seq 1 150); do
             sleep 30
             if [ "$(fresh)" = "yes" ]; then
               echo "cycle completed"

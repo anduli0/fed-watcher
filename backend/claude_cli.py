@@ -112,6 +112,17 @@ async def _run_once(system_prompt: str, user_message: str, timeout: float) -> st
             f"{existing_node_opts} --max-old-space-size={_NODE_HEAP_MB}".strip()
         )
 
+    def _deprioritize():
+        # On tiny shared-CPU hosts (Render free tier ≈ 0.1 vCPU) a claude/node
+        # process at normal priority starves uvicorn: /health stops answering
+        # within Render's 5s budget and the platform SIGKILLs the instance
+        # mid-cycle (observed as exit 137 + "health check timed out" events).
+        # Running the child at low priority keeps the web server responsive.
+        try:
+            os.nice(15)
+        except OSError:
+            pass
+
     try:
         proc = await asyncio.create_subprocess_exec(
             CLAUDE_BIN, "-p",
@@ -122,6 +133,7 @@ async def _run_once(system_prompt: str, user_message: str, timeout: float) -> st
             stderr=asyncio.subprocess.PIPE,
             cwd="/tmp",  # run outside git repo so stop-hook exits early
             env=child_env,
+            preexec_fn=_deprioritize,
         )
         try:
             stdout, stderr = await asyncio.wait_for(

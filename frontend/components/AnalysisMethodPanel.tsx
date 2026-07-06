@@ -115,7 +115,7 @@ export default function AnalysisMethodPanel() {
   return (
     <div className="card">
       <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-5">
-        {lang === "en" ? "How The Forecast Is Built — 10-Agent Architecture" : "예측 생성 방법 — 10에이전트 아키텍처"}
+        {lang === "en" ? "How The Forecast Is Built — 21-Agent Architecture" : "예측 생성 방법 — 21에이전트 아키텍처"}
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {descs.map(d => (
