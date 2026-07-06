@@ -13,6 +13,20 @@ function Write-Log($msg) {
 
 Write-Log "=== Boot triggered ==="
 
+# Sync to master before launching, so every boot brings the PC up on the same
+# code as the cloud (Render / onrender.com). Untracked .env / data survive a
+# hard reset; if git is unavailable we boot on the existing checkout.
+Push-Location $ProjectDir
+try {
+    git fetch origin master --quiet 2>&1 | ForEach-Object { Write-Log "  git: $_" }
+    git reset --hard origin/master 2>&1 | ForEach-Object { Write-Log "  git: $_" }
+    Write-Log "synced to origin/master: $(git rev-parse --short HEAD 2>$null)"
+} catch {
+    Write-Log "git sync skipped ($_) — booting on existing checkout."
+} finally {
+    Pop-Location
+}
+
 # Verify KST time (UTC+9)
 $kst = [System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId(
     [DateTime]::UtcNow, "Korea Standard Time"
