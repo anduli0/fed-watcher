@@ -25,6 +25,21 @@ function Write-Log($msg) {
 $BaseUrl = $BaseUrl.TrimEnd("/")
 Write-Log "=== Daily update check (target: $BaseUrl) ==="
 
+# ── 0. Sync to master FIRST, so the morning run uses the same code as Render ─
+# Pulls origin/master and restarts krw-watcher if its code changed. This is
+# what keeps the PC, the Render service, and onrender.com on identical code.
+$SyncScript = "$ProjectDir\scheduler\sync_krw.ps1"
+if (Test-Path $SyncScript) {
+    Write-Log "running sync_krw.ps1 (git pull + restart if changed)..."
+    try {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SyncScript 2>&1 |
+            ForEach-Object { Write-Log "  sync: $_" }
+        Write-Log "sync_krw.ps1 finished (exit=$LASTEXITCODE)"
+    } catch { Write-Log "sync_krw.ps1 error (continuing with existing code): $_" }
+} else {
+    Write-Log "sync_krw.ps1 not found — skipping self-update (checkout may be stale)."
+}
+
 # ── 1. Reach the app (localhost first — funnel URL 401s on POST) ────────────
 $reachable = $null
 foreach ($candidate in @($BaseUrl, "https://krw-watcher.tail3e31a9.ts.net")) {
