@@ -48,6 +48,12 @@ async def run_data_collection():
 # already-running cycle produces the same forecast the new request wanted.
 _cycle_lock = asyncio.Lock()
 
+# A genuine on-hold regime is the only case where a directional call should be
+# suppressed to NEUTRAL. The market-implied forward path detects that regime far
+# better than cross-agent dispersion does, so we treat |market prior| below this
+# threshold (bps) as "market sees no move" and neutralize only there.
+NEUTRAL_REGIME_BPS = float(os.getenv("NEUTRAL_REGIME_BPS", "15"))
+
 
 async def trigger_cycle(cycle_type: str = "scheduled"):
     if _cycle_lock.locked():
@@ -184,8 +190,9 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         #    the committee's edge is smallest when it disagrees → shrink the raw
         #    committee delta toward the market prior in proportion to dispersion.
         # 2) On-hold regimes are the engine's weakest (29% directional): when the
-        #    committee's ±1σ band straddles zero, publish NEUTRAL instead of a
-        #    low-conviction directional call (reference build's caution rule).
+        #    MARKET-implied path is flat AND the committee's ±1σ band straddles
+        #    zero, publish NEUTRAL. Gating on the market path (not dispersion
+        #    alone) keeps genuine directional calls when the market prices a move.
         # 3) Published confidence may never exceed the weighted share of agents
         #    agreeing with the published sign (calibration by construction).
         def _final_horizon_deltas(hh: str) -> list[tuple[float, float]]:
@@ -268,16 +275,24 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                 recent_raw_deltas=recent_raw,
             )
 
-            # (2) 1σ conviction band: a directional call whose band straddles
-            # zero is statistically indistinguishable from "no change" — the
-            # engine's historical weak spot. Publish neutral instead.
+            # (2) On-hold regime gate. Suppressing a directional call to NEUTRAL
+            # is the right hedge ONLY in a genuine on-hold regime. Cross-agent
+            # dispersion is a poor detector of that: with 21 diverse agents σ is
+            # structurally large (diversity, not forecast uncertainty), so keying
+            # off the ±1σ band ALONE washed out almost every ±25bps call and left
+            # the site perpetually "neutral". The market-implied forward path is
+            # the far better regime detector (its direction backtests at 70–83%),
+            # so we neutralize only when the market itself is close to flat AND
+            # the committee's band straddles zero. When the market prices a clear
+            # move, we keep the directional call.
             published_delta = stabilized.published_delta
             band_neutralized = False
-            if (sigma is not None and published_delta != 0
+            prior_flat = prior is None or abs(prior) < NEUTRAL_REGIME_BPS
+            if (prior_flat and sigma is not None and published_delta != 0
                     and (published_delta - sigma) < 0 < (published_delta + sigma)):
                 AL.emit("system", "Chief",
-                        f"{h}: {published_delta:+.0f}bps 콜의 1σ 밴드(±{sigma:.0f})가 0을 포함 "
-                        "→ 방향 확신 부족, 중립 발행 (동결기 신중 규칙)",
+                        f"{h}: 시장내재 경로 평탄(±{abs(prior or 0):.0f}bps)+위원회 밴드 0 포함 "
+                        "→ 동결 국면 판단, 중립 발행",
                         "#DD6B20", "info")
                 published_delta = 0.0
                 band_neutralized = True
@@ -297,8 +312,8 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
             justification = None
             if band_neutralized:
                 justification = (
-                    f"위원회 ±1σ 밴드가 0을 포함(±{sigma:.0f}bps) — 방향 확신 부족으로 "
-                    "중립 발행 (동결기 신중 규칙)"
+                    f"시장내재 금리 경로가 평탄(±{abs(prior or 0):.0f}bps)하고 위원회 "
+                    "±1σ 밴드가 0을 포함 — 동결 국면으로 판단, 중립 발행"
                 )
             elif stabilized.changed:
                 try:
