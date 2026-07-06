@@ -1,0 +1,153 @@
+name: Daily update krw-watcher
+
+# Ensures https://krw-watcher.onrender.com is updated every morning (KST).
+#
+# Primary driver: a Claude scheduled routine fires at 08:00 KST, dispatches
+# this workflow (workflow_dispatch), monitors it, and retries on failure.
+# Backup driver: the cron below (08:20 KST) runs even if the routine doesn't,
+# and skips itself when the forecast is already fresh — so double-running is
+# harmless. GitHub cron only fires from the default branch; the routine can
+# dispatch from any branch that has this file.
+
+on:
+  schedule:
+    - cron: '20 23 * * *'   # 08:20 KST
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Run a committee cycle even if today's forecast is fresh
+        required: false
+        default: 'false'
+
+concurrency:
+  group: krw-daily-update
+  cancel-in-progress: false
+
+env:
+  BASE_URL: https://krw-watcher.onrender.com
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - name: Wake service (Render free tier cold start)
+        run: |
+          set -e
+          for i in $(seq 1 20); do
+            H=$(curl -sf --max-time 25 "$BASE_URL/health" || echo "")
+            if [ -n "$H" ]; then
+              echo "health: $H"
+              exit 0
+            fi
+            echo "  [$i] not up yet, waiting 15s..."
+            sleep 15
+          done
+          echo "ERROR: service did not come up within ~5 min"
+          exit 1
+
+      - name: Run committee cycle if today's forecast is missing or stale
+        run: |
+          set -e
+          TODAY=$(TZ=Asia/Seoul date +%F)
+          START_ISO=$(TZ=Asia/Seoul date -Iseconds)
+          echo "KST today: $TODAY  (run started $START_ISO)"
+
+          created () {
+            curl -sf --max-time 25 "$BASE_URL/api/forecast" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin).get('created_kst',''))" 2>/dev/null || echo ""
+          }
+
+          CREATED=$(created)
+          echo "current forecast created_kst: ${CREATED:-none}"
+
+          FRESH=$(python3 - "$CREATED" "$TODAY" <<'EOF'
+          import sys
+          from datetime import datetime
+          created, today = sys.argv[1], sys.argv[2]
+          try:
+              ts = datetime.fromisoformat(created)
+              # fresh = made this KST morning (06:00 or later today)
+              print("yes" if created[:10] == today and ts.hour >= 6 else "no")
+          except Exception:
+              print("no")
+          EOF
+          )
+
+          if [ "$FRESH" = "yes" ] && [ "${{ inputs.force }}" != "true" ]; then
+            echo "Forecast already fresh for today -> skipping cycle"
+            echo "CYCLE=skipped_fresh" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          echo "=== POST /api/cycle ==="
+          RESP=$(curl -sf --max-time 30 -X POST "$BASE_URL/api/cycle" || echo '{}')
+          echo "cycle response: $RESP"
+
+          echo "=== Waiting for new forecast (up to ~45 min) ==="
+          for i in $(seq 1 90); do
+            sleep 30
+            NOW=$(created)
+            if [ -n "$NOW" ] && [ "$NOW" != "$CREATED" ] && \
+               [ "$(python3 -c "import sys; print('1' if sys.argv[1] >= sys.argv[2] else '0')" "$NOW" "$START_ISO")" = "1" ]; then
+              echo "new forecast created_kst: $NOW"
+              echo "CYCLE=updated" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            RUNNING=$(curl -sf --max-time 20 "$BASE_URL/health" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin).get('cycle_running'))" 2>/dev/null || echo "?")
+            echo "  [$i] forecast=$NOW cycle_running=$RUNNING"
+          done
+          echo "ERROR: cycle did not produce a new forecast in time"
+          exit 1
+
+      - name: Ensure today's briefing exists
+        run: |
+          set -e
+          TODAY=$(TZ=Asia/Seoul date +%F)
+
+          has_brief () {
+            curl -sf --max-time 25 "$BASE_URL/api/briefing/latest?date=$TODAY" \
+              | python3 -c "import sys,json; print('yes' if json.load(sys.stdin).get('brief') else 'no')" 2>/dev/null || echo "no"
+          }
+
+          if [ "$(has_brief)" = "yes" ]; then
+            echo "Briefing for $TODAY already exists"
+            echo "BRIEF=exists" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          echo "=== POST /api/briefing/generate ==="
+          curl -s --max-time 600 -X POST "$BASE_URL/api/briefing/generate" \
+            | head -c 400 || true
+          echo
+
+          for i in $(seq 1 20); do
+            if [ "$(has_brief)" = "yes" ]; then
+              echo "Briefing generated"
+              echo "BRIEF=generated" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            echo "  [$i] briefing not ready, waiting 30s..."
+            sleep 30
+          done
+          echo "ERROR: briefing for $TODAY was not generated"
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          HEALTH=$(curl -sf --max-time 20 "$BASE_URL/health" 2>/dev/null || echo 'OFFLINE')
+          CREATED=$(curl -sf --max-time 20 "$BASE_URL/api/forecast" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('created_kst',''))" 2>/dev/null || echo '?')
+          {
+            echo "### krw-watcher daily update"
+            echo '```'
+            echo "cycle:    ${CYCLE:-FAILED}"
+            echo "briefing: ${BRIEF:-FAILED}"
+            echo "forecast created_kst: $CREATED"
+            echo "health: $HEALTH"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
