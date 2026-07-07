@@ -205,7 +205,7 @@ def adjustment(live_forecasts: Optional[list[dict]] = None) -> dict:
                     "conf_scale": 1.0, "conf_cap": 0.85,
                     "n_real": len(errs), "source": "live-feedback"}
     return {"bias_krw": 0.0, "scale": 1.0, "conf_scale": 1.0,
-            "conf_cap": 0.6, "n_real": 0, "source": "sim-prior"}
+            "conf_cap": 0.8, "n_real": 0, "source": "sim-prior"}
 
 
 # ── daily H/L/C prediction with band feedback ────────────────────────────────
