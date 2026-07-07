@@ -37,6 +37,7 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           CLAUDE_CREDENTIALS: ${{ secrets.CLAUDE_CREDENTIALS }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          FED_FORWARD_SIGNALS: ${{ secrets.FED_FORWARD_SIGNALS }}
         run: |
           set -e
 
@@ -216,6 +217,11 @@ jobs:
             # expire like a .credentials.json snapshot. Fall back to CLAUDE_CREDENTIALS.
             'CLAUDE_CODE_OAUTH_TOKEN': os.environ.get('CLAUDE_CODE_OAUTH_TOKEN', ''),
             'CLAUDE_CREDENTIALS': os.environ.get('CLAUDE_CREDENTIALS', ''),
+            # Optional operator override for the quarterly SEP dot-plot median +
+            # key Fed-policy signals, injected into every agent. Set the
+            # FED_FORWARD_SIGNALS GitHub secret to pin exact numbers; unset = the
+            # model relies on auto-scraped Fed-policy news only.
+            'FED_FORWARD_SIGNALS': os.environ.get('FED_FORWARD_SIGNALS', ''),
           }
           merged = dict(existing)
           for k, v in desired.items():
