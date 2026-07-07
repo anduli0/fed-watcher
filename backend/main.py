@@ -48,12 +48,6 @@ async def run_data_collection():
 # already-running cycle produces the same forecast the new request wanted.
 _cycle_lock = asyncio.Lock()
 
-# A genuine on-hold regime is the only case where a directional call should be
-# suppressed to NEUTRAL. The market-implied forward path detects that regime far
-# better than cross-agent dispersion does, so we treat |market prior| below this
-# threshold (bps) as "market sees no move" and neutralize only there.
-NEUTRAL_REGIME_BPS = float(os.getenv("NEUTRAL_REGIME_BPS", "15"))
-
 
 async def trigger_cycle(cycle_type: str = "scheduled"):
     if _cycle_lock.locked():
@@ -185,48 +179,13 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         collab_rounds = 2 if result.get("collaboration", {}).get("agents_revised") else 1
         await crud.complete_run(db, run.id, "completed", collab_rounds)
 
-        # ── Accuracy optimizations (evidence from the backtest) ──────────────
-        # 1) The market-implied signal alone hits 83% directionally at 12m while
-        #    the committee's edge is smallest when it disagrees → shrink the raw
-        #    committee delta toward the market prior in proportion to dispersion.
-        # 2) On-hold regimes are the engine's weakest (29% directional): when the
-        #    MARKET-implied path is flat AND the committee's ±1σ band straddles
-        #    zero, publish NEUTRAL. Gating on the market path (not dispersion
-        #    alone) keeps genuine directional calls when the market prices a move.
-        # 3) Published confidence may never exceed the weighted share of agents
-        #    agreeing with the published sign (calibration by construction).
-        def _final_horizon_deltas(hh: str) -> list[tuple[float, float]]:
-            """[(delta, weight)] using each agent's round-final output."""
-            by_agent: dict[int, dict] = {}
-            for ar in result["agent_results"]:
-                cur = by_agent.get(ar["agent_id"])
-                if cur is None or ar.get("round", 1) > cur.get("round", 1):
-                    by_agent[ar["agent_id"]] = ar
-            out = []
-            for ar in by_agent.values():
-                hv = (ar.get("horizons") or {}).get(hh, {})
-                d = hv.get("delta_bps", ar["rate_path_delta_bps"] if hh == "12m" else None)
-                if d is not None:
-                    out.append((float(d), float(ar.get("weight_applied") or 1.0)))
-            return out
-
-        def _dispersion(vals: list[tuple[float, float]]) -> float | None:
-            if len(vals) < 2:
-                return None
-            xs = [v for v, _ in vals]
-            m = sum(xs) / len(xs)
-            return (sum((x - m) ** 2 for x in xs) / len(xs)) ** 0.5
-
-        market_prior_bps = {}
-        try:
-            if market_prior_text:
-                # recompute the numeric priors used in the context block
-                dff_v, gs2_v = macro.get("DFF"), macro.get("GS2")
-                if dff_v is not None and gs2_v is not None:
-                    p12 = (gs2_v - dff_v) * 100.0 * 0.7
-                    market_prior_bps = {"12m": p12, "6m": p12 * 0.5}
-        except Exception:
-            pass
+        # The published call is the committee's OWN weighted decision. The
+        # market-implied path is already injected into every agent's context as a
+        # shared anchor (market_prior_text), so agents have priced it in; the
+        # aggregate delta and its confidence are published as-is. Earlier post-hoc
+        # steps (shrink toward the prior, neutralize on dispersion, cap confidence
+        # by agent agreement) made the call timid and collapsed confidence into
+        # the low-10%s — removed in favor of the committee's native output.
 
         # ── Stabilize and persist all 4 horizons ──
         # Always publish immediately — cloud is always-on, no "morning publish" gate needed
@@ -237,23 +196,13 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         for h in HORIZONS:
             agg = result["horizons"][h]
 
-            finals = _final_horizon_deltas(h)
-            sigma = _dispersion(finals)
-
-            # (1) dispersion-weighted shrink toward the market prior (6m/12m)
-            raw_delta = agg["weighted_delta_bps"]
-            prior = market_prior_bps.get(h)
-            if prior is not None and sigma is not None:
-                shrink = min(0.5, sigma / 50.0)
-                blended = (1 - shrink) * raw_delta + shrink * prior
-                if abs(blended - raw_delta) >= 1.0:
-                    AL.emit("system", "Chief",
-                            f"{h}: committee {raw_delta:+.0f}bps → {blended:+.0f}bps "
-                            f"(시장프라이어 수축 {shrink:.0%}, σ={sigma:.0f}bps)",
-                            "#C9A84C", "info")
-                raw_delta = blended
-            agg = dict(agg)
-            agg["weighted_delta_bps"] = raw_delta
+            # The published call IS the committee's own weighted decision. The
+            # market-implied prior is already injected into every agent's context
+            # as an anchor (see market_prior_text), so agents have priced it in —
+            # we do NOT additionally shrink the aggregate toward it here, and we
+            # do NOT cap confidence by cross-agent agreement. Both post-hoc steps
+            # made the published call timid and collapsed confidence into the
+            # low-10%s; the committee's aggregate + confidence is the signal.
             prev = await crud.get_latest_horizon_forecast(db, h)
             prev_delta = prev.published_delta if prev else 0.0
             prev_streak = prev.unchanged_streak_days if prev else 0
@@ -276,50 +225,15 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                 recent_raw_deltas=recent_raw,
             )
 
-            # (2) On-hold regime gate. Suppressing a directional call to NEUTRAL
-            # is the right hedge ONLY in a genuine on-hold regime. Cross-agent
-            # dispersion is a poor detector of that: with 21 diverse agents σ is
-            # structurally large (diversity, not forecast uncertainty), so keying
-            # off the ±1σ band ALONE washed out almost every ±25bps call and left
-            # the site perpetually "neutral". The market-implied forward path is
-            # the far better regime detector (its direction backtests at 70–83%),
-            # so we neutralize only when the market itself is close to flat AND
-            # the committee's band straddles zero. When the market prices a clear
-            # move, we keep the directional call.
             published_delta = stabilized.published_delta
-            band_neutralized = False
-            prior_flat = prior is None or abs(prior) < NEUTRAL_REGIME_BPS
-            if (prior_flat and sigma is not None and published_delta != 0
-                    and (published_delta - sigma) < 0 < (published_delta + sigma)):
-                AL.emit("system", "Chief",
-                        f"{h}: 시장내재 경로 평탄(±{abs(prior or 0):.0f}bps)+위원회 밴드 0 포함 "
-                        "→ 동결 국면 판단, 중립 발행",
-                        "#DD6B20", "info")
-                published_delta = 0.0
-                band_neutralized = True
 
             if abs(published_delta - (prev_delta or 0.0)) >= 1.0:
                 changed_horizons.append(h)
 
-            # (3) confidence calibrated to weighted agreement with the call
             conf_published = agg["confidence"]
-            if finals:
-                pub_sign = 1 if published_delta >= 25 else (-1 if published_delta <= -25 else 0)
-                wsum = sum(w for _, w in finals)
-                agree = sum(
-                    w for d, w in finals
-                    if (1 if d >= 12.5 else (-1 if d <= -12.5 else 0)) == pub_sign
-                )
-                if wsum > 0:
-                    conf_published = round(min(conf_published, agree / wsum), 3)
 
             justification = None
-            if band_neutralized:
-                justification = (
-                    f"시장내재 금리 경로가 평탄(±{abs(prior or 0):.0f}bps)하고 위원회 "
-                    "±1σ 밴드가 0을 포함 — 동결 국면으로 판단, 중립 발행"
-                )
-            elif stabilized.changed:
+            if stabilized.changed:
                 try:
                     justification = await justify_change(
                         stabilized.published_delta, prev_delta, event, result["agent_results"]
