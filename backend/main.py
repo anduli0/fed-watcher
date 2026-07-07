@@ -147,6 +147,14 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
             override = os.getenv("FED_FORWARD_SIGNALS", "").strip()
             if override:
                 parts.append("OPERATOR-PROVIDED (SEP dot plot / key signals):\n" + override)
+            # Real SEP dot-plot median path scraped live from federalreserve.gov.
+            try:
+                from backend.data.scrapers.dot_plot_scraper import fetch_dot_plot
+                dp = await fetch_dot_plot()
+                if dp and dp.summary_text:
+                    parts.append(dp.summary_text)
+            except Exception as e:
+                logger.warning("Dot-plot scrape unavailable: %s", e)
             try:
                 from backend.briefing.fetcher import fetch_all_sources
                 arts = await fetch_all_sources()
