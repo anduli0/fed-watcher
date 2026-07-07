@@ -133,6 +133,39 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         except Exception:
             pass
 
+        # Forward-guidance signals injected into every agent: (1) an operator
+        # override for the quarterly SEP dot plot / specific quotes the user
+        # supplies (FED_FORWARD_SIGNALS env — durable across redeploys), and
+        # (2) auto-captured recent Fed-policy headlines from the same news feed
+        # the daily briefing already scrapes (surfaces remarks by current or
+        # prospective Fed leadership — e.g. potential-chair nominees — that the
+        # federalreserve.gov-only speech scraper misses). No fabricated numbers:
+        # the model only sees real operator input and real scraped headlines.
+        fed_forward_signals = ""
+        try:
+            parts = []
+            override = os.getenv("FED_FORWARD_SIGNALS", "").strip()
+            if override:
+                parts.append("OPERATOR-PROVIDED (SEP dot plot / key signals):\n" + override)
+            try:
+                from backend.briefing.fetcher import fetch_all_sources
+                arts = await fetch_all_sources()
+                fed_arts = [
+                    a for a in arts
+                    if any(t in ("fed", "monetary_policy") for t in (a.get("topic_tags") or []))
+                ][:8]
+                if fed_arts:
+                    lines = "\n".join(
+                        f"- {a['title']}" + (f" — {a['snippet'][:140]}" if a.get("snippet") else "")
+                        for a in fed_arts
+                    )
+                    parts.append("RECENT FED-POLICY HEADLINES (auto-scraped):\n" + lines)
+            except Exception as e:
+                logger.warning("Fed-news digest unavailable: %s", e)
+            fed_forward_signals = "\n\n".join(parts)
+        except Exception as e:
+            logger.warning("Forward-guidance signals unavailable: %s", e)
+
         ctx = AgentContext(
             macro_snapshot_text=snapshot["macro_text"],
             speeches_text=snapshot["speeches_text"],
@@ -144,6 +177,7 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
             material_event=event.get("label") if event else None,
             market_prior_text=market_prior_text,
             self_critique=self_critique,
+            fed_forward_signals=fed_forward_signals,
         )
 
         # Compute adaptive weights before running agents

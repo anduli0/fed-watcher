@@ -3,8 +3,10 @@ Agent 05 — Projections
 Decodes Fed SEP (Dot Plot) and Beige Book regional economic conditions
 to infer the FOMC policy path and identify regional divergence signals.
 
-NOTE: Dot Plot data must be manually updated by the admin in the macro snapshot.
-      This agent reads the Beige Book text and any dot plot summary provided in context.
+NOTE: The current SEP dot-plot median and latest Fed-policy signals are injected
+      into every agent's context (AgentContext.fed_forward_block) from an operator
+      override (FED_FORWARD_SIGNALS) plus auto-scraped Fed-policy news headlines.
+      This agent also reads the Beige Book text.
 """
 
 from backend.agents.base_agent import BaseAgent, AgentContext, AgentResult, OUTPUT_SCHEMA

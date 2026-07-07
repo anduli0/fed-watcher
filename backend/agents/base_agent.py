@@ -49,6 +49,20 @@ class AgentContext:
     own_round1_output: Optional[str] = None
     market_prior_text: str = ""      # market-implied path prior (GS2-DFF derived)
     self_critique: Optional[str] = None  # previous cycle's process self-review
+    fed_forward_signals: str = ""    # SEP dot plot + latest Fed-policy signals/news
+
+    def fed_forward_block(self) -> str:
+        if not self.fed_forward_signals:
+            return ""
+        return (
+            "\n\n### FORWARD-GUIDANCE SIGNALS (SEP dot plot + latest Fed-policy news)\n"
+            + self.fed_forward_signals
+            + "\nWeigh these forward-looking signals explicitly. The SEP dot-plot "
+            "median relative to the current funds rate is a primary directional cue "
+            "(median above current rate ⇒ hikes still projected). Remarks from current "
+            "OR prospective Fed leadership can move the path. If the evidence points to "
+            "hikes or cuts, reflect it — with a stated reason, quantized to 25bps.\n"
+        )
 
     def market_prior_block(self) -> str:
         if not self.market_prior_text:
@@ -263,6 +277,7 @@ class BaseAgent(ABC):
     async def _call_claude(self, ctx: AgentContext, temperature: float = 1.0) -> AgentResult:
         user_msg = (
             ctx.market_prior_block()
+            + ctx.fed_forward_block()
             + ctx.self_critique_block()
             + ctx.negative_examples_block()
             + ctx.collaboration_block()
