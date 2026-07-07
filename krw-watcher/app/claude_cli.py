@@ -34,11 +34,13 @@ _CRED_FILES = (
 def auth_mode() -> str:
     if os.getenv("CLAUDE_CODE_OAUTH_TOKEN"):
         return "oauth_token (CLAUDE_CODE_OAUTH_TOKEN)"
-    if os.getenv("ANTHROPIC_API_KEY"):
-        return "api_key (ANTHROPIC_API_KEY)"
     for p in _CRED_FILES:
         if os.path.exists(p):
             return f"credentials_file ({p})"
+    if os.getenv("ANTHROPIC_API_KEY"):
+        # Present but deliberately scrubbed from the CLI env (see _child_env) —
+        # this app runs on the subscription only; the API key is never used.
+        return "api_key present but IGNORED (subscription-only)"
     return "none"
 
 
@@ -72,6 +74,33 @@ def _sem() -> asyncio.Semaphore:
     return _semaphore
 
 
+# Env vars stripped from every `claude -p` child so the subscription OAuth token
+# is the ONLY possible credential. A stale/metered ANTHROPIC_API_KEY must never
+# shadow it (that shadowing is the exact 401 that silently degraded the watchers);
+# Claude Code session vars, if inherited from a host session, route auth to an
+# unavailable session and also 401. This app is subscription-only by design —
+# the Claude API is intentionally never used for auth.
+_SCRUB_ENV = (
+    "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
+    "CLAUDE_CODE_SDK_HAS_HOST_AUTH_REFRESH", "CLAUDECODE",
+    "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_SSE_PORT",
+)
+
+
+def _child_env() -> dict:
+    """Environment for the `claude -p` subprocess: API/session auth vars removed,
+    Node heap capped for the 512 MB free tier."""
+    env = dict(os.environ)
+    for var in _SCRUB_ENV:
+        env.pop(var, None)
+    env["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1"
+    env["DISABLE_AUTOUPDATER"] = "1"
+    node_opts = env.get("NODE_OPTIONS", "")
+    if "max-old-space-size" not in node_opts:
+        env["NODE_OPTIONS"] = f"{node_opts} --max-old-space-size={_NODE_HEAP_MB}".strip()
+    return env
+
+
 async def _run_once(system_prompt: str, user_message: str, timeout: float) -> str:
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".txt", delete=False, encoding="utf-8"
@@ -79,12 +108,7 @@ async def _run_once(system_prompt: str, user_message: str, timeout: float) -> st
         f.write(system_prompt)
         sp_file = f.name
 
-    child_env = dict(os.environ)
-    existing_node_opts = child_env.get("NODE_OPTIONS", "")
-    if "max-old-space-size" not in existing_node_opts:
-        child_env["NODE_OPTIONS"] = (
-            f"{existing_node_opts} --max-old-space-size={_NODE_HEAP_MB}".strip()
-        )
+    child_env = _child_env()
 
     try:
         proc = await asyncio.create_subprocess_exec(
