@@ -1,0 +1,61 @@
+name: Probe Fed SEP dot plot
+
+# One-off recon: find the latest SEP projection table on federalreserve.gov and
+# dump its structure + the federal funds rate median row, so the dot-plot scraper
+# can be written against the real current page. Runs on GitHub (can reach fed.gov).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discover latest projection table URL
+        run: |
+          set -e
+          UA="Mozilla/5.0 (compatible; fed-watcher/1.0)"
+          echo "=== FOMC calendars page: projtabl links ==="
+          curl -s -A "$UA" --max-time 30 "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm" -o /tmp/cal.htm || true
+          grep -oiE 'fomcprojtabl[0-9]{8}\.htm' /tmp/cal.htm | sort -u | tail -8 || echo "no projtabl links on calendars page"
+          echo ""
+          echo "=== monetarypolicy.htm projtabl links ==="
+          curl -s -A "$UA" --max-time 30 "https://www.federalreserve.gov/monetarypolicy.htm" -o /tmp/mp.htm || true
+          grep -oiE 'fomcprojtabl[0-9]{8}\.htm' /tmp/mp.htm | sort -u | tail -8 || echo "none"
+
+      - name: Fetch latest projection table + dump fed funds median
+        run: |
+          set -e
+          UA="Mozilla/5.0 (compatible; fed-watcher/1.0)"
+          LATEST=$(grep -ohiE 'fomcprojtabl[0-9]{8}\.htm' /tmp/cal.htm /tmp/mp.htm 2>/dev/null | sort -u | tail -1)
+          echo "latest projtabl file: ${LATEST:-NONE}"
+          if [ -z "$LATEST" ]; then
+            echo "Could not find a projtabl link; dumping candidate SEP index instead"
+            curl -s -A "$UA" --max-time 30 "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm" | grep -oiE 'href="[^"]*proj[^"]*"' | sort -u | tail -20 || true
+            exit 0
+          fi
+          URL="https://www.federalreserve.gov/monetarypolicy/$LATEST"
+          echo "URL: $URL"
+          curl -s -A "$UA" --max-time 30 "$URL" -o /tmp/proj.htm
+          echo "bytes: $(wc -c < /tmp/proj.htm)"
+          python3 - <<'PY'
+          import re, html
+          t = open('/tmp/proj.htm', encoding='utf-8', errors='replace').read()
+          # Strip tags to lines, keep numbers/labels
+          # First, isolate table rows
+          rows = re.findall(r'<tr[^>]*>(.*?)</tr>', t, re.S | re.I)
+          print(f"table rows found: {len(rows)}")
+          def cells(r):
+              cs = re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, re.S | re.I)
+              return [re.sub(r'<[^>]+>', ' ', html.unescape(c)).strip() for c in cs]
+          # Print rows that mention the federal funds rate or look like the median row
+          for r in rows:
+              cs = cells(r)
+              joined = ' | '.join(c for c in cs if c)
+              if not joined:
+                  continue
+              low = joined.lower()
+              if ('federal funds' in low or 'funds rate' in low or 'median' in low
+                      or re.search(r'\b[3-6]\.\d\b', joined)):
+                  print(" ROW:", joined[:300])
+          PY
