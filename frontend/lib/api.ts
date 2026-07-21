@@ -1,11 +1,50 @@
 import axios from "axios";
 
-const api = axios.create({
+// ── Static-data mode (GitHub Pages) ──────────────────────────────────────
+// When NEXT_PUBLIC_STATIC_DATA=true the site has no backend: the daily CI job
+// (scripts/ci_daily.py) snapshots every GET endpoint into /data/*.json, and
+// this adapter maps the same API URLs onto those files. POST is unavailable.
+const STATIC_MODE = process.env.NEXT_PUBLIC_STATIC_DATA === "true";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
+interface ApiClient {
+  get<T = unknown>(url: string): Promise<{ data: T }>;
+  post<T = unknown>(url: string, body?: unknown): Promise<{ data: T }>;
+}
+
+async function staticGet<T>(url: string): Promise<{ data: T }> {
+  const [path, qs] = url.split("?");
+  const params = new URLSearchParams(qs || "");
+  const lang = params.get("lang");
+  let p = path.replace(/^\/api\//, "").replace(/\/+$/, "");
+  const isBriefingList = p === "briefings";
+  if (isBriefingList) p = "briefings/index"; // /api/briefings → archive index
+  const res = await fetch(`${BASE}/data/${p}${lang ? `.${lang}` : ""}.json`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`No static data for ${p} (${res.status})`);
+  let data: unknown = await res.json();
+  // Query params a live backend would apply server-side:
+  const limit = parseInt(params.get("limit") || "0", 10);
+  if (isBriefingList && limit > 0 && Array.isArray(data)) data = data.slice(0, limit);
+  const afterId = parseInt(params.get("after_id") || "0", 10);
+  if (p === "activity" && afterId > 0 && Array.isArray(data)) {
+    data = (data as { id: number }[]).filter((e) => e.id > afterId);
+  }
+  return { data: data as T };
+}
+
+const staticApi: ApiClient = {
+  get: staticGet,
+  post: () => Promise.reject(new Error("Not available on the static deployment")),
+};
+
+const axiosApi = axios.create({
   baseURL: "",   // Next.js rewrites /api/* → localhost:8000/api/*
   withCredentials: true,
 });
 
-api.interceptors.response.use(
+axiosApi.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err.response?.status === 401) {
@@ -14,6 +53,8 @@ api.interceptors.response.use(
     return Promise.reject(err);
   }
 );
+
+const api: ApiClient = STATIC_MODE ? staticApi : (axiosApi as unknown as ApiClient);
 
 export default api;
 

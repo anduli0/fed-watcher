@@ -18,6 +18,9 @@ import { useLang } from "@/context/LanguageContext";
 import { Horizon } from "@/lib/api";
 import api from "@/lib/api";
 
+// Static (GitHub Pages) deployment has no backend — hide server-action UI.
+const STATIC_MODE = process.env.NEXT_PUBLIC_STATIC_DATA === "true";
+
 export default function DashboardPage() {
   const { horizons, history, agents, report, loading, lastRefresh, refresh } = useForecast();
   const { T, lang } = useLang();
@@ -114,19 +117,23 @@ export default function DashboardPage() {
           </button>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
             <span className="hidden sm:inline text-xs text-[var(--color-text-muted)]">{timeStr}</span>
-            <button onClick={runCycle} disabled={triggering}
-              className="text-xs px-2.5 sm:px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-50"
-              style={{ background: "var(--color-gold)", color: "var(--color-navy)" }}>
-              {triggering ? T.running : T.runCycle}
-            </button>
+            {!STATIC_MODE && (
+              <button onClick={runCycle} disabled={triggering}
+                className="text-xs px-2.5 sm:px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-50"
+                style={{ background: "var(--color-gold)", color: "var(--color-navy)" }}>
+                {triggering ? T.running : T.runCycle}
+              </button>
+            )}
             <button onClick={refresh}
               className="text-xs px-2.5 sm:px-3 py-1.5 rounded border border-[var(--color-navy-700)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
               {T.refresh}
             </button>
-            <a href="/login"
-              className="hidden sm:inline-flex text-xs px-3 py-1.5 rounded border border-[var(--color-navy-700)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
-              {T.admin}
-            </a>
+            {!STATIC_MODE && (
+              <a href="/login"
+                className="hidden sm:inline-flex text-xs px-3 py-1.5 rounded border border-[var(--color-navy-700)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
+                {T.admin}
+              </a>
+            )}
             <LanguageSwitcher />
           </div>
         </div>
