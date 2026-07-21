@@ -139,6 +139,19 @@ async def export_static():
         for url, rel in ENDPOINTS:
             await snap(url, rel)
 
+        # API-shaped mirror (extensionless files under data/api/...) so external
+        # consumers — e.g. the MARKET watcher's serverless build — can point their
+        # FED_WATCHER_BASE_URL at .../fed-watcher/data and reuse the exact live-API
+        # paths with zero adapter changes. Korean variants are served at the bare
+        # path (that is what the MARKET watcher consumes).
+        for url, rel in [
+            ("/api/forecast/horizons", "api/forecast/horizons"),
+            ("/api/backtest/skill", "api/backtest/skill"),
+            ("/api/briefings/latest?lang=ko", "api/briefings/latest"),
+            ("/api/forecast/report?lang=ko", "api/forecast/report"),
+        ]:
+            await snap(url, rel)
+
         write("activity.json", await _merged_activity(client))
 
         # Briefing archive: index per language + one file per date.
