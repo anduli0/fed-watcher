@@ -7,10 +7,15 @@ import axios from "axios";
 const STATIC_MODE = process.env.NEXT_PUBLIC_STATIC_DATA === "true";
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
+/* Mirrors the axios surface the app uses — T defaults to `any` like axios. */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface ApiClient {
-  get<T = unknown>(url: string): Promise<{ data: T }>;
-  post<T = unknown>(url: string, body?: unknown): Promise<{ data: T }>;
+  get<T = any>(url: string): Promise<{ data: T }>;
+  post<T = any>(url: string, body?: unknown): Promise<{ data: T }>;
+  patch<T = any>(url: string, body?: unknown): Promise<{ data: T }>;
+  delete<T = any>(url: string): Promise<{ data: T }>;
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 async function staticGet<T>(url: string): Promise<{ data: T }> {
   const [path, qs] = url.split("?");
@@ -34,9 +39,14 @@ async function staticGet<T>(url: string): Promise<{ data: T }> {
   return { data: data as T };
 }
 
+const staticUnavailable = () =>
+  Promise.reject(new Error("Not available on the static deployment"));
+
 const staticApi: ApiClient = {
   get: staticGet,
-  post: () => Promise.reject(new Error("Not available on the static deployment")),
+  post: staticUnavailable,
+  patch: staticUnavailable,
+  delete: staticUnavailable,
 };
 
 const axiosApi = axios.create({
