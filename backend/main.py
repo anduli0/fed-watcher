@@ -262,6 +262,8 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
             # made the published call timid and collapsed confidence into the
             # low-10%s; the committee's aggregate + confidence is the signal.
             prev = await crud.get_latest_horizon_forecast(db, h)
+            if prev is not None and (prev.confidence or 0.0) <= 0.0:
+                prev = None   # empty-aggregate artifact (no agent cleared the floor) — not a real prior
             prev_delta = prev.published_delta if prev else 0.0
             prev_streak = prev.unchanged_streak_days if prev else 0
 

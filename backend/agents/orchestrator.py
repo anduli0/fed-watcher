@@ -172,9 +172,16 @@ def _aggregate_horizon(valid: list[AgentResult], horizon: str) -> tuple[float, f
     included_deltas: list[float] = []
     included_weights: list[float] = []
 
+    # Far-out FOMC meetings legitimately draw low confidence from every agent;
+    # if nobody clears the inclusion floor, aggregate everyone rather than
+    # publishing an empty 0 bps / 0 confidence call.
+    min_conf = MIN_CONFIDENCE_FOR_INCLUSION
+    if not any(r.horizon_confidence(horizon) >= min_conf for r in valid):
+        min_conf = 0.0
+
     for r in valid:
         h_conf = r.horizon_confidence(horizon)
-        if h_conf < MIN_CONFIDENCE_FOR_INCLUSION:
+        if h_conf < min_conf or h_conf <= 0.0:
             continue
         agent_obj = _AGENT_BY_ID.get(r.agent_id)
         base_weight = agent_obj.weight if agent_obj else 1.0
