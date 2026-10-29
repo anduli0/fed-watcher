@@ -42,6 +42,9 @@ N_MIN_CONFORMAL = 20            # matured committee calls per bucket for conform
 TAU_BPS2 = 400.0                # EB prior strength (bps²) — 20 bps "typical" error
 SKILL_CLIP = (0.5, 2.0)
 STATES = (-100, -75, -50, -25, 0, 25, 50, 75, 100)   # cumulative-delta states (bps)
+KERNEL_SIGMA_MAX = 24.0         # bps kernel width at confidence 0 (≈ one 25 bp state either side)
+KERNEL_SIGMA_MIN = 5.0          # bps at confidence 1 (mass concentrates on one state)
+KERNEL_CONF_EXP = 2.0           # precision weighting of each agent's kernel
 SIGN_BAND = 12.5
 
 BUCKETS = (("0-6m", 0, 6), ("6-18m", 6, 18), ("18m+", 18, 10_000))
@@ -64,15 +67,20 @@ def _sign(x: float) -> int:
 def state_distribution(deltas: list[float], weights: list[float], confs: list[float]) -> dict:
     """Weighted kernel mixture of agent calls over the 25 bp state grid.
     Each agent contributes a discrete Gaussian centred on its delta whose width
-    shrinks with its (calibrated) confidence: σ = 50 bps at conf 0 → 12 bps at
-    conf 1. Returns the state pmf plus P(cut / hold / hike) and the mean."""
+    shrinks with its (calibrated) confidence: σ = KERNEL_SIGMA_MAX at conf 0 →
+    KERNEL_SIGMA_MIN at conf 1, and its weight is precision-scaled by
+    conf ** KERNEL_CONF_EXP (same spirit as the point aggregate). Empirically
+    (Jul–Sep 2026) agents at conf ≥ 0.6 were right ~98 % of the time at 6m, so a
+    confident call should put most of its mass on one 25 bp state.
+    Returns the state pmf plus P(cut / hold / hike) and the mean."""
     if not deltas:
         return {"states": {}, "p_cut": None, "p_hold": None, "p_hike": None, "mean": None}
     pmf = {s: 0.0 for s in STATES}
     wsum = 0.0
     for d, w, c in zip(deltas, weights, confs):
         c = max(0.0, min(1.0, c or 0.0))
-        sigma = 50.0 - 38.0 * c
+        w = w * (c ** KERNEL_CONF_EXP)
+        sigma = KERNEL_SIGMA_MAX - (KERNEL_SIGMA_MAX - KERNEL_SIGMA_MIN) * c
         ks = {s: math.exp(-0.5 * ((s - d) / sigma) ** 2) for s in STATES}
         z = sum(ks.values()) or 1.0
         for s in STATES:
