@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   ComposedChart, Line, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
-import api from "@/lib/api";
+import api, { LearningStatus } from "@/lib/api";
 import { useLang } from "@/context/LanguageContext";
 
 interface TrackRecord {
@@ -104,6 +104,7 @@ export default function TrackRecordPanel() {
   const [data, setData] = useState<TrackRecord | null>(null);
   const [acc, setAcc] = useState<AccuracySummary | null>(null);
   const [quality, setQuality] = useState<Quality | null>(null);
+  const [learning, setLearning] = useState<LearningStatus | null>(null);
   const [backtest, setBacktest] = useState<Backtest | null>(null);
   const [dffSeries, setDffSeries] = useState<{ date: string; value: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +114,7 @@ export default function TrackRecordPanel() {
       api.get<TrackRecord>("/api/track-record").then(r => setData(r.data)),
       api.get<AccuracySummary>("/api/accuracy/summary").then(r => setAcc(r.data)),
       api.get<Quality>("/api/accuracy/quality").then(r => setQuality(r.data)),
+      api.get<LearningStatus>("/api/accuracy/learning").then(r => setLearning(r.data)).catch(() => {}),
       api.get<Backtest>("/api/backtest/skill").then(r => setBacktest(r.data)),
       api.get<{ data: { date: string; value: number }[] }>("/api/macro/series/DFF")
         .then(r => setDffSeries(r.data.data)),
@@ -288,6 +290,64 @@ export default function TrackRecordPanel() {
           </div>
         )}
       </div>
+
+      {/* Learning layer — what matured FOMC outcomes have taught the model */}
+      {learning && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest">
+              {ko ? "학습 레이어 · 실증 보정" : "Learning Layer · Empirical Calibration"}
+            </p>
+            <span className="text-[10px] text-[var(--color-text-muted)]">
+              {ko ? `만기 회의 콜 ${learning.n_matured_committee}건 · 에이전트 콜 ${learning.n_matured_agent_calls}건`
+                  : `${learning.n_matured_committee} matured meeting calls · ${learning.n_matured_agent_calls} agent calls`}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+            {[
+              [ko ? "적중률" : "Hit rate", learning.scores?.hit_rate != null ? `${(learning.scores.hit_rate * 100).toFixed(0)}%` : "—"],
+              [ko ? "MAE" : "MAE", learning.scores?.mae_bps != null ? `${learning.scores.mae_bps} bps` : "—"],
+              [ko ? "Brier (3분류)" : "Brier (3-way)", learning.scores?.brier != null ? `${learning.scores.brier.toFixed(3)} / ${learning.scores.brier_climatology?.toFixed(3)}` : "—"],
+              [ko ? "신뢰도 보정" : "Confidence map", learning.conf_map?.length ? (ko ? "isotonic 적용" : "isotonic") : (ko ? "항등 (표본 부족)" : "identity (sparse)")],
+            ].map(([k, v]) => (
+              <div key={k as string} className="rounded-lg p-2.5" style={{ background: "var(--color-navy)" }}>
+                <p className="text-[9px] uppercase tracking-wider text-[var(--color-text-muted)]">{k}</p>
+                <p className="text-sm font-medium mt-0.5">{v}</p>
+              </div>
+            ))}
+          </div>
+          {Object.keys(learning.agent_skill ?? {}).length > 0 ? (
+            <div className="space-y-2">
+              {Object.entries(learning.agent_skill).map(([bucket, rows]) => (
+                <div key={bucket}>
+                  <p className="text-[10px] text-[var(--color-gold)] mb-1">{bucket} · {ko ? "에이전트 스킬 가중 (경험적 베이즈)" : "agent skill multipliers (empirical Bayes)"}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {rows.slice(0, 12).map(r => (
+                      <span key={r.agent_id} className="text-[10px] px-2 py-0.5 rounded"
+                        style={{ background: "var(--color-navy-700)", color: r.multiplier >= 1 ? "var(--color-signal-green)" : "var(--color-signal-red)" }}>
+                        {r.agent_name.replace("_", " ")} ×{r.multiplier.toFixed(2)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-[var(--color-text-muted)]">
+              {ko
+                ? `에이전트별 스킬 가중은 에이전트당 만기 콜 ${learning.thresholds?.skill_min_n}건 이상부터 적용됩니다. 그 전까지는 신뢰도^2.5 가중(실증상 균등·역MSE·BMA보다 우수)을 유지합니다.`
+                : `Per-agent skill multipliers activate after ${learning.thresholds?.skill_min_n} matured calls per agent. Until then the committee keeps confidence^2.5 weighting (which beat equal / inverse-MSE / BMA out of sample).`}
+            </p>
+          )}
+          {Object.keys(learning.conformal ?? {}).length > 0 && (
+            <p className="text-[10px] text-[var(--color-text-muted)] mt-2">
+              {ko ? "conformal 68% 밴드: " : "conformal 68% band: "}
+              {Object.entries(learning.conformal).map(([b, c]) => `${b} ±${c.q68}bps (n=${c.n})`).join(" · ")}
+            </p>
+          )}
+          <p className="text-[10px] text-[var(--color-text-muted)] mt-2 leading-relaxed">{learning.method}</p>
+        </div>
+      )}
 
       {/* Process self-review + mechanical backtest */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

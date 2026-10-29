@@ -97,7 +97,31 @@ export interface HorizonForecast {
   band_low_bps?: number | null;
   band_high_bps?: number | null;
   implied_rate_pct?: number | null;   // current Fed Funds + delta
+  band_source?: "conformal" | "dispersion";
+  probs?: MeetingProbs | null;         // P(cut / hold / hike) after this meeting
   synthetic?: boolean;                 // the "today" anchor
+}
+
+export interface MeetingProbs {
+  states: Record<string, number>;      // cumulative-delta state (bps) → probability
+  p_cut: number | null;
+  p_hold: number | null;
+  p_hike: number | null;
+  mean: number | null;
+}
+
+export interface LearningStatus {
+  as_of: string;
+  fitted_at: string | null;
+  n_matured_committee: number;
+  n_matured_agent_calls: number;
+  scores: { n?: number; hit_rate?: number; mae_bps?: number; brier?: number | null; brier_n?: number; brier_climatology?: number };
+  agent_skill: Record<string, { agent_id: number; agent_name: string; multiplier: number; n: number | null }[]>;
+  conf_map: { conf: number; p_correct: number }[];
+  conformal: Record<string, { q68: number; q90: number; n: number }>;
+  thresholds: { skill_min_n: number; conf_min_n: number; conformal_min_n: number };
+  notes: string[];
+  method: string;
 }
 
 export interface AllHorizons {

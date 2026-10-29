@@ -207,6 +207,20 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         from backend.agents.orchestrator import compute_adaptive_weights
         await compute_adaptive_weights(db, event)
 
+        # Learning layer: refit agent skill / confidence calibration / conformal
+        # bands from every matured FOMC outcome (no AI tokens; defaults when sparse)
+        try:
+            from backend.calibration.learner import fit_calibration
+            from backend.routes.accuracy_routes import _series_daily
+            cal = await fit_calibration(db, await _series_daily("DFF", limit=1500))
+            AL.system_event(
+                f"Calibration: {cal.n_matured_committee} matured meeting calls · "
+                f"skill buckets {list(cal.agent_skill) or 'none'} · "
+                f"conf map {'isotonic' if cal.conf_map else 'identity'}"
+            )
+        except Exception as e:
+            logger.warning("Calibration fit failed (defaults used): %s", e)
+
         run = await crud.create_run(db, cycle_type)
         try:
             result = await run_full_cycle(ctx, cycle_type)
@@ -322,6 +336,7 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                 "unchanged_streak_days": stabilized.unchanged_streak,
                 "change_justification": justification,
                 "is_published": immediate_publish,
+                "probs_json": json.dumps(agg.get("probs")) if agg.get("probs") else None,
                 # Master report only stored on the headline record to avoid duplication
                 "report_text": report_ko if h == P else None,
                 "report_text_en": report_en if h == P else None,

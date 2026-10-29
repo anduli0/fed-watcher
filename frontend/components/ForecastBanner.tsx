@@ -113,6 +113,27 @@ export default function ForecastBanner({ horizons, history, activeHorizon: activ
         )}
       </div>
 
+      {fc.probs && fc.probs.p_hike != null && (
+        <div>
+          <div className="flex justify-between text-[10px] text-[var(--color-text-muted)] mb-1">
+            <span>{lang === "ko" ? "이 회의 직후 금리 수준 확률 (위원회 분포)" : "Probability of the rate level after this meeting (committee mixture)"}</span>
+            {fc.band_source && (
+              <span>{lang === "ko" ? "밴드" : "band"}: {fc.band_source === "conformal" ? "conformal 68%" : (lang === "ko" ? "위원회 ±1σ" : "committee ±1σ")}</span>
+            )}
+          </div>
+          <div className="flex h-2 rounded-full overflow-hidden" style={{ background: "var(--color-navy-700)" }}>
+            <div style={{ width: `${(fc.probs.p_cut ?? 0) * 100}%`, background: "var(--color-signal-green)" }} />
+            <div style={{ width: `${(fc.probs.p_hold ?? 0) * 100}%`, background: "var(--color-gold)" }} />
+            <div style={{ width: `${(fc.probs.p_hike ?? 0) * 100}%`, background: "var(--color-signal-red)" }} />
+          </div>
+          <div className="flex justify-between text-[11px] mt-1">
+            <span style={{ color: "var(--color-signal-green)" }}>{lang === "ko" ? "인하" : "cut"} {((fc.probs.p_cut ?? 0) * 100).toFixed(0)}%</span>
+            <span style={{ color: "var(--color-gold)" }}>{lang === "ko" ? "동결" : "hold"} {((fc.probs.p_hold ?? 0) * 100).toFixed(0)}%</span>
+            <span style={{ color: "var(--color-signal-red)" }}>{lang === "ko" ? "인상" : "hike"} {((fc.probs.p_hike ?? 0) * 100).toFixed(0)}%</span>
+          </div>
+        </div>
+      )}
+
       {change_justification && (
         <p className="text-xs text-[var(--color-text-muted)] italic">{change_justification}</p>
       )}

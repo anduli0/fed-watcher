@@ -64,7 +64,17 @@ class HorizonForecast(Base):
     is_published = Column(Boolean, default=False)
     report_text = Column(Text)                  # Korean derivation report
     report_text_en = Column(Text)               # English derivation report
+    probs_json = Column(Text)                   # {states, p_cut, p_hold, p_hike, mean} per meeting
     run = relationship("RunLog", back_populates="horizon_forecasts")
+
+
+class ModelState(Base):
+    """Small key→JSON store for learned model corrections (calibration layer)."""
+    __tablename__ = "model_state"
+    id = Column(Integer, primary_key=True)
+    key = Column(String(40), unique=True)
+    value_json = Column(Text)
+    updated_at = Column(DateTime, default=now_utc)
 
 
 # Keep PublishedForecast for backward-compat (= 12m horizon)

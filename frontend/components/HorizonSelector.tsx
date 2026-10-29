@@ -86,7 +86,7 @@ export default function HorizonSelector({ horizons, active, onChange }: Props) {
   return (
     <div>
       <div className="flex gap-1.5 overflow-x-auto snap-x pb-1 -mx-1 px-1"
-        style={{ scrollbarWidth: "thin", overscrollBehaviorX: "contain" }}>
+        style={{ overscrollBehaviorX: "contain" }}>
         {today.map(chip)}
         {groups.map(g => (
           <div key={g.year} className="flex items-stretch gap-1.5 shrink-0">

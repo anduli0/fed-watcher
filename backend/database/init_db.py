@@ -27,6 +27,7 @@ _HORIZON_FORECAST_NEW_COLS = {
     "meeting_date": "VARCHAR(10)",
     "horizon_kind": "VARCHAR(8)",
     "is_primary": "BOOLEAN DEFAULT 0" ,
+    "probs_json": "TEXT",
 }
 
 

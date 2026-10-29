@@ -37,6 +37,7 @@ def _serialize_horizon(f: HorizonForecast) -> dict:
         "trigger_event": f.trigger_event,
         "unchanged_streak_days": f.unchanged_streak_days,
         "change_justification": f.change_justification,
+        "probs": json.loads(f.probs_json) if f.probs_json else None,
     }
 
 
@@ -92,9 +93,11 @@ async def get_all_horizons(db: AsyncSession = Depends(get_db)):
     carries the implied rate *level* = current Fed Funds + delta."""
     from backend.routes.accuracy_routes import horizon_dispersion
     from backend.fomc_calendar import fomc_horizons, primary_key
+    from backend.calibration.learner import load_calibration
     today = date.today()
     specs = fomc_horizons(today)
     dff = await _current_dff()
+    cal = await load_calibration(db)
     items: list[dict] = []
     disp_cache: dict[int, dict[str, float]] = {}
     for sp in specs:
@@ -116,8 +119,12 @@ async def get_all_horizons(db: AsyncSession = Depends(get_db)):
         d = disp_cache[f.run_id].get(sp.key)
         row["dispersion_bps"] = d
         pub = f.published_delta or 0.0
-        row["band_low_bps"] = round(pub - d, 1) if d is not None else None
-        row["band_high_bps"] = round(pub + d, 1) if d is not None else None
+        # Band: split-conformal 68% residual quantile for this months-ahead
+        # bucket once enough meetings have matured, else committee dispersion.
+        band, band_src = cal.band_bps(sp.months_ahead, d)
+        row["band_source"] = band_src
+        row["band_low_bps"] = round(pub - band, 1) if band is not None else None
+        row["band_high_bps"] = round(pub + band, 1) if band is not None else None
         if dff is not None:
             row["implied_rate_pct"] = round(dff + pub / 100.0, 2)
         items.append(row)

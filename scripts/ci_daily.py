@@ -56,6 +56,7 @@ ENDPOINTS = [
     ("/api/track-record", "track-record.json"),
     ("/api/accuracy/summary", "accuracy/summary.json"),
     ("/api/accuracy/quality", "accuracy/quality.json"),
+    ("/api/accuracy/learning", "accuracy/learning.json"),
     ("/api/backtest/skill", "backtest/skill.json"),
     ("/api/trading", "trading.json"),
     ("/api/trading/desk", "trading/desk.json"),

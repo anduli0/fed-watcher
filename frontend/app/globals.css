@@ -33,6 +33,33 @@ body {
   .card { padding: 1rem; }
 }
 
+/* ── Scrollbars — themed to the navy/gold palette ──────────────────────────
+   Page scrollbar: slim slate track that fades into the navy background.
+   In-card strips (meeting selector, wide tables): a 6px rail; the thumb turns
+   gold on hover so it reads as the same accent as the active tab/chip. */
+:root {
+  --sb-track: var(--color-navy-800);
+  --sb-thumb: var(--color-slate-400);
+  --sb-thumb-hover: var(--color-gold);
+}
+* { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }   /* Firefox */
+::-webkit-scrollbar { width: 10px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--color-navy); }
+::-webkit-scrollbar-thumb {
+  background: var(--sb-thumb);
+  border: 2px solid var(--color-navy);
+  border-radius: 999px;
+  min-height: 40px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-hover); }
+::-webkit-scrollbar-corner { background: var(--color-navy); }
+
+.card ::-webkit-scrollbar { height: 6px; width: 6px; }
+.card ::-webkit-scrollbar-track { background: var(--sb-track); border-radius: 999px; }
+.card ::-webkit-scrollbar-thumb { border: 0; background: var(--sb-thumb); }
+.card ::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-hover); }
+.card * { scrollbar-color: var(--sb-thumb) var(--sb-track); }
+
 /* Hide scrollbar for tab nav on mobile */
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }

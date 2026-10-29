@@ -280,6 +280,50 @@ async def accuracy_summary(db: AsyncSession = Depends(get_db)):
     }
 
 
+# ── Learning layer status ────────────────────────────────────────────────────
+
+@router.get("/accuracy/learning")
+async def accuracy_learning(db: AsyncSession = Depends(get_db)):
+    """What the calibration layer has learned from matured FOMC outcomes:
+    outcome scores (hit-rate, MAE, Brier vs climatology), per-bucket agent skill
+    multipliers, the confidence→accuracy map, conformal band widths."""
+    from backend.calibration.learner import (
+        load_calibration, N_MIN_SKILL, N_MIN_CONF, N_MIN_CONFORMAL,
+    )
+    from backend.agents.orchestrator import ALL_AGENTS
+    cal = await load_calibration(db)
+    names = {a.agent_id: a.agent_name for a in ALL_AGENTS}
+    skill = {
+        b: sorted(
+            ({"agent_id": int(a), "agent_name": names.get(int(a), a), "multiplier": m,
+              "n": (cal.agent_skill_n.get(b) or {}).get(a)}
+             for a, m in mult.items()),
+            key=lambda r: -r["multiplier"])
+        for b, mult in cal.agent_skill.items()
+    }
+    return {
+        "as_of": date.today().isoformat(),
+        "fitted_at": cal.fitted_at or None,
+        "n_matured_committee": cal.n_matured_committee,
+        "n_matured_agent_calls": cal.n_matured_agent_calls,
+        "scores": cal.scores,
+        "agent_skill": skill,
+        "conf_map": [{"conf": k, "p_correct": v} for k, v in (cal.conf_map or [])],
+        "conformal": cal.conformal,
+        "market_shrink": cal.market_shrink,
+        "thresholds": {"skill_min_n": N_MIN_SKILL, "conf_min_n": N_MIN_CONF,
+                       "conformal_min_n": N_MIN_CONFORMAL},
+        "notes": cal.notes,
+        "method": (
+            "Agent skill: empirical-Bayes inverse-MSE by months-ahead bucket, shrunk toward "
+            "equal weights (τ = 20 bps²), clipped 0.5–2.0×. Confidence: isotonic regression "
+            "stated → P(direction correct). Bands: split-conformal 68 % residual quantile. "
+            "Probabilities: weighted kernel mixture of agent calls over 25 bp states, scored "
+            "by 3-way Brier against the realized decision."
+        ),
+    }
+
+
 # ── Per-cycle process self-review ────────────────────────────────────────────
 
 def _sign(x: float, band: float = 12.5) -> int:

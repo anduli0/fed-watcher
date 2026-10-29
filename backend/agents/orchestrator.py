@@ -18,6 +18,7 @@ from backend.agents.base_agent import (
     AgentContext, AgentResult, BaseAgent, HorizonOutput,
 )
 from backend.fomc_calendar import spec_by_key
+from backend.calibration.learner import current_calibration, state_distribution
 from backend.agents.agent_01_behavioral import agent as a1
 from backend.agents.agent_02_nlp import agent as a2
 from backend.agents.agent_03_history import agent as a3
@@ -129,10 +130,13 @@ async def compute_adaptive_weights(db, event: dict | None = None) -> dict[int, f
     return multipliers
 
 
-def _effective_weight(result: AgentResult, base_weight: float) -> float:
+def _effective_weight(result: AgentResult, base_weight: float, months_ahead: float | None = None) -> float:
     w = _WEIGHT_OVERRIDES.get(result.agent_id, base_weight)
-    # Apply adaptive multiplier (accuracy + event-based)
+    # Apply adaptive multiplier (event-based boosts)
     w *= _ADAPTIVE_MULTIPLIERS.get(result.agent_id, 1.0)
+    # Learned skill by horizon bucket (empirical-Bayes inverse-MSE on matured
+    # FOMC outcomes; 1.0 until an agent has enough graded calls)
+    w *= current_calibration().skill_multiplier(result.agent_id, months_ahead)
     if result.limited_mode:
         w *= 0.3
     if result.agent_id == 10:  # Consensus premium
@@ -153,7 +157,8 @@ def _build_agent_index():
 _build_agent_index()
 
 
-def _aggregate_horizon(valid: list[AgentResult], horizon: str) -> tuple[float, float]:
+def _aggregate_horizon(valid: list[AgentResult], horizon: str,
+                       months_ahead: float | None = None) -> tuple[float, float]:
     """
     Bayesian-style precision-weighted aggregation with committee dynamics.
 
@@ -171,6 +176,7 @@ def _aggregate_horizon(valid: list[AgentResult], horizon: str) -> tuple[float, f
     weighted_confidence = 0.0
     included_deltas: list[float] = []
     included_weights: list[float] = []
+    cal = current_calibration()
 
     # Far-out FOMC meetings legitimately draw low confidence from every agent;
     # if nobody clears the inclusion floor, aggregate everyone rather than
@@ -183,9 +189,12 @@ def _aggregate_horizon(valid: list[AgentResult], horizon: str) -> tuple[float, f
         h_conf = r.horizon_confidence(horizon)
         if h_conf < min_conf or h_conf <= 0.0:
             continue
+        # Calibrated confidence: isotonic map stated → empirical P(correct)
+        # (identity until enough matured calls exist)
+        h_conf = cal.calibrated_conf(h_conf)
         agent_obj = _AGENT_BY_ID.get(r.agent_id)
         base_weight = agent_obj.weight if agent_obj else 1.0
-        w = _effective_weight(r, base_weight) * (h_conf ** CONFIDENCE_EXPONENT)
+        w = _effective_weight(r, base_weight, months_ahead) * (h_conf ** CONFIDENCE_EXPONENT)
         delta = r.horizon_delta(horizon)
         weighted_delta += delta * w
         weighted_confidence += h_conf * w
@@ -351,8 +360,23 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
 
     # ── Multi-horizon aggregation ─────────────────────────────────────────
     horizon_aggregates: dict[str, dict] = {}
+    cal = current_calibration()
     for h in keys:
-        delta, conf = _aggregate_horizon(final_results, h)
+        sp_h = specs.get(h)
+        months_h = sp_h.months_ahead if sp_h else None
+        delta, conf = _aggregate_horizon(final_results, h, months_h)
+        # Per-meeting probability distribution over 25 bp states (for P(hike/hold/cut)
+        # and proper scoring once the meeting matures)
+        _d, _w, _c = [], [], []
+        for r in final_results:
+            hc = r.horizon_confidence(h)
+            if hc <= 0:
+                continue
+            agent_obj = _AGENT_BY_ID.get(r.agent_id)
+            _d.append(r.horizon_delta(h))
+            _w.append(_effective_weight(r, agent_obj.weight if agent_obj else 1.0, months_h))
+            _c.append(cal.calibrated_conf(hc))
+        probs = state_distribution(_d, _w, _c)
         # Determine signal at this horizon
         if delta >= 25:
             signal = "hawkish"
@@ -369,6 +393,7 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
             "kind": sp.kind if sp else "fomc",
             "months_ahead": sp.months_ahead if sp else None,
             "is_primary": h == P,
+            "probs": probs,
         }
 
     # ── Summary log (next meeting, headline, last in-window meeting, long run) ──
