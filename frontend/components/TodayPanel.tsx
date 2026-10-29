@@ -115,8 +115,8 @@ export default function TodayPanel({
           </p>
         )}
         <p className="text-[10px] text-[var(--color-text-muted)] mt-3">
-          {ko ? "큰 숫자 = 해당 FOMC 직후 예상 기준금리(현재 기준금리 + 누적 전망 변화). 점선은 현행 금리, 음영은 위원회 ±1σ."
-              : "Large figure = implied policy rate right after that FOMC (current Fed Funds + cumulative Δ). Dashed line = today's rate; shading = committee ±1σ."}
+          {ko ? "금색 계단 = 위원회 예상 기준금리(해당 FOMC 직후), 회색 점선 = 시장이 가격에 반영한 경로(국채 선도금리), 음영 = 위원회 밴드. 카드의 확률은 최빈 시나리오(인하/동결/인상)가 맞을 확률입니다."
+              : "Gold steps = committee implied policy rate after each FOMC; grey dashed = the path the market prices (Treasury forwards); shading = committee band. Card probability = chance the modal scenario (cut/hold/hike) is right."}
         </p>
       </div>
 

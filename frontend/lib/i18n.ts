@@ -21,7 +21,7 @@ export const t = {
     // Forecast
     forecastLabel: "Rate Path Forecast",
     horizon: "headline call (~1Y FOMC)",
-    confidence: "Confidence",
+    confidence: "Probability (modal scenario)",
 
     // Horizons
     horizonNote: "Pick any FOMC meeting above to view that call",
@@ -155,7 +155,7 @@ export const t = {
 
     forecastLabel: "금리 경로 예측",
     horizon: "헤드라인 콜 (약 1년 뒤 FOMC)",
-    confidence: "신뢰도",
+    confidence: "적중 확률 (최빈 시나리오)",
 
     horizonNote: "위에서 FOMC 회의를 선택해 해당 콜을 볼 수 있습니다",
     nextMeeting: "다음 FOMC",

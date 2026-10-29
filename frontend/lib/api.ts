@@ -99,6 +99,9 @@ export interface HorizonForecast {
   implied_rate_pct?: number | null;   // current Fed Funds + delta
   band_source?: "conformal" | "dispersion";
   probs?: MeetingProbs | null;         // P(cut / hold / hike) after this meeting
+  stated_confidence?: number | null;   // raw self-reported committee confidence
+  market_implied_bps?: number | null;  // curve-implied change priced for this meeting
+  market_rate_pct?: number | null;     // current Fed Funds + market_implied_bps
   synthetic?: boolean;                 // the "today" anchor
 }
 

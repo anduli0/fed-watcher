@@ -336,6 +336,9 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
                 material_event=ctx.material_event,
                 horizon_specs=ctx.horizon_specs,
                 primary_key=ctx.primary_key,
+                market_prior_text=ctx.market_prior_text,
+                market_implied=ctx.market_implied,
+                fed_forward_signals=ctx.fed_forward_signals,
                 consensus_summary=consensus_summary,
                 own_round1_output=(
                     f"signal={orig.signal}, {P}_delta={orig.rate_path_delta_bps:+.0f} bps, "
@@ -377,6 +380,14 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
             _w.append(_effective_weight(r, agent_obj.weight if agent_obj else 1.0, months_h))
             _c.append(cal.calibrated_conf(hc))
         probs = state_distribution(_d, _w, _c)
+        # Published confidence = probability of the modal scenario (cut / hold /
+        # hike) under the committee mixture — a number that means "chance this
+        # call is right", not a self-reported scale. Raw stated confidence is
+        # kept alongside for diagnostics / calibration.
+        stated_conf = conf
+        if probs.get("p_hike") is not None:
+            conf = max(probs["p_cut"], probs["p_hold"], probs["p_hike"])
+            conf = min(MAX_AGGREGATE_CONF, conf)
         # Determine signal at this horizon
         if delta >= 25:
             signal = "hawkish"
@@ -394,6 +405,8 @@ async def run_full_cycle(ctx: AgentContext, cycle_type: str = "scheduled") -> di
             "months_ahead": sp.months_ahead if sp else None,
             "is_primary": h == P,
             "probs": probs,
+            "stated_confidence": round(stated_conf, 3),
+            "market_implied_bps": ctx.market_implied.get(h),
         }
 
     # ── Summary log (next meeting, headline, last in-window meeting, long run) ──

@@ -38,6 +38,8 @@ def _serialize_horizon(f: HorizonForecast) -> dict:
         "unchanged_streak_days": f.unchanged_streak_days,
         "change_justification": f.change_justification,
         "probs": json.loads(f.probs_json) if f.probs_json else None,
+        "stated_confidence": f.stated_confidence,
+        "market_implied_bps": f.market_implied_bps,
     }
 
 
@@ -127,6 +129,8 @@ async def get_all_horizons(db: AsyncSession = Depends(get_db)):
         row["band_high_bps"] = round(pub + band, 1) if band is not None else None
         if dff is not None:
             row["implied_rate_pct"] = round(dff + pub / 100.0, 2)
+            if f.market_implied_bps is not None:
+                row["market_rate_pct"] = round(dff + f.market_implied_bps / 100.0, 2)
         items.append(row)
 
     # Headline key: today's ~12-month meeting if forecast, else the last issued

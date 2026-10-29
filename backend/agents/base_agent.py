@@ -45,7 +45,8 @@ class AgentContext:
     material_event: Optional[str] = None
     consensus_summary: Optional[str] = None
     own_round1_output: Optional[str] = None
-    market_prior_text: str = ""      # market-implied path prior (GS2-DFF derived)
+    market_prior_text: str = ""      # market-implied path prior (curve forwards per meeting)
+    market_implied: dict[str, float] = field(default_factory=dict)  # horizon key → implied bps
     self_critique: Optional[str] = None  # previous cycle's process self-review
     fed_forward_signals: str = ""    # SEP dot plot + latest Fed-policy signals/news
     horizon_specs: list[HorizonSpec] = field(default_factory=list)  # FOMC-meeting horizons
@@ -80,9 +81,11 @@ class AgentContext:
         return (
             "\n\n### MARKET-IMPLIED PATH PRIOR (anchor discipline)\n"
             + self.market_prior_text
-            + "\nStart from this market prior. Deviate ONLY with explicit evidence, "
-            "state the deviation in bps, and quantize your published deltas to 25bps "
-            "Fed-move increments. Keep the meeting-by-meeting path economically coherent "
+            + "\nStart from this market-implied path for each meeting. Deviate ONLY with explicit "
+            "evidence, state the deviation in bps per meeting, and quantize your deltas to 25bps "
+            "Fed-move increments. The market is usually right about the NEXT 1-2 meetings; your "
+            "edge, if any, is in the 3-18 month range where data and Fed reaction functions matter "
+            "more than pricing. Keep the meeting-by-meeting path economically coherent "
             "(smooth transitions, no sign zigzags).\n"
         )
 

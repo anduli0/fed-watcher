@@ -72,6 +72,12 @@ export default function ForecastBanner({ horizons, history, activeHorizon: activ
                 {lang === "ko" ? "예상 기준금리" : "implied rate"} <b className="text-[var(--color-text-primary)]">{fc.implied_rate_pct.toFixed(2)}%</b>
               </span>
             )}
+            {fc.market_implied_bps != null && (
+              <span className="ml-2 text-[11px] text-[var(--color-text-muted)]">
+                {lang === "ko" ? "시장 내재" : "market"} {fc.market_implied_bps > 0 ? "+" : ""}{fc.market_implied_bps.toFixed(0)} bps
+                {" · "}{lang === "ko" ? "위원회 대비" : "vs committee"} {(delta - fc.market_implied_bps) > 0 ? "+" : ""}{(delta - fc.market_implied_bps).toFixed(0)}
+              </span>
+            )}
           </p>
         </div>
         <div className="text-left sm:text-right">

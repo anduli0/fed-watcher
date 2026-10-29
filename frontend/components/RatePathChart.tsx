@@ -18,6 +18,7 @@ interface Row {
   label: string;
   full: string;
   rate: number | null;
+  market: number | null;
   band: [number, number] | null;
   delta: number;
   signal: string;
@@ -53,14 +54,17 @@ export default function RatePathChart({ horizons, activeHorizon, onSelect, heigh
     const lo = fc.band_low_bps, hi = fc.band_high_bps;
     const band: [number, number] | null =
       base != null && lo != null && hi != null ? [base + lo / 100, base + hi / 100] : null;
+    const market = fc.kind === "today" ? rate
+      : fc.market_rate_pct ?? (base != null && fc.market_implied_bps != null ? base + fc.market_implied_bps / 100 : null);
     return {
       key: fc.horizon, label: shortLabel(fc, lang), full: longLabel(fc, lang),
-      rate, band, delta: d, signal: fc.signal, conf: fc.confidence ?? 0,
+      rate, band, market, delta: d, signal: fc.signal, conf: fc.confidence ?? 0,
       primary: fc.horizon === horizons.primary, kind: fc.kind,
     };
   });
 
-  const rates = rows.flatMap(r => [r.rate ?? NaN, ...(r.band ?? [])]).filter(v => Number.isFinite(v));
+  const rates = rows.flatMap(r => [r.rate ?? NaN, r.market ?? NaN, ...(r.band ?? [])]).filter(v => Number.isFinite(v));
+  const hasMarket = rows.some(r => r.market != null && r.kind !== "today");
   const yMin = Math.floor((Math.min(...rates) - 0.15) * 4) / 4;
   const yMax = Math.ceil((Math.max(...rates) + 0.15) * 4) / 4;
 
@@ -89,13 +93,16 @@ export default function RatePathChart({ horizons, activeHorizon, onSelect, heigh
             formatter={(v, name, item) => {
               const r = item?.payload as Row | undefined;
               if (name === "band" && Array.isArray(v)) {
-                return [`${v[0].toFixed(2)}% ~ ${v[1].toFixed(2)}%`, ko ? "위원회 ±1σ" : "committee ±1σ"];
+                return [`${v[0].toFixed(2)}% ~ ${v[1].toFixed(2)}%`, ko ? "위원회 밴드" : "committee band"];
+              }
+              if (name === "market") {
+                return [`${Number(v).toFixed(2)}%`, ko ? "시장 내재 (국채 선도금리)" : "market-implied (curve forwards)"];
               }
               if (!r) return [String(v), name];
               const sig = r.signal === "hawkish" ? (ko ? "매파" : "hawkish") : r.signal === "dovish" ? (ko ? "비둘기" : "dovish") : (ko ? "중립" : "neutral");
               return [
-                `${Number(v).toFixed(2)}%  (${r.delta > 0 ? "+" : ""}${r.delta.toFixed(0)} bps · ${sig} · ${ko ? "신뢰도" : "conf"} ${(r.conf * 100).toFixed(0)}%)`,
-                ko ? "예상 기준금리" : "implied rate",
+                `${Number(v).toFixed(2)}%  (${r.delta > 0 ? "+" : ""}${r.delta.toFixed(0)} bps · ${sig} · ${ko ? "확률" : "p"} ${(r.conf * 100).toFixed(0)}%)`,
+                ko ? "위원회 예상 기준금리" : "committee implied rate",
               ];
             }}
           />
@@ -105,6 +112,10 @@ export default function RatePathChart({ horizons, activeHorizon, onSelect, heigh
           )}
           <Area type="stepAfter" dataKey="band" stroke="none" fill="var(--color-gold)" fillOpacity={0.12}
             connectNulls isAnimationActive={false} />
+          {hasMarket && (
+            <Line type="stepAfter" dataKey="market" stroke="#8BA0BC" strokeWidth={1.2} strokeDasharray="4 3"
+              dot={false} connectNulls isAnimationActive={false} />
+          )}
           <Line type="stepAfter" dataKey="rate" stroke="var(--color-gold)" strokeWidth={1.8}
             connectNulls isAnimationActive={false}
             dot={(p: { cx?: number; cy?: number; payload?: Row; index?: number }) => {

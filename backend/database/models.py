@@ -65,6 +65,16 @@ class HorizonForecast(Base):
     report_text = Column(Text)                  # Korean derivation report
     report_text_en = Column(Text)               # English derivation report
     probs_json = Column(Text)                   # {states, p_cut, p_hold, p_hike, mean} per meeting
+    stated_confidence = Column(Float)           # raw committee self-reported confidence (pre-probability)
+    market_implied_bps = Column(Float)          # curve-implied cumulative change at this meeting
+    stated_confidence = Column(Float)           # raw committee self-reported confidence (pre-probability)
+    market_implied_bps = Column(Float)          # curve-implied cumulative change at this meeting
+    stated_confidence = Column(Float)           # raw committee self-reported confidence (pre-probability)
+    market_implied_bps = Column(Float)          # curve-implied cumulative change at this meeting
+    stated_confidence = Column(Float)           # raw committee self-reported confidence (pre-probability)
+    market_implied_bps = Column(Float)          # curve-implied cumulative change at this meeting
+    stated_confidence = Column(Float)           # raw committee self-reported confidence (pre-probability)
+    market_implied_bps = Column(Float)          # curve-implied cumulative change at this meeting
     run = relationship("RunLog", back_populates="horizon_forecasts")
 
 

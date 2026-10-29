@@ -106,14 +106,39 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         event = await get_today_event()
         neg_examples = await get_negative_examples(db)
 
-        # Market-implied path prior: the 2Y-DFF spread scaled by the empirical
-        # pass-through (~0.7) is every agent's anchor; deviations must be argued.
+        # FOMC-meeting horizon set for today: every meeting within 3 years plus
+        # the meetings nearest 5 / 10 / 30 years ahead. Headline = ~12 months.
+        today = date.today()
+        specs = fomc_horizons(today)
+        spec_map = spec_by_key(specs)
+        P = _primary_key(specs)
+        AL.system_event(
+            f"Horizons: {sum(1 for s in specs if s.is_fomc)} FOMC meetings through "
+            f"{[s for s in specs if s.is_fomc][-1].meeting_date.isoformat()} + 5y/10y/30y · headline {P}"
+        )
+
+        # Market-implied path per meeting, bootstrapped from the bill/note curve
+        # (1m/3m/6m/1y/2y forwards, basis-adjusted). Every agent anchors on it;
+        # deviations must be argued. Falls back to the 2Y-DFF spread heuristic.
         market_prior_text = ""
+        market_implied: dict[str, float] = {}
         try:
             from backend.data.fred_client import get_macro_snapshot
+            from backend.data.forward_curve import market_forward_path
             macro = await get_macro_snapshot()
             dff_v, gs2_v = macro.get("DFF"), macro.get("GS2")
-            if dff_v is not None and gs2_v is not None:
+            fp = await market_forward_path(specs, dff_v)
+            if fp and fp.implied_bps:
+                market_implied = dict(fp.implied_bps)
+                market_prior_text = (
+                    (f"DFF (effective fed funds): {dff_v:.2f}%\n" if dff_v is not None else "")
+                    + fp.text_block(specs)
+                )
+                AL.system_event(
+                    f"Market path (curve forwards {fp.as_of}): next {market_implied.get(specs[0].key, 0):+.0f} · "
+                    f"headline {market_implied.get(P, float('nan')):+.0f} bps"
+                )
+            elif dff_v is not None and gs2_v is not None:
                 spread_bps = (gs2_v - dff_v) * 100.0
                 prior_12m = spread_bps * 0.7
                 prior_6m = prior_12m * 0.5
@@ -176,17 +201,6 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         except Exception as e:
             logger.warning("Forward-guidance signals unavailable: %s", e)
 
-        # FOMC-meeting horizon set for today: every meeting within 3 years plus
-        # the meetings nearest 5 / 10 / 30 years ahead. Headline = ~12 months.
-        today = date.today()
-        specs = fomc_horizons(today)
-        spec_map = spec_by_key(specs)
-        P = _primary_key(specs)
-        AL.system_event(
-            f"Horizons: {sum(1 for s in specs if s.is_fomc)} FOMC meetings through "
-            f"{[s for s in specs if s.is_fomc][-1].meeting_date.isoformat()} + 5y/10y/30y · headline {P}"
-        )
-
         ctx = AgentContext(
             horizon_specs=specs,
             primary_key=P,
@@ -199,6 +213,7 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
             negative_examples=neg_examples,
             material_event=event.get("label") if event else None,
             market_prior_text=market_prior_text,
+            market_implied=market_implied,
             self_critique=self_critique,
             fed_forward_signals=fed_forward_signals,
         )
@@ -337,6 +352,8 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                 "change_justification": justification,
                 "is_published": immediate_publish,
                 "probs_json": json.dumps(agg.get("probs")) if agg.get("probs") else None,
+                "stated_confidence": agg.get("stated_confidence"),
+                "market_implied_bps": agg.get("market_implied_bps"),
                 # Master report only stored on the headline record to avoid duplication
                 "report_text": report_ko if h == P else None,
                 "report_text_en": report_en if h == P else None,

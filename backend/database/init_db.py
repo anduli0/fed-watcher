@@ -28,6 +28,8 @@ _HORIZON_FORECAST_NEW_COLS = {
     "horizon_kind": "VARCHAR(8)",
     "is_primary": "BOOLEAN DEFAULT 0" ,
     "probs_json": "TEXT",
+    "stated_confidence": "FLOAT",
+    "market_implied_bps": "FLOAT",
 }
 
 
