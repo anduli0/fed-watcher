@@ -79,6 +79,7 @@ def stabilize(
     event: dict | None,
     bypass_ema: bool = False,
     recent_raw_deltas: list[float] | None = None,
+    first_run: bool | None = None,
 ) -> StabilizationResult:
     """
     5-stage stabilization with volatility-adaptive EMA.
@@ -103,7 +104,8 @@ def stabilize(
         )
 
     # Stage 1: Adaptive EMA
-    first_run = (prev_streak == 0 and prev_published_delta == 0.0)
+    if first_run is None:
+        first_run = (prev_streak == 0 and prev_published_delta == 0.0)
     event_alpha = event.get("alpha") if event else None
     alpha, regime = _adaptive_alpha(recent_raw_deltas, bool(event), first_run, event_alpha)
     smoothed = alpha * new_raw_delta + (1 - alpha) * prev_published_delta
@@ -113,8 +115,10 @@ def stabilize(
     if delta_from_prev < HALF_QUANTUM:
         return _hold(new_raw_delta, smoothed, prev_published_delta, prev_streak, alpha, regime)
 
-    # Stage 3: Conviction gate (bypassed on event days)
-    if not event and new_confidence < MIN_CONFIDENCE:
+    # Stage 3: Conviction gate (bypassed on event days and on a horizon's first
+    # publication — a never-published FOMC meeting must show the committee's
+    # first call rather than a fabricated 0 bps "hold")
+    if not event and not first_run and new_confidence < MIN_CONFIDENCE:
         return _hold(new_raw_delta, smoothed, prev_published_delta, prev_streak, alpha, regime)
 
     # Stage 4: Quantize + detect change

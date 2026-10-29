@@ -68,16 +68,24 @@ const api: ApiClient = STATIC_MODE ? staticApi : (axiosApi as unknown as ApiClie
 
 export default api;
 
-export type Horizon = "today" | "3m" | "6m" | "12m" | "3y" | "10y";
-// Term-structure order: spot → near-term → analytical horizons.
-export const HORIZONS: Horizon[] = ["today", "3m", "6m", "12m", "3y", "10y"];
-// The four horizons the 21-agent committee actually forecasts (today & 3m are
-// derived anchor points on the same curve).
-export const CORE_HORIZONS: Horizon[] = ["6m", "12m", "3y", "10y"];
+// Horizon keys are FOMC decision dates ("2026-12-09") for every scheduled
+// meeting within 3 years, plus "5y" / "10y" / "30y" (the meeting nearest that
+// many years ahead) and a synthetic "today" anchor. The set shifts daily, so
+// consumers read the ordered `items` list rather than fixed keys.
+export type Horizon = string;
+export type HorizonKind = "today" | "fomc" | "5y" | "10y" | "30y";
 
 export interface HorizonForecast {
   horizon: Horizon;
-  published_at: string;
+  meeting_date: string;                // ISO date of the targeted FOMC decision
+  kind: HorizonKind;
+  is_primary: boolean;                 // headline call (meeting nearest 12 months)
+  months_ahead?: number;
+  days_to_meeting?: number;
+  projected?: boolean;                 // date projected (Fed has not published it yet)
+  label_en?: string;
+  label_ko?: string;
+  published_at: string | null;
   published_delta_bps: number;
   smoothed_delta_bps: number;
   confidence: number;
@@ -89,10 +97,15 @@ export interface HorizonForecast {
   band_low_bps?: number | null;
   band_high_bps?: number | null;
   implied_rate_pct?: number | null;   // current Fed Funds + delta
-  synthetic?: boolean;                 // today / 3m derived anchor points
+  synthetic?: boolean;                 // the "today" anchor
 }
 
-export type AllHorizons = { [k in Horizon]: HorizonForecast | null };
+export interface AllHorizons {
+  as_of: string;
+  current_rate_pct: number | null;
+  primary: Horizon | null;
+  items: HorizonForecast[];            // ordered: today → each FOMC → 5y → 10y → 30y
+}
 
 // ── Trading desk (positions by maturity) ─────────────────────────────────
 export type TradeDir = "long" | "short" | "neutral";
@@ -110,6 +123,7 @@ export interface TreasuryPosition {
   horizon_basis: string;
   fed_path_beta: number;
   cash_mod_duration: number;
+  horizon_months?: [number, number]; // months-ahead span of the driving meetings
   spot_face_value: number;
   spot_price_move_pct: number | null;
   futures_symbol: string;

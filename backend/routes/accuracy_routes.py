@@ -2,9 +2,10 @@
 Accuracy / self-review / backtest endpoints — exact parity with the reference
 build's shapes and scoring rules.
 
-- /api/accuracy/summary : realized-DFF maturity ledger. 6m/12m calls are graded
-  against DFF at maturity; 3y/10y are never graded vs DFF. Adaptive weights
-  stay frozen until >=8 matured outcomes per agent — no proxy grading.
+- /api/accuracy/summary : realized-DFF maturity ledger. Each FOMC-meeting call
+  is graded against DFF right after that meeting; 5y/10y/30y are never graded
+  vs DFF. Adaptive weights stay frozen until >=8 matured outcomes per agent —
+  no proxy grading.
 - /api/accuracy/quality : per-cycle process self-review (works pre-maturity);
   the latest critique is injected into the next cycle's prompts.
 - /api/backtest/skill   : mechanical directional engine (market-implied +
@@ -21,13 +22,15 @@ from sqlalchemy import select, desc
 
 from backend.config import settings
 from backend.database.init_db import get_db
-from backend.database.models import HorizonForecast, AgentOutput, RunLog, HORIZONS
+from backend.database.models import HorizonForecast, AgentOutput, RunLog
 from backend.data.cache import data_cache
+from backend.fomc_calendar import fomc_horizons, spec_by_key
 
 router = APIRouter(prefix="/api")
 
-WINDOW_DAYS = {"6m": 183, "12m": 365, "3y": 1095, "10y": 3650}
-GRADEABLE = ("6m", "12m")          # only these ever mature vs realized DFF
+LEGACY_WINDOW_DAYS = {"6m": 183, "12m": 365}   # pre-FOMC-horizon rows still grade this way
+LONG_RUN = ("5y", "10y", "30y")                # never graded vs DFF
+SETTLE_DAYS = 2                                # DFF reflects a decision from the next business day
 MIN_MATURED_FOR_ADAPTIVE = 8
 
 FRED_OBS = "https://api.stlouisfed.org/fred/series/observations"
@@ -94,19 +97,24 @@ async def horizon_dispersion(db: AsyncSession, run_id: int | None) -> dict[str, 
         if cur is None or (r.round or 1) > (cur.round or 1):
             by_agent[r.agent_id] = r
     import json as _json
+    parsed: list[dict] = []
+    for r in by_agent.values():
+        try:
+            parsed.append(_json.loads(r.horizons_json or "{}") or {})
+        except Exception:
+            continue
+    keys: list[str] = []
+    for hj in parsed:
+        for k in hj:
+            if k not in keys:
+                keys.append(k)
     out: dict[str, float] = {}
-    for h in HORIZONS:
+    for h in keys:
         vals = []
-        for r in by_agent.values():
-            try:
-                hj = _json.loads(r.horizons_json or "{}")
-                v = hj.get(h, {}).get("delta_bps")
-                if v is None and h == "12m":
-                    v = r.rate_path_delta_bps
-                if v is not None:
-                    vals.append(float(v))
-            except Exception:
-                continue
+        for hj in parsed:
+            v = (hj.get(h) or {}).get("delta_bps")
+            if v is not None:
+                vals.append(float(v))
         if len(vals) >= 2:
             mean = sum(vals) / len(vals)
             out[h] = round(math.sqrt(sum((v - mean) ** 2 for v in vals) / len(vals)), 2)
@@ -119,7 +127,7 @@ async def horizon_dispersion(db: AsyncSession, run_id: int | None) -> dict[str, 
 async def accuracy_summary(db: AsyncSession = Depends(get_db)):
     today = date.today()
     try:
-        dff = await _series_daily("DFF")
+        dff = await _series_daily("DFF", limit=1500)
     except Exception:
         dff = []
     dff_now = dff[-1]["value"] if dff else None
@@ -130,65 +138,96 @@ async def accuracy_summary(db: AsyncSession = Depends(get_db)):
         .order_by(HorizonForecast.published_at)
     )
     forecasts = list(result.scalars().all())
+    # Final call per horizon key = the last row issued for it (a meeting stops
+    # being re-forecast once its date passes, so this is the pre-meeting call).
     latest: dict[str, HorizonForecast] = {}
     for f in forecasts:
         latest[f.horizon] = f
 
+    specs = spec_by_key(fomc_horizons(today))
+
+    def _meeting(f: HorizonForecast) -> date | None:
+        if f.meeting_date:
+            return date.fromisoformat(f.meeting_date)
+        sp = specs.get(f.horizon)
+        return sp.meeting_date if sp else None
+
+    def _kind(f: HorizonForecast) -> str:
+        if f.horizon_kind:
+            return f.horizon_kind
+        if f.horizon in LEGACY_WINDOW_DAYS or f.horizon in ("3y", "10y"):
+            return "legacy"
+        return "fomc"
+
+    def _label(f: HorizonForecast) -> str:
+        sp = specs.get(f.horizon)
+        if sp:
+            return sp.label("en")
+        m = _meeting(f)
+        if _kind(f) == "fomc" and m:
+            return m.strftime("%b %Y FOMC")
+        return f.horizon
+
+    # ── Live tracking: active FOMC meetings (within the 3y window) ──────────
     latest_issue = None
     tracking = []
-    for h in HORIZONS:
-        f = latest.get(h)
+    for key, sp in specs.items():
+        f = latest.get(key)
         if not f or not f.published_at:
             continue
         issued = f.published_at.date()
         latest_issue = issued if latest_issue is None else max(latest_issue, issued)
+        if not sp.is_fomc:
+            continue
         dff_at_issue = _value_on_or_before(dff, issued.isoformat()) if dff else None
         realized = (
             round((dff_now - dff_at_issue) * 100, 1)
             if (dff_now is not None and dff_at_issue is not None) else None
         )
         tracking.append({
-            "horizon": h,
+            "horizon": key,
+            "label": sp.label("en"),
+            "meeting_date": sp.meeting_date.isoformat(),
             "predicted_delta_bps": f.published_delta,
             "signal": f.signal,
             "confidence": f.confidence,
             "dff_realized_so_far_bps": realized,
             "elapsed_days": (today - issued).days,
-            "window_days": WINDOW_DAYS[h],
-            "gradeable_vs_dff": h in GRADEABLE,
+            "window_days": max(1, (sp.meeting_date - issued).days),
+            "gradeable_vs_dff": True,
         })
 
-    # Ledger: the latest issue per horizon; long horizons never grade vs DFF
-    ledger = []
-    matured_count = 0
-    matured_hits = 0
-    for h in HORIZONS:
-        f = latest.get(h)
-        if not f or not f.published_at:
+    # ── Maturity ledger: every meeting call matures on its decision date ────
+    matured, pending, never = [], [], []
+    matured_count = matured_hits = 0
+    for key, f in latest.items():
+        if not f.published_at:
             continue
         issued = f.published_at.date()
-        if h not in GRADEABLE:
-            ledger.append({
-                "horizon": h,
-                "issued": issued.isoformat(),
-                "matures_on": None,
-                "predicted_delta_bps": f.published_delta,
-                "status": "never_vs_dff",
-                "days_remaining": None,
-            })
-            continue
-        matures = issued + timedelta(days=WINDOW_DAYS[h])
-        entry = {
-            "horizon": h,
+        kind = _kind(f)
+        base = {
+            "horizon": key,
+            "label": _label(f),
             "issued": issued.isoformat(),
-            "matures_on": matures.isoformat(),
             "predicted_delta_bps": f.published_delta,
-            "status": "pending",
-            "days_remaining": max(0, (matures - today).days),
         }
-        if today >= matures and dff:
+        if key in LONG_RUN or kind in LONG_RUN or (kind == "legacy" and key in ("3y", "10y")):
+            never.append({**base, "matures_on": None, "status": "never_vs_dff", "days_remaining": None})
+            continue
+        if kind == "legacy":
+            matures = issued + timedelta(days=LEGACY_WINDOW_DAYS[key])
+            settle = matures
+        else:
+            m = _meeting(f)
+            if not m:
+                continue
+            matures = m
+            settle = m + timedelta(days=SETTLE_DAYS)
+        entry = {**base, "matures_on": matures.isoformat(), "status": "pending",
+                 "days_remaining": max(0, (matures - today).days)}
+        if today >= settle and dff:
             y0 = _value_on_or_before(dff, issued.isoformat())
-            y1 = _value_on_or_before(dff, matures.isoformat())
+            y1 = _value_on_or_before(dff, settle.isoformat())
             if y0 is not None and y1 is not None:
                 realized = round((y1 - y0) * 100, 1)
                 pred = f.published_delta or 0.0
@@ -197,24 +236,26 @@ async def accuracy_summary(db: AsyncSession = Depends(get_db)):
                 matured_count += 1
                 if hit:
                     matured_hits += 1
-        ledger.append(entry)
+        (matured if entry["status"] == "matured" else pending).append(entry)
+    matured.sort(key=lambda e: e["matures_on"], reverse=True)
+    pending.sort(key=lambda e: e["matures_on"])
+    ledger = matured + pending + never
 
     # DFF move since the latest issue (context for "the Fed has held flat")
     dff_move = None
     if dff and latest_issue and dff_now is not None:
-        base = _value_on_or_before(dff, latest_issue.isoformat())
-        if base is not None:
-            dff_move = round((dff_now - base) * 100, 1)
+        base_v = _value_on_or_before(dff, latest_issue.isoformat())
+        if base_v is not None:
+            dff_move = round((dff_now - base_v) * 100, 1)
 
-    first_maturity = None
-    for e in ledger:
-        if e.get("matures_on"):
-            first_maturity = e["matures_on"] if first_maturity is None else min(first_maturity, e["matures_on"])
+    first_maturity = pending[0]["matures_on"] if pending else None
 
     return {
         "as_of": today.isoformat(),
+        "dff_now": dff_now,
         "matured_count": matured_count,
         "matured_hits": matured_hits,
+        "hit_rate": round(matured_hits / matured_count, 3) if matured_count else None,
         "dff_realized_move_bps": dff_move,
         "dff_flat": abs(dff_move) < 5 if dff_move is not None else None,
         "tracking": tracking,
@@ -223,14 +264,14 @@ async def accuracy_summary(db: AsyncSession = Depends(get_db)):
             "status": "frozen_until_maturity" if matured_count < MIN_MATURED_FOR_ADAPTIVE else "active",
             "min_matured_for_adaptive": MIN_MATURED_FOR_ADAPTIVE,
             "note": (
-                "Realized-DFF grader runs every cycle; adaptive agent weights stay "
-                f"at 1.0 until ≥{MIN_MATURED_FOR_ADAPTIVE} matured outcomes per agent, "
-                "then activate automatically. No fake proxy is used."
+                "Each FOMC-meeting call is graded against DFF right after that meeting; "
+                f"adaptive agent weights stay at 1.0 until ≥{MIN_MATURED_FOR_ADAPTIVE} matured "
+                "outcomes per agent, then activate automatically. No fake proxy is used."
             ),
         },
         "disclaimer": (
             "No forecast has matured yet"
-            + (f" (first 6m realized outcome ≈ {first_maturity})" if first_maturity else "")
+            + (f" (first FOMC outcome ≈ {first_maturity})" if first_maturity else "")
             + " and the Fed has held flat, so a realized accuracy score is not yet "
             "computable. Near-term tracking is an indicative leading indicator, NOT a "
             "scored outcome. See /api/backtest/skill for historical skill of the core "
@@ -249,15 +290,32 @@ def _sign(x: float, band: float = 12.5) -> int:
     return 0
 
 
+def _ordered_keys(hf_by_h: dict) -> list[str]:
+    """Horizon keys in path order (by targeted meeting date, legacy by offset)."""
+    legacy_rank = {"6m": "0183", "12m": "0365", "3y": "1095", "10y": "3650"}
+    def _k(h: str):
+        f = hf_by_h[h]
+        return (f.meeting_date or legacy_rank.get(h) or h)
+    return sorted(hf_by_h, key=_k)
+
+
+def _primary_row(hf_by_h: dict):
+    for f in hf_by_h.values():
+        if f.is_primary:
+            return f
+    return hf_by_h.get("12m")
+
+
 def _quality_for_run(hf_by_h: dict, agents: list[AgentOutput],
                      prev_by_h: dict | None, dispersion_12m: float | None):
-    deltas = [hf_by_h[h].published_delta or 0.0 for h in HORIZONS if h in hf_by_h]
+    keys = _ordered_keys(hf_by_h)
+    deltas = [hf_by_h[h].published_delta or 0.0 for h in keys]
     signs = [_sign(d) for d in deltas]
     flips = sum(1 for a, b in zip(signs, signs[1:]) if a != 0 and b != 0 and a != b)
     term_coherence = max(0.0, 1.0 - flips / max(1, len(signs) - 1))
 
     ok = tot = 0
-    for h in HORIZONS:
+    for h in keys:
         f = hf_by_h.get(h)
         if not f:
             continue
@@ -268,9 +326,9 @@ def _quality_for_run(hf_by_h: dict, agents: list[AgentOutput],
             ok += 1
     signal_consistency = ok / tot if tot else None
 
-    # Consensus: applied-weight share of agents whose 12m sign matches the call
+    # Consensus: applied-weight share of agents whose headline sign matches the call
     consensus = None
-    f12 = hf_by_h.get("12m")
+    f12 = _primary_row(hf_by_h)
     if f12 is not None and agents:
         by_agent: dict[int, AgentOutput] = {}
         for r in agents:
@@ -296,7 +354,7 @@ def _quality_for_run(hf_by_h: dict, agents: list[AgentOutput],
     prior_coherence = None
     if prev_by_h:
         jumps = []
-        for h in HORIZONS:
+        for h in keys:
             f, p = hf_by_h.get(h), prev_by_h.get(h)
             if f is not None and p is not None:
                 jumps.append(abs((f.published_delta or 0) - (p.published_delta or 0)))
@@ -310,8 +368,8 @@ def _quality_for_run(hf_by_h: dict, agents: list[AgentOutput],
     critique = None
     dims = {
         "term_coherence": (term_coherence,
-            "직전 사이클의 기간구조가 지그재그였다(부호가 6m→12m→3y→10y에서 반복 반전). "
-            "다음 예측에선 각 호라이즌이 경제적으로 일관된 경로(완만한 전환)를 이루도록 하라."),
+            "직전 사이클의 회의별 경로가 지그재그였다(연속 FOMC 사이에서 부호가 반복 반전). "
+            "다음 예측에선 회의별 누적 경로가 경제적으로 일관되도록(완만한 전환) 하라."),
         "calibration": (calibration,
             "위원회 분산이 과도했다. 근거가 갈리면 신뢰도를 낮추고, 25bps 양자화 앵커로 수렴시켜라."),
         "consensus": (consensus,
@@ -358,7 +416,8 @@ async def _quality_trend(db: AsyncSession, limit: int = 40) -> list[dict]:
         )
         agents = list(ag_res.scalars().all())
         disp = await horizon_dispersion(db, run.id)
-        q = _quality_for_run(hf_by_h, agents, prev_by_h, disp.get("12m"))
+        prow = _primary_row(hf_by_h)
+        q = _quality_for_run(hf_by_h, agents, prev_by_h, disp.get(prow.horizon) if prow else None)
         q["run_id"] = run.id
         q["at"] = run.completed_at.isoformat() if run.completed_at else None
         trend.append(q)

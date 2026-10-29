@@ -1,7 +1,9 @@
 "use client";
-import { AllHorizons, ForecastHistoryItem, Horizon, HORIZONS, HorizonForecast } from "@/lib/api";
+import { AllHorizons, ForecastHistoryItem, Horizon, HorizonForecast } from "@/lib/api";
 import { useLang } from "@/context/LanguageContext";
 import ForecastHistory from "./ForecastHistory";
+import HorizonSelector from "./HorizonSelector";
+import { byKey, longLabel, roleTag, countdown } from "@/lib/horizons";
 
 interface Props {
   horizons: AllHorizons | null;
@@ -13,18 +15,27 @@ interface Props {
 export default function ForecastBanner({ horizons, history, activeHorizon: active, onHorizonChange: setActive }: Props) {
   const { T, lang } = useLang();
 
-  const fc: HorizonForecast | null = horizons?.[active] ?? null;
+  const fc: HorizonForecast | null = byKey(horizons, active);
 
-  if (!fc) {
+  if (!fc || fc.kind === "today") {
     return (
       <div className="card">
-        <HorizonTabs active={active} onChange={setActive} availability={horizons} />
-        <p className="text-[var(--color-text-muted)] text-sm mt-4">{T.noForecast}</p>
+        <HorizonSelector horizons={horizons} active={active} onChange={setActive} />
+        <p className="text-[var(--color-text-muted)] text-sm mt-4">
+          {fc?.kind === "today"
+            ? (lang === "ko"
+                ? `현행 기준금리 ${fc.implied_rate_pct != null ? fc.implied_rate_pct.toFixed(2) + "%" : ""} — 예측 곡선의 기준점입니다. 위에서 FOMC 회의를 선택하세요.`
+                : `Current policy rate ${fc.implied_rate_pct != null ? fc.implied_rate_pct.toFixed(2) + "%" : ""} — the anchor of the curve. Pick an FOMC meeting above.`)
+            : T.noForecast}
+        </p>
       </div>
     );
   }
+  const tag = roleTag(fc, horizons, lang);
+  const dday = countdown(fc, lang);
 
-  const { published_delta_bps: delta, confidence, signal, unchanged_streak_days, change_justification, trigger_event, published_at } = fc;
+  const { published_delta_bps: delta, confidence, signal, unchanged_streak_days, change_justification, trigger_event } = fc;
+  const published_at = fc.published_at ?? new Date().toISOString();
   const signalClass = signal === "hawkish" ? "badge-hawkish" : signal === "dovish" ? "badge-dovish" : "badge-neutral";
   const signalLabel = signal === "hawkish" ? T.hawkish : signal === "dovish" ? T.dovish : T.neutral;
   const direction = delta < 0 ? "▼" : delta > 0 ? "▲" : "—";
@@ -41,7 +52,7 @@ export default function ForecastBanner({ horizons, history, activeHorizon: activ
 
   return (
     <div className="card space-y-4">
-      <HorizonTabs active={active} onChange={setActive} availability={horizons} />
+      <HorizonSelector horizons={horizons} active={active} onChange={setActive} />
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
         <div>
@@ -53,7 +64,14 @@ export default function ForecastBanner({ horizons, history, activeHorizon: activ
             <span className={`text-lg ${signalClass}`}>{signalLabel}</span>
           </div>
           <p className="text-[var(--color-text-muted)] text-sm mt-1">
-            {T.horizonLabels[active]}
+            {longLabel(fc, lang)}
+            {tag && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(201,168,76,0.15)", color: "var(--color-gold)" }}>{tag}</span>}
+            {dday && <span className="ml-2 text-[10px] text-[var(--color-text-muted)]">{dday}</span>}
+            {fc.implied_rate_pct != null && (
+              <span className="ml-2 text-[11px]">
+                {lang === "ko" ? "예상 기준금리" : "implied rate"} <b className="text-[var(--color-text-primary)]">{fc.implied_rate_pct.toFixed(2)}%</b>
+              </span>
+            )}
           </p>
         </div>
         <div className="text-left sm:text-right">
@@ -104,46 +122,3 @@ export default function ForecastBanner({ horizons, history, activeHorizon: activ
   );
 }
 
-
-function HorizonTabs({
-  active, onChange, availability,
-}: {
-  active: Horizon;
-  onChange: (h: Horizon) => void;
-  availability: AllHorizons | null;
-}) {
-  const { T } = useLang();
-  return (
-    <div className="flex gap-1 flex-wrap">
-      {HORIZONS.map(h => {
-        const isActive = active === h;
-        const has = availability?.[h] != null;
-        const fc = availability?.[h];
-        const delta = fc?.published_delta_bps ?? 0;
-        return (
-          <button
-            key={h}
-            onClick={() => onChange(h)}
-            className="text-xs px-3 py-1.5 rounded-md transition-all flex items-center gap-2"
-            style={{
-              background: isActive ? "var(--color-navy-700)" : "transparent",
-              color: isActive ? "var(--color-text-primary)" : "var(--color-text-muted)",
-              border: `1px solid ${isActive ? "var(--color-gold)" : "var(--color-navy-700)"}`,
-              opacity: has ? 1 : 0.55,
-            }}
-          >
-            <span className="font-medium">{T.horizonTabs[h]}</span>
-            {has && (
-              <span className="text-[10px]"
-                style={{
-                  color: delta < 0 ? "var(--color-signal-green)" : delta > 0 ? "var(--color-signal-red)" : "var(--color-gold)",
-                }}>
-                {delta > 0 ? "+" : ""}{delta.toFixed(0)}
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}

@@ -17,6 +17,7 @@ import { useForecast } from "@/hooks/useForecast";
 import { useLang } from "@/context/LanguageContext";
 import { Horizon } from "@/lib/api";
 import api from "@/lib/api";
+import { primaryOf, byKey } from "@/lib/horizons";
 
 // Static (GitHub Pages) deployment has no backend — hide server-action UI.
 const STATIC_MODE = process.env.NEXT_PUBLIC_STATIC_DATA === "true";
@@ -25,7 +26,7 @@ export default function DashboardPage() {
   const { horizons, history, agents, report, loading, lastRefresh, refresh } = useForecast();
   const { T, lang } = useLang();
   const [tab, setTab] = useState<Tab>("today");
-  const [activeHorizon, setActiveHorizon] = useState<Horizon>("12m");
+  const [activeHorizon, setActiveHorizon] = useState<Horizon>("");
   const [timeStr, setTimeStr] = useState("");
   const [yr, setYr] = useState(2026);
   const [triggering, setTriggering] = useState(false);
@@ -59,6 +60,13 @@ export default function DashboardPage() {
     setTimeStr(lastRefresh.toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul" }) + " KST");
   }, [lastRefresh]);
 
+  // The horizon set is FOMC-date keyed and shifts daily: default to the
+  // headline meeting, and fall back to it if the selected key dropped out.
+  useEffect(() => {
+    if (!horizons) return;
+    if (!byKey(horizons, activeHorizon) && horizons.primary) setActiveHorizon(horizons.primary);
+  }, [horizons, activeHorizon]);
+
   useEffect(() => { setYr(new Date().getFullYear()); }, []);
 
   async function runCycle() {
@@ -75,11 +83,11 @@ export default function DashboardPage() {
       }
       setTriggerMsg(T.cycleRunning);
       let attempts = 0;
-      const prevDelta = horizons?.["12m"]?.published_delta_bps;
+      const prevDelta = primaryOf(horizons)?.published_delta_bps;
       pollRef.current = setInterval(async () => {
         attempts++;
         await refresh();
-        const newDelta = horizons?.["12m"]?.published_delta_bps;
+        const newDelta = primaryOf(horizons)?.published_delta_bps;
         if (newDelta !== prevDelta || attempts >= 18) {
           clearInterval(pollRef.current!);
           pollRef.current = null;
@@ -95,10 +103,9 @@ export default function DashboardPage() {
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
-  const has12m = horizons?.["12m"] != null;
-  const noForecast = !loading && !has12m;
+  const hasPrimary = primaryOf(horizons) != null;
+  const noForecast = !loading && !hasPrimary;
   const noAgents = !loading && agents.length === 0;
-  const fc12m = horizons?.["12m"];
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -107,7 +114,7 @@ export default function DashboardPage() {
         {/* ── Header ── */}
         <div className="flex items-center justify-between py-3 sm:py-5 flex-wrap gap-2 sm:gap-3">
           <button
-            onClick={() => { setTab("live"); setActiveHorizon("12m"); }}
+            onClick={() => { setTab("live"); if (horizons?.primary) setActiveHorizon(horizons.primary); }}
             className="text-left group"
           >
             <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-[var(--color-text-primary)] group-hover:text-[var(--color-gold)] transition-colors">
@@ -199,7 +206,6 @@ export default function DashboardPage() {
                 <MultiHorizonGauges
                   horizons={horizons}
                   activeHorizon={activeHorizon}
-                  onHorizonChange={setActiveHorizon}
                 />
 
                 {/* Derivation report */}

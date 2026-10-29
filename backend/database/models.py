@@ -4,8 +4,6 @@ from datetime import datetime
 
 Base = declarative_base()
 
-HORIZONS = ("6m", "12m", "3y", "10y")
-
 
 def now_utc():
     return datetime.utcnow()
@@ -32,8 +30,8 @@ class AgentOutput(Base):
     agent_name = Column(String(50))
     round = Column(Integer, default=1)          # 1=independent, 2=post-collaboration
     signal = Column(String(20))
-    rate_path_delta_bps = Column(Float)         # 12m for backward compat
-    horizons_json = Column(Text)                # JSON: {6m, 12m, 3y, 10y}
+    rate_path_delta_bps = Column(Float)         # headline (primary-key) call
+    horizons_json = Column(Text)                # JSON: {<fomc date | 5y|10y|30y>: {...}}
     confidence = Column(Float)
     weight_applied = Column(Float)
     duration_ms = Column(Integer)
@@ -43,11 +41,16 @@ class AgentOutput(Base):
 
 
 class HorizonForecast(Base):
-    """One record per horizon (6m/12m/3y/10y) per cycle."""
+    """One record per horizon per cycle. Horizon = an FOMC decision date (ISO,
+    every meeting within 3 years) or "5y" / "10y" / "30y" (meeting nearest that
+    many years ahead). Legacy rows carry "6m"/"12m"/"3y"/"10y"."""
     __tablename__ = "horizon_forecast"
     id = Column(Integer, primary_key=True)
     run_id = Column(Integer, ForeignKey("run_log.id"))
-    horizon = Column(String(5))                 # 6m|12m|3y|10y
+    horizon = Column(String(12))                # "2026-12-09" | "5y" | "10y" | "30y"
+    meeting_date = Column(String(10))           # FOMC decision date this row targets
+    horizon_kind = Column(String(8))            # fomc | 5y | 10y | 30y | legacy
+    is_primary = Column(Boolean, default=False) # headline call (meeting nearest 12m)
     published_at = Column(DateTime, default=now_utc)
     target_date = Column(String(10))
     raw_delta_bps = Column(Float)

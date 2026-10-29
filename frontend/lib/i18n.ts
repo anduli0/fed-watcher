@@ -20,13 +20,14 @@ export const t = {
 
     // Forecast
     forecastLabel: "Rate Path Forecast",
-    horizon: "12-month horizon",
+    horizon: "headline call (~1Y FOMC)",
     confidence: "Confidence",
 
     // Horizons
-    horizonTabs: { "today": "Today", "3m": "3 Months", "6m": "6 Months", "12m": "1 Year", "3y": "3 Years", "10y": "10 Years" },
-    horizonLabels: { "today": "current rate", "3m": "3-month horizon", "6m": "6-month horizon", "12m": "12-month horizon", "3y": "3-year horizon", "10y": "10-year horizon" },
-    horizonNote: "Click any horizon tab above to view that forecast",
+    horizonNote: "Pick any FOMC meeting above to view that call",
+    nextMeeting: "Next FOMC",
+    headline: "Headline",
+    longRun: "Long run",
     derivationReport: "Derivation Report",
     showReport: "View derivation report",
     hideReport: "Hide report",
@@ -153,12 +154,13 @@ export const t = {
     activityFeed: "실시간 활동",
 
     forecastLabel: "금리 경로 예측",
-    horizon: "12개월 전망",
+    horizon: "헤드라인 콜 (약 1년 뒤 FOMC)",
     confidence: "신뢰도",
 
-    horizonTabs: { "today": "오늘", "3m": "3개월", "6m": "6개월", "12m": "1년", "3y": "3년", "10y": "10년" },
-    horizonLabels: { "today": "현행 기준금리", "3m": "3개월 전망", "6m": "6개월 전망", "12m": "12개월 전망", "3y": "3년 전망", "10y": "10년 전망" },
-    horizonNote: "위 탭을 클릭해 다른 시계열을 볼 수 있습니다",
+    horizonNote: "위에서 FOMC 회의를 선택해 해당 콜을 볼 수 있습니다",
+    nextMeeting: "다음 FOMC",
+    headline: "헤드라인",
+    longRun: "장기",
     derivationReport: "도출 보고서",
     showReport: "도출 보고서 보기",
     hideReport: "보고서 숨기기",

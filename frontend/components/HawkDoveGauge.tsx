@@ -24,7 +24,7 @@ export default function HawkDoveGauge({ signal, confidence, publishedAt, horizon
   const needleX = cx + (r - 10) * Math.cos(angle);
   const needleY = cy + (r - 10) * Math.sin(angle);
 
-  const horizonLabel = T.horizonLabels[horizon as keyof typeof T.horizonLabels] ?? horizon;
+  const horizonLabel = horizon;
 
   const dateLabel = publishedAt
     ? new Date(publishedAt).toLocaleString("ko-KR", {

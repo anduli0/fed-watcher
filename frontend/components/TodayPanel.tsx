@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import api, { AllHorizons, Horizon, HORIZONS } from "@/lib/api";
+import api, { AllHorizons, HorizonForecast } from "@/lib/api";
 import { useLang } from "@/context/LanguageContext";
+import RatePathChart from "@/components/RatePathChart";
+import { primaryOf, nextMeeting, fomcItems, highlightItems, shortLabel, longLabel, roleTag } from "@/lib/horizons";
 import { useLatestBriefing } from "@/hooks/useBriefing";
 import { Tab } from "@/components/TabNav";
 import MacroIndicators from "@/components/MacroIndicators";
@@ -35,7 +37,7 @@ function nextCycleTime(cycles: string[], nowHHMM: string): string {
 export default function TodayPanel({
   horizons, onNavigate,
 }: { horizons: AllHorizons | null; onNavigate: (t: Tab) => void }) {
-  const { lang, T } = useLang();
+  const { lang } = useLang();
   const ko = lang === "ko";
   const [today, setToday] = useState<TodayData | null>(null);
   const { briefing } = useLatestBriefing(lang);
@@ -44,7 +46,8 @@ export default function TodayPanel({
     api.get<TodayData>("/api/today").then(r => setToday(r.data)).catch(() => {});
   }, []);
 
-  const anchor = horizons?.["12m"] ?? horizons?.["6m"];
+  const anchor = primaryOf(horizons) ?? nextMeeting(horizons);
+  const fomc = fomcItems(horizons);
   const weekday = today
     ? (ko ? WEEKDAYS_KO[today.weekday_kst] : WEEKDAYS_EN[today.weekday_kst])
     : "";
@@ -78,16 +81,16 @@ export default function TodayPanel({
         </div>
       </div>
 
-      {/* Rate-path curve — 6 horizons, big */}
+      {/* Rate path — every FOMC meeting in the 3-year window, then 5Y / 10Y / 30Y */}
       <div className="card">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-2">
           <div>
             <p className="text-[11px] text-[var(--color-gold)] uppercase tracking-[0.25em]">
               {ko ? "오늘의 금리 경로" : "Today's Rate Path"}
             </p>
             <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-              {ko ? "현재 기준금리 대비 전망 — 오늘·3개월·6개월·1년·3년·10년"
-                  : "Forecast vs current Fed Funds — today · 3M · 6M · 1Y · 3Y · 10Y"}
+              {ko ? `3년 내 모든 FOMC(${fomc.length}회) 회의별 예상 기준금리 — 그다음 5년·10년·30년 뒤 회의`
+                  : `Implied policy rate after each of the ${fomc.length} FOMC meetings within 3 years — then 5Y · 10Y · 30Y`}
             </p>
           </div>
           <button onClick={() => onNavigate("forecast")}
@@ -96,19 +99,24 @@ export default function TodayPanel({
           </button>
         </div>
         {anchor ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-            {HORIZONS.map((h: Horizon) => (
-              <HorizonCard key={h} h={h} fc={horizons?.[h] ?? null} label={T.horizonTabs[h]} ko={ko} />
-            ))}
-          </div>
+          <>
+            <RatePathChart horizons={horizons} />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mt-3">
+              {highlightItems(horizons).map(fc => (
+                <HorizonCard key={fc.horizon} fc={fc} ko={ko}
+                  label={shortLabel(fc, lang)} sub={longLabel(fc, lang)}
+                  tag={roleTag(fc, horizons, lang)} primary={fc.horizon === horizons?.primary} />
+              ))}
+            </div>
+          </>
         ) : (
           <p className="text-sm text-[var(--color-text-muted)]">
             {ko ? "오늘의 금리 경로 불러오는 중…" : "Loading today's rate path…"}
           </p>
         )}
         <p className="text-[10px] text-[var(--color-text-muted)] mt-3">
-          {ko ? "큰 숫자 = 예상 기준금리 수준(현재 기준금리 + 전망 변화). ‘오늘’은 현행 금리 기준점입니다."
-              : "Large figure = implied policy-rate level (current Fed Funds + forecast Δ). ‘Today’ is the current-rate anchor."}
+          {ko ? "큰 숫자 = 해당 FOMC 직후 예상 기준금리(현재 기준금리 + 누적 전망 변화). 점선은 현행 금리, 음영은 위원회 ±1σ."
+              : "Large figure = implied policy rate right after that FOMC (current Fed Funds + cumulative Δ). Dashed line = today's rate; shading = committee ±1σ."}
         </p>
       </div>
 
@@ -219,19 +227,19 @@ export default function TodayPanel({
   );
 }
 
-function HorizonCard({ h, fc, label, ko }: {
-  h: Horizon;
-  fc: AllHorizons[Horizon];
+function HorizonCard({ fc, label, sub, tag, primary, ko }: {
+  fc: HorizonForecast;
   label: string;
+  sub: string;
+  tag: string | null;
+  primary: boolean;
   ko: boolean;
 }) {
-  const isToday = h === "today";
-  const signal = fc?.signal ?? "neutral";
+  const signal = fc.signal ?? "neutral";
   const color = SIG_COLOR[signal];
-  const delta = fc?.published_delta_bps ?? 0;
-  const level = fc?.implied_rate_pct;
-  const conf = fc?.confidence ?? 0;
-  const primary = h === "12m";
+  const delta = fc.published_delta_bps ?? 0;
+  const level = fc.implied_rate_pct;
+  const conf = fc.confidence ?? 0;
 
   return (
     <div className="rounded-lg p-3.5 flex flex-col"
@@ -239,32 +247,30 @@ function HorizonCard({ h, fc, label, ko }: {
         background: "var(--color-navy)",
         border: `1px solid ${primary ? "var(--color-gold)" : "var(--color-navy-700)"}`,
         boxShadow: primary ? "0 0 0 1px rgba(201,168,76,0.25)" : "none",
-        opacity: fc ? 1 : 0.5,
       }}>
-      <div className="flex items-center justify-between mb-1.5">
+      <div className="flex items-center justify-between mb-1.5 gap-1">
         <span className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">{label}</span>
-        {primary && (
-          <span className="text-[8px] px-1 py-0.5 rounded font-bold"
+        {tag && (
+          <span className="text-[8px] px-1 py-0.5 rounded font-bold truncate"
             style={{ background: "rgba(201,168,76,0.15)", color: "var(--color-gold)" }}>
-            {ko ? "핵심" : "KEY"}
+            {tag}
           </span>
         )}
       </div>
 
       {/* implied rate level — the big, tangible number */}
-      <p className="text-2xl font-light leading-none" style={{ color: isToday ? "var(--color-text-primary)" : color }}>
+      <p className="text-2xl font-light leading-none" style={{ color }}>
         {level != null ? `${level.toFixed(2)}%` : (delta > 0 ? "+" : "") + delta.toFixed(0)}
       </p>
 
       {/* delta + signal */}
-      <p className="text-[11px] font-medium mt-1" style={{ color: isToday ? "var(--color-text-muted)" : color }}>
-        {isToday
-          ? (ko ? "현행 유지" : "current")
-          : `${delta > 0 ? "+" : ""}${delta.toFixed(0)} bps · ${
-              signal === "hawkish" ? (ko ? "매파" : "HAWK")
-              : signal === "dovish" ? (ko ? "비둘기" : "DOVE")
-              : (ko ? "중립" : "NEUT")}`}
+      <p className="text-[11px] font-medium mt-1" style={{ color }}>
+        {`${delta > 0 ? "+" : ""}${delta.toFixed(0)} bps · ${
+            signal === "hawkish" ? (ko ? "매파" : "HAWK")
+            : signal === "dovish" ? (ko ? "비둘기" : "DOVE")
+            : (ko ? "중립" : "NEUT")}`}
       </p>
+      <p className="text-[9px] text-[var(--color-text-muted)] mt-0.5 truncate" title={sub}>{sub}</p>
 
       {/* confidence */}
       <div className="mt-auto pt-2.5">

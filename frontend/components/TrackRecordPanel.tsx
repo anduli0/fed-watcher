@@ -41,13 +41,14 @@ interface AccuracySummary {
   dff_now: number | null;
   dff_realized_move_bps: number | null;
   tracking: {
-    horizon: string; predicted_delta_bps: number; signal: string; confidence: number;
+    horizon: string; label?: string; meeting_date?: string;
+    predicted_delta_bps: number; signal: string; confidence: number;
     dff_realized_so_far_bps: number | null; elapsed_days: number; window_days: number;
     gradeable_vs_dff: boolean;
   }[];
   maturity_ledger: {
-    horizon: string; issued: string; matures_on: string; predicted_delta_bps: number;
-    status: string; days_remaining: number; dff_realized_bps?: number; hit?: boolean;
+    horizon: string; label?: string; issued: string; matures_on: string | null; predicted_delta_bps: number;
+    status: string; days_remaining: number | null; dff_realized_bps?: number; hit?: boolean;
   }[];
 }
 
@@ -131,16 +132,18 @@ export default function TrackRecordPanel() {
       const t = new Date(d); t.setDate(t.getDate() + n);
       return t.toISOString().slice(0, 10);
     };
-    const windows: Record<string, number> = { "6m": 183, "12m": 365, "3y": 1095, "10y": 3650 };
+    const windows: Record<string, number> = { "6m": 183, "12m": 365 };   // legacy rows
+    const horizonCut = addDays(today, 548);  // keep chart near-term (~18 months of meetings)
     for (const t of (acc?.tracking ?? [])) {
-      if (t.horizon === "3y" || t.horizon === "10y") continue; // keep chart near-term
+      const date = t.meeting_date ?? (windows[t.horizon] ? addDays(today, windows[t.horizon]) : null);
+      if (!date || date > horizonCut) continue;
       rows.push({
-        date: addDays(today, windows[t.horizon] ?? 365),
+        date,
         forecast: Math.round((dffNow + t.predicted_delta_bps / 100) * 100) / 100,
       });
     }
     for (const e of (acc?.maturity_ledger ?? [])) {
-      if (!e.matures_on) continue;
+      if (!e.matures_on || e.matures_on > horizonCut) continue;
       rows.push({
         date: e.matures_on,
         past: Math.round((dffNow + e.predicted_delta_bps / 100) * 100) / 100,
@@ -228,16 +231,16 @@ export default function TrackRecordPanel() {
             <thead>
               <tr className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] border-b"
                 style={{ borderColor: "var(--color-navy-700)" }}>
-                <th className="text-left py-2 pr-3">{ko ? "호라이즌" : "Horizon"}</th>
+                <th className="text-left py-2 pr-3">{ko ? "FOMC 회의" : "FOMC meeting"}</th>
                 <th className="text-right py-2 px-3">{ko ? "예측" : "Predicted"}</th>
                 <th className="text-right py-2 px-3">{ko ? "현재까지 실측" : "Realized so far"}</th>
                 <th className="text-right py-2 pl-3">{ko ? "경과" : "Elapsed"}</th>
               </tr>
             </thead>
             <tbody>
-              {tracking.map(t => (
+              {tracking.slice(0, 12).map(t => (
                 <tr key={t.horizon} className="border-b" style={{ borderColor: "var(--color-navy-700)" }}>
-                  <td className="py-2 pr-3 text-xs font-medium uppercase">{t.horizon}</td>
+                  <td className="py-2 pr-3 text-xs font-medium whitespace-nowrap">{t.label ?? t.horizon}</td>
                   <td className="py-2 px-3 text-right" style={{ color: SIG_COLOR[t.signal] ?? "inherit" }}>
                     {t.predicted_delta_bps > 0 ? "+" : ""}{Math.round(t.predicted_delta_bps)} bps
                   </td>
@@ -260,11 +263,11 @@ export default function TrackRecordPanel() {
               {ko ? "만기 원장" : "Maturity Ledger"}
             </p>
             <div className="space-y-1">
-              {ledger.slice(0, 8).map((e, i) => (
-                <div key={i} className="flex items-center justify-between text-xs py-1 border-b"
+              {ledger.filter(e => e.status !== "never_vs_dff").slice(0, 10).map((e, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 text-xs py-1 border-b"
                   style={{ borderColor: "var(--color-navy-700)" }}>
-                  <span className="uppercase font-medium w-10">{e.horizon}</span>
-                  <span className="text-[var(--color-text-muted)]">{e.issued} → {e.matures_on}</span>
+                  <span className="font-medium whitespace-nowrap">{e.label ?? e.horizon}</span>
+                  <span className="text-[var(--color-text-muted)] whitespace-nowrap">{e.issued} → {e.matures_on}</span>
                   <span>{e.predicted_delta_bps > 0 ? "+" : ""}{Math.round(e.predicted_delta_bps)}bps</span>
                   {e.status === "matured" ? (
                     e.hit != null ? (

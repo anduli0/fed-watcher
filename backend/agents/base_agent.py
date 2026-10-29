@@ -13,17 +13,15 @@ import statistics
 _SELF_CONSISTENCY_CAP = int(os.getenv("AGENT_SELF_CONSISTENCY_CAP", "0"))
 from backend.claude_cli import call_claude
 from backend.config import settings
+from backend.fomc_calendar import HorizonSpec, schedule_block
 
 REASONING_TRUNCATE = 600
-HORIZONS = ("6m", "12m", "3y", "10y")
 
-# Cross-horizon coherence: max acceptable absolute change between consecutive horizons (bps)
-# E.g., 6m to 12m can differ by up to 100 bps (4 Fed moves over 6 months is extreme)
-COHERENCE_LIMITS = {
-    ("6m", "12m"):  100,
-    ("12m", "3y"):  150,
-    ("3y", "10y"):  200,
-}
+# Cross-horizon coherence: max acceptable absolute change between consecutive
+# horizons (bps). Adjacent FOMC meetings can move at most 75 bps (a 50 bps move
+# is already a fast cycle); the jump into / between the long-run keys is looser.
+COHERENCE_LIMIT_FOMC_STEP = 75
+COHERENCE_LIMIT_LONG_STEP = 150
 
 # Confidence floor for incoherent outputs (if output fails coherence check)
 COHERENCE_PENALTY_CAP = 0.5
@@ -50,6 +48,18 @@ class AgentContext:
     market_prior_text: str = ""      # market-implied path prior (GS2-DFF derived)
     self_critique: Optional[str] = None  # previous cycle's process self-review
     fed_forward_signals: str = ""    # SEP dot plot + latest Fed-policy signals/news
+    horizon_specs: list[HorizonSpec] = field(default_factory=list)  # FOMC-meeting horizons
+    primary_key: Optional[str] = None  # headline key (meeting nearest 12 months ahead)
+
+    @property
+    def horizon_keys(self) -> list[str]:
+        return [s.key for s in self.horizon_specs]
+
+    def schedule_block(self) -> str:
+        if not self.horizon_specs:
+            return ""
+        from datetime import date as _date
+        return schedule_block(self.horizon_specs, self.primary_key, _date.today())
 
     def fed_forward_block(self) -> str:
         if not self.fed_forward_signals:
@@ -72,7 +82,7 @@ class AgentContext:
             + self.market_prior_text
             + "\nStart from this market prior. Deviate ONLY with explicit evidence, "
             "state the deviation in bps, and quantize your published deltas to 25bps "
-            "Fed-move increments. Keep the 6m→12m→3y→10y path economically coherent "
+            "Fed-move increments. Keep the meeting-by-meeting path economically coherent "
             "(smooth transitions, no sign zigzags).\n"
         )
 
@@ -122,6 +132,7 @@ class AgentResult:
     confidence: float
     reasoning: str
     horizons: dict[str, HorizonOutput] = field(default_factory=dict)
+    primary_key: str = ""               # key behind rate_path_delta_bps / confidence
     limited_mode: bool = False
     duration_ms: int = 0
     round: int = 1
@@ -137,18 +148,20 @@ class AgentResult:
         return h.confidence if h else self.confidence
 
 
-def check_coherence(horizons: dict[str, HorizonOutput]) -> tuple[bool, str]:
+def check_coherence(horizons: dict[str, HorizonOutput], specs: list[HorizonSpec]) -> tuple[bool, str]:
     """
-    Validate cross-horizon coherence. Returns (is_coherent, reason).
-    A path that swings violently between consecutive horizons is suspect.
+    Validate cross-horizon coherence along the ordered FOMC path. Returns
+    (is_coherent, reason). A path that swings violently between consecutive
+    meetings is suspect.
     """
-    for (h1, h2), limit in COHERENCE_LIMITS.items():
-        d1 = horizons.get(h1, HorizonOutput(0, 0)).delta_bps
-        d2 = horizons.get(h2, HorizonOutput(0, 0)).delta_bps
+    ordered = [s for s in specs if s.key in horizons]
+    for a, b in zip(ordered, ordered[1:]):
+        limit = COHERENCE_LIMIT_FOMC_STEP if (a.is_fomc and b.is_fomc) else COHERENCE_LIMIT_LONG_STEP
+        d1, d2 = horizons[a.key].delta_bps, horizons[b.key].delta_bps
         if abs(d2 - d1) > limit:
-            return False, f"|{h1}→{h2}| {abs(d2 - d1):.0f}bps > {limit}bps limit"
+            return False, f"|{a.key}→{b.key}| {abs(d2 - d1):.0f}bps > {limit}bps limit"
     # Direction reversal with both magnitudes large = suspect
-    deltas = [horizons.get(h, HorizonOutput(0, 0)).delta_bps for h in HORIZONS]
+    deltas = [horizons[s.key].delta_bps for s in ordered]
     sign_flips = sum(
         1 for i in range(len(deltas) - 1)
         if deltas[i] * deltas[i + 1] < 0 and abs(deltas[i]) > 30 and abs(deltas[i + 1]) > 30
@@ -217,7 +230,7 @@ class BaseAgent(ABC):
             result = await self._call_claude(ctx)
 
         # Post-parse coherence validation
-        coherent, reason = check_coherence(result.horizons)
+        coherent, reason = check_coherence(result.horizons, ctx.horizon_specs)
         if not coherent:
             result.coherent = False
             for h, ho in result.horizons.items():
@@ -249,7 +262,7 @@ class BaseAgent(ABC):
 
         # Aggregate horizons by median delta, mean confidence
         merged_horizons = {}
-        for h in HORIZONS:
+        for h in ctx.horizon_keys:
             deltas = [r.horizon_delta(h) for r in valid]
             confs = [r.horizon_confidence(h) for r in valid]
             merged_horizons[h] = HorizonOutput(
@@ -257,7 +270,8 @@ class BaseAgent(ABC):
                 confidence=statistics.mean(confs),
                 rationale=valid[0].horizons.get(h, HorizonOutput(0, 0)).rationale,
             )
-        twelve = merged_horizons["12m"]
+        primary = ctx.primary_key or (ctx.horizon_keys[0] if ctx.horizon_keys else "")
+        twelve = merged_horizons.get(primary, HorizonOutput(0.0, 0.3))
         # Signal from majority vote
         sig_counts = {"hawkish": 0, "neutral": 0, "dovish": 0}
         for r in valid:
@@ -272,11 +286,13 @@ class BaseAgent(ABC):
             confidence=twelve.confidence,
             reasoning=f"[Self-consistency n={len(valid)}] " + valid[0].reasoning[:400],
             horizons=merged_horizons,
+            primary_key=primary,
         )
 
     async def _call_claude(self, ctx: AgentContext, temperature: float = 1.0) -> AgentResult:
         user_msg = (
-            ctx.market_prior_block()
+            ctx.schedule_block()
+            + ctx.market_prior_block()
             + ctx.fed_forward_block()
             + ctx.self_critique_block()
             + ctx.negative_examples_block()
@@ -285,23 +301,35 @@ class BaseAgent(ABC):
             + self._user_message(ctx)
         )
         raw = await call_claude(self._system_prompt(), user_msg)
-        return self._parse(raw)
+        return self._parse(raw, ctx.horizon_keys, ctx.primary_key)
 
-    def _parse(self, raw: str) -> AgentResult:
+    def _parse(self, raw: str, keys: list[str], primary: Optional[str] = None) -> AgentResult:
+        primary = primary or (keys[0] if keys else "")
         try:
             match = re.search(r"\{.*\}", raw, re.DOTALL)
             if match:
                 data = json.loads(match.group())
                 horizons_raw = data.get("horizons", {}) or {}
                 horizons = {}
-                for h in HORIZONS:
-                    h_data = horizons_raw.get(h, {})
-                    horizons[h] = HorizonOutput(
-                        delta_bps=float(h_data.get("delta_bps", 0)),
-                        confidence=max(0.0, min(1.0, float(h_data.get("confidence", 0.4)))),
-                        rationale=str(h_data.get("rationale", ""))[:200],
-                    )
-                twelve = horizons["12m"]
+                prev: HorizonOutput | None = None
+                for h in keys:
+                    h_data = horizons_raw.get(h)
+                    if not isinstance(h_data, dict):
+                        # Missing meeting → carry the previous meeting's call forward
+                        # (a hold), at reduced confidence.
+                        horizons[h] = HorizonOutput(
+                            delta_bps=prev.delta_bps if prev else 0.0,
+                            confidence=(prev.confidence * 0.8) if prev else 0.3,
+                            rationale="carried forward (not reported)",
+                        )
+                    else:
+                        horizons[h] = HorizonOutput(
+                            delta_bps=float(h_data.get("delta_bps", prev.delta_bps if prev else 0)),
+                            confidence=max(0.0, min(1.0, float(h_data.get("confidence", 0.4)))),
+                            rationale=str(h_data.get("rationale", ""))[:200],
+                        )
+                    prev = horizons[h]
+                twelve = horizons.get(primary, HorizonOutput(0.0, 0.3))
                 return AgentResult(
                     agent_id=self.agent_id,
                     agent_name=self.agent_name,
@@ -310,6 +338,7 @@ class BaseAgent(ABC):
                     confidence=twelve.confidence,
                     reasoning=str(data.get("reasoning", raw[:REASONING_TRUNCATE]))[:REASONING_TRUNCATE],
                     horizons=horizons,
+                    primary_key=primary,
                 )
         except Exception:
             pass
@@ -326,7 +355,8 @@ class BaseAgent(ABC):
             rate_path_delta_bps=0.0,
             confidence=0.3,
             reasoning=raw[:REASONING_TRUNCATE],
-            horizons={h: HorizonOutput(0.0, 0.3, "parse_failed") for h in HORIZONS},
+            horizons={h: HorizonOutput(0.0, 0.3, "parse_failed") for h in keys},
+            primary_key=primary,
         )
 
 
@@ -335,20 +365,23 @@ Respond ONLY with this JSON structure — no prose before or after:
 {
   "signal": "hawkish" | "neutral" | "dovish",
   "horizons": {
-    "6m":  {"delta_bps": <float, integer-step preferred (multiples of 5)>, "confidence": <0.00-0.95, two decimals>, "rationale": "<one sentence>"},
-    "12m": {"delta_bps": <float>, "confidence": <0.00-0.95>, "rationale": "<one sentence>"},
-    "3y":  {"delta_bps": <float>, "confidence": <0.00-0.95>, "rationale": "<one sentence>"},
-    "10y": {"delta_bps": <float>, "confidence": <0.00-0.95>, "rationale": "<one sentence>"}
+    "<key>": {"delta_bps": <float, multiple of 25 preferred>, "confidence": <0.00-0.95, two decimals>, "rationale": "<short phrase>"},
+    ... ONE ENTRY FOR EVERY KEY listed under FORECAST HORIZONS — FOMC MEETING SCHEDULE
+        (each FOMC decision date within 3 years, plus "5y", "10y", "30y") ...
   },
   "reasoning": "<2-3 sentence dominant thesis citing specific data points>"
 }
+Keys are the exact strings from the schedule (e.g. "2026-12-09", "5y"). "signal" and
+"reasoning" describe the headline (primary) key. Keep each rationale under 12 words;
+for a meeting that simply holds the prior level, "hold" is a sufficient rationale.
 
 CRITICAL RULES — FAILURE TO COMPLY HURTS COMMITTEE ACCURACY:
 
-1. CROSS-HORIZON COHERENCE (hard constraint):
-   |6m → 12m| ≤ 100 bps. |12m → 3y| ≤ 150 bps. |3y → 10y| ≤ 200 bps.
-   10y should anchor to long-run neutral rate (~2.5%); deviation = (neutral - current) + structural premium.
-   Two large-magnitude sign reversals across the path is incoherent.
+1. PATH COHERENCE (hard constraint):
+   delta_bps is CUMULATIVE from today's rate, so consecutive meetings differ by 0 or ±25 bps
+   (±50 in a fast cycle, never more than 75). Steps into/between "5y", "10y", "30y" ≤ 150 bps.
+   Long-run keys anchor to your long-run neutral rate view (~2.5-3%); deviation =
+   (neutral - current) + structural premium. Two large-magnitude sign reversals is incoherent.
 
 2. CONFIDENCE CALIBRATION (be brutally honest — your confidence is precision-weighted):
    - 0.80-0.90: You have direct, fresh, unambiguous data + a clear analytical chain → reasoning cites specifics.
@@ -356,13 +389,15 @@ CRITICAL RULES — FAILURE TO COMPLY HURTS COMMITTEE ACCURACY:
    - 0.40-0.60: Mixed signals, partial data, OR your domain only weakly informs this horizon.
    - 0.20-0.40: Sparse data, you are inferring more than measuring.
    - 0.10-0.20: You essentially have no signal — be honest, do not fabricate certainty.
+   Confidence should normally DECLINE with distance: the next meeting is far more knowable
+   than a meeting two years out, and "30y" is essentially a neutral-rate assumption.
    NEVER report confidence > 0.85 unless you can cite at least 3 specific data points.
    Overconfident guessing is the #1 source of committee error and is penalized in accuracy tracking.
 
 3. DELTA_BPS PRECISION:
-   - Cumulative change from CURRENT Fed Funds Rate. Negative = cuts. Positive = hikes.
-   - Prefer multiples of 5 bps (15, 25, 50, 75) — Fed moves in 25 bps quanta.
-   - Avoid spurious precision (e.g., 23.7 bps); round to nearest 5.
+   - Cumulative change from CURRENT Fed Funds Rate in effect after that meeting. Negative = cuts. Positive = hikes.
+   - Use multiples of 25 bps (the Fed moves in 25 bps quanta); 0 for a hold.
+   - Avoid spurious precision (e.g., 23.7 bps).
 
 4. REASONING QUALITY:
    - Cite specific data: "CPI 3.2% Mar→3.5% Apr → re-acceleration → +25 bps hawkish"

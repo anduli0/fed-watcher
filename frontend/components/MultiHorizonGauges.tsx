@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { AllHorizons, HORIZONS, Horizon } from "@/lib/api";
+import { AllHorizons, Horizon } from "@/lib/api";
 import { useLang } from "@/context/LanguageContext";
+import { byKey, longLabel } from "@/lib/horizons";
 
 const SIGNAL_VALUE = { hawkish: 85, neutral: 50, dovish: 15 };
 const SIGNAL_COLOR = {
@@ -13,17 +14,17 @@ const SIGNAL_COLOR = {
 interface Props {
   horizons: AllHorizons | null;
   activeHorizon: Horizon;
-  onHorizonChange: (h: Horizon) => void;
 }
 
-export default function MultiHorizonGauges({ horizons, activeHorizon: active, onHorizonChange: setActive }: Props) {
+export default function MultiHorizonGauges({ horizons, activeHorizon: active }: Props) {
   const { T, lang } = useLang();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   if (!horizons) return null;
 
-  const fc = horizons[active];
+  const sel = byKey(horizons, active);
+  const fc = sel && sel.kind !== "today" ? sel : null;
   const signal = fc?.signal ?? "neutral";
   const confidence = fc?.confidence ?? 0;
   const delta = fc?.published_delta_bps ?? 0;
@@ -49,40 +50,6 @@ export default function MultiHorizonGauges({ horizons, activeHorizon: active, on
       <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-4">
         {lang === "en" ? "Policy Stance" : "정책 기조"}
       </p>
-
-      {/* Horizon selector buttons */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {HORIZONS.map(h => {
-          const hfc = horizons[h];
-          const hDelta = hfc?.published_delta_bps ?? 0;
-          const hSignal = hfc?.signal ?? "neutral";
-          const isActive = active === h;
-          return (
-            <button
-              key={h}
-              onClick={() => setActive(h)}
-              className="flex-1 min-w-[70px] flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-lg transition-all"
-              style={{
-                background: isActive ? "var(--color-slate)" : "var(--color-navy-700)",
-                border: `1px solid ${isActive ? color : "var(--color-navy-700)"}`,
-              }}
-            >
-              <span className="text-xs font-semibold"
-                style={{ color: isActive ? color : "var(--color-text-muted)" }}>
-                {T.horizonTabs[h]}
-              </span>
-              {hfc ? (
-                <span className="text-[10px] font-medium"
-                  style={{ color: SIGNAL_COLOR[hSignal] }}>
-                  {hDelta > 0 ? "+" : ""}{hDelta.toFixed(0)} bps
-                </span>
-              ) : (
-                <span className="text-[10px] text-[var(--color-text-muted)]">—</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
 
       {/* Large gauge for selected horizon */}
       <div className="flex flex-col items-center">
@@ -121,7 +88,7 @@ export default function MultiHorizonGauges({ horizons, activeHorizon: active, on
           </p>
         )}
         <p className="text-xs text-[var(--color-text-muted)] mt-1">
-          {T.horizonLabels[active]}
+          {fc ? longLabel(fc, lang) : (lang === "ko" ? "FOMC 회의를 선택하세요" : "Select an FOMC meeting")}
         </p>
 
         {/* Confidence */}

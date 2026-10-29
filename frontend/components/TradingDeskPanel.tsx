@@ -16,16 +16,12 @@ function fmtUSD(n: number): string {
   return "$" + n.toFixed(0);
 }
 
-// Forecast-horizon months keyed by the labels used in `horizon_basis` (e.g. "0.55·6m + 0.45·12m")
-const HORIZON_MONTHS: Record<string, number> = { "6m": 6, "12m": 12, "3y": 36, "10y": 120 };
-
-// Turn a horizon_basis string into the human time window over which the target is expected
-// to be reached, e.g. "0.55·6m + 0.45·12m" → "6~12개월", "0.55·3y + 0.45·10y" → "3~10년".
-function horizonPeriod(basis: string, ko: boolean): string | null {
-  if (!basis) return null;
-  const months = (basis.match(/12m|10y|6m|3y/g) || []).map(h => HORIZON_MONTHS[h]).filter(Boolean);
-  if (!months.length) return null;
-  const lo = Math.min(...months), hi = Math.max(...months);
+// Human time window over which the target is expected to be reached, from the
+// months-ahead span of the FOMC meetings driving the position (horizon_months),
+// e.g. [5.9, 11.9] → "6~12개월", [34.7, 120] → "2.9~10년".
+function horizonPeriod(span: [number, number] | undefined, ko: boolean): string | null {
+  if (!span || span.length !== 2) return null;
+  const lo = Math.round(Math.min(...span)), hi = Math.round(Math.max(...span));
   const yr = (mo: number) => { const v = mo / 12; return Number.isInteger(v) ? `${v}` : v.toFixed(1); };
   if (lo === hi) return hi < 12 ? (ko ? `${hi}개월` : `${hi}m`) : (ko ? `${yr(hi)}년` : `${yr(hi)}y`);
   if (hi <= 12) return ko ? `${lo}~${hi}개월` : `${lo}~${hi}m`;
@@ -147,7 +143,7 @@ function PositionCard({ p, dirLabel, ko }: { p: TreasuryPosition; dirLabel: (d: 
   const color = DIR_COLOR[p.direction];
   const active = p.direction !== "neutral";
   const moveSign = (n: number | null) => (n == null ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(2)}%`);
-  const horizonP = horizonPeriod(p.horizon_basis, ko);
+  const horizonP = horizonPeriod(p.horizon_months, ko);
 
   return (
     <div className="card" style={{ borderColor: active ? color : "var(--color-navy-700)", boxShadow: active ? `0 0 0 1px ${color}40` : "none" }}>

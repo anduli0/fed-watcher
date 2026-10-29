@@ -72,7 +72,7 @@ export default function AgentStatusGrid({ agents }: { agents: AgentStatus[] }) {
         </div>
         {agents.length > 0 && (
           <p className="text-[10px] text-[var(--color-text-muted)] mt-3">
-            {lang === "en" ? "Click any card for details and 4-horizon view" : "카드를 클릭하면 4시계열 상세 정보가 표시됩니다"}
+            {lang === "en" ? "Click any card for details and its FOMC-by-FOMC path" : "카드를 클릭하면 FOMC 회의별 경로 상세가 표시됩니다"}
           </p>
         )}
       </div>
@@ -81,13 +81,32 @@ export default function AgentStatusGrid({ agents }: { agents: AgentStatus[] }) {
 }
 
 
+function pickAgentHorizons(a: AgentStatus, lang: "en" | "ko"): Array<[string, string]> {
+  // Keys are FOMC decision dates (within 3y) plus 5y/10y/30y. Show: next
+  // meeting · the meeting nearest 12 months out (headline) · last in-window
+  // meeting · 10y.
+  const dates = Object.keys(a.horizons ?? {}).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort();
+  if (dates.length === 0) {
+    return [["6m", "6M"], ["12m", "1Y"], ["3y", "3Y"], ["10y", "10Y"]];  // legacy payloads
+  }
+  const target = Date.now() + 365.25 * 86400e3;
+  const headline = dates.reduce((best, k) =>
+    Math.abs(Date.parse(k) - target) < Math.abs(Date.parse(best) - target) ? k : best, dates[0]);
+  const lbl = (k: string) => {
+    const [y, m] = k.split("-");
+    return lang === "ko" ? `${y.slice(2)}.${parseInt(m, 10)}` : `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m, 10) - 1]} ’${y.slice(2)}`;
+  };
+  const out: Array<[string, string]> = [];
+  for (const k of [dates[0], headline, dates[dates.length - 1]]) {
+    if (!out.some(o => o[0] === k)) out.push([k, lbl(k)]);
+  }
+  if (a.horizons?.["10y"]) out.push(["10y", lang === "ko" ? "10년" : "10Y"]);
+  return out;
+}
+
+
 function HorizonGrid({ a, lang }: { a: AgentStatus; lang: "en" | "ko" }) {
-  const HORIZONS: Array<["6m" | "12m" | "3y" | "10y", string]> = [
-    ["6m", lang === "en" ? "6M" : "6개월"],
-    ["12m", "1Y"],
-    ["3y", lang === "en" ? "3Y" : "3년"],
-    ["10y", lang === "en" ? "10Y" : "10년"],
-  ];
+  const HORIZONS = pickAgentHorizons(a, lang);
   return (
     <div className="grid grid-cols-2 gap-1.5 mt-2">
       {HORIZONS.map(([h, lbl]) => {
@@ -96,7 +115,7 @@ function HorizonGrid({ a, lang }: { a: AgentStatus; lang: "en" | "ko" }) {
         const c = hor?.confidence ?? 0;
         return (
           <div key={h} className="flex items-center gap-1.5 text-[10px]">
-            <span className="text-[var(--color-text-muted)] w-7">{lbl}</span>
+            <span className="text-[var(--color-text-muted)] w-12 truncate">{lbl}</span>
             <span style={{ color: d < 0 ? "var(--color-signal-green)" : d > 0 ? "var(--color-signal-red)" : "var(--color-gold)" }}>
               {d > 0 ? "+" : ""}{d.toFixed(0)}
             </span>

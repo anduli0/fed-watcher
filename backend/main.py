@@ -63,8 +63,9 @@ async def trigger_cycle(cycle_type: str = "scheduled"):
 
 async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
     """Run a full Orchestrator cycle (uses latest collected data; no fresh scraping)."""
-    from backend.agents.orchestrator import run_full_cycle, HORIZONS
+    from backend.agents.orchestrator import run_full_cycle
     from backend.agents.base_agent import AgentContext
+    from backend.fomc_calendar import fomc_horizons, primary_key as _primary_key, spec_by_key
     from backend.data.collector import get_latest_snapshot, collect_web_data
     from backend.stabilizer.event_calendar import get_today_event
     from backend.stabilizer.forecast_stabilizer import stabilize
@@ -119,8 +120,9 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                 market_prior_text = (
                     f"DFF (effective fed funds): {dff_v:.2f}% · 2Y Treasury: {gs2_v:.2f}% "
                     f"→ 2Y-DFF spread {spread_bps:+.0f}bps.\n"
-                    f"Market-implied prior: 12m {prior_12m:+.0f}bps · 6m {prior_6m:+.0f}bps "
-                    f"(spread × 0.7 pass-through)."
+                    f"Market-implied prior: ~12 months ahead {prior_12m:+.0f}bps · "
+                    f"~6 months ahead {prior_6m:+.0f}bps (spread × 0.7 pass-through); "
+                    f"interpolate meeting-by-meeting between these anchors."
                 )
         except Exception as e:
             logger.warning("Market prior unavailable: %s", e)
@@ -174,7 +176,20 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         except Exception as e:
             logger.warning("Forward-guidance signals unavailable: %s", e)
 
+        # FOMC-meeting horizon set for today: every meeting within 3 years plus
+        # the meetings nearest 5 / 10 / 30 years ahead. Headline = ~12 months.
+        today = date.today()
+        specs = fomc_horizons(today)
+        spec_map = spec_by_key(specs)
+        P = _primary_key(specs)
+        AL.system_event(
+            f"Horizons: {sum(1 for s in specs if s.is_fomc)} FOMC meetings through "
+            f"{[s for s in specs if s.is_fomc][-1].meeting_date.isoformat()} + 5y/10y/30y · headline {P}"
+        )
+
         ctx = AgentContext(
+            horizon_specs=specs,
+            primary_key=P,
             macro_snapshot_text=snapshot["macro_text"],
             speeches_text=snapshot["speeches_text"],
             fomc_minutes_texts=snapshot["minutes"],
@@ -229,14 +244,15 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
         # by agent agreement) made the call timid and collapsed confidence into
         # the low-10%s — removed in favor of the committee's native output.
 
-        # ── Stabilize and persist all 4 horizons ──
+        # ── Stabilize and persist every FOMC horizon ──
         # Always publish immediately — cloud is always-on, no "morning publish" gate needed
         immediate_publish = True
         report_ko = result.get("report_ko", result.get("report_text", ""))
         report_en = result.get("report_en", "")
         changed_horizons: list[str] = []
-        for h in HORIZONS:
+        for h in result["horizon_order"]:
             agg = result["horizons"][h]
+            sp = spec_map.get(h)
 
             # The published call IS the committee's own weighted decision. The
             # market-implied prior is already injected into every agent's context
@@ -265,6 +281,7 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                 event=event,
                 bypass_ema=(cycle_type == "forced"),
                 recent_raw_deltas=recent_raw,
+                first_run=(prev is None),
             )
 
             published_delta = stabilized.published_delta
@@ -290,7 +307,10 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
             await crud.save_horizon_forecast(db, {
                 "run_id": run.id,
                 "horizon": h,
-                "target_date": date.today().isoformat(),
+                "meeting_date": sp.meeting_date.isoformat() if sp else None,
+                "horizon_kind": sp.kind if sp else "fomc",
+                "is_primary": h == P,
+                "target_date": today.isoformat(),
                 "raw_delta_bps": stabilized.raw_delta,
                 "smoothed_delta": stabilized.smoothed_delta,
                 "published_delta": published_delta,
@@ -300,14 +320,14 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                 "unchanged_streak_days": stabilized.unchanged_streak,
                 "change_justification": justification,
                 "is_published": immediate_publish,
-                # Master report only stored on 12m record to avoid duplication
-                "report_text": report_ko if h == "12m" else None,
-                "report_text_en": report_en if h == "12m" else None,
+                # Master report only stored on the headline record to avoid duplication
+                "report_text": report_ko if h == P else None,
+                "report_text_en": report_en if h == P else None,
             })
 
-        # Backward-compat 12m PublishedForecast — mirror horizon_forecast[12m] exactly
+        # Backward-compat PublishedForecast — mirror the headline row exactly
         # (avoids double stabilization with diverging prev values)
-        h12m = await crud.get_latest_horizon_forecast(db, "12m")
+        h12m = await crud.get_latest_primary_forecast(db)
         if h12m:
             await crud.save_published_forecast(db, {
                 "target_date": h12m.target_date,
@@ -323,7 +343,7 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
 
         await generate_feedback(db, run.id, result["agent_results"])
 
-        # ── Mock trading: roll the paper book on the fresh 12M call ─────────
+        # ── Mock trading: roll the paper book on the fresh headline (~1Y) call ──
         # Close any open positions at the current 2Y yield mark, then open new
         # ones mapped from the published 12M delta. Failures here must never
         # fail the cycle — the forecast is already persisted.
@@ -348,7 +368,7 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                         Position(t.instrument, t.direction, t.entry_rate, t.rationale or ""),
                         current_rate=mark, entry_rate=t.entry_rate or mark,
                     )
-                h12_now = await crud.get_latest_horizon_forecast(db, "12m")
+                h12_now = await crud.get_latest_primary_forecast(db)
                 delta12 = float(h12_now.published_delta) if h12_now and h12_now.published_delta is not None else 0.0
                 for pos in build_positions_from_forecast(delta12):
                     db.add(MockTrade(
@@ -359,17 +379,19 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
                         rationale=pos.rationale,
                     ))
                 await db.commit()
-                logger.info("Mock trading book rolled at %s=%.2f (12m %+0.0f bps)",
+                logger.info("Mock trading book rolled at %s=%.2f (headline %+0.0f bps)",
                             "GS2", mark, delta12)
         except Exception as e:
             logger.warning("Mock trading step failed (non-fatal): %s", e)
 
+    _ord = result["horizon_order"]
+    _fomc = [k for k in _ord if result["horizons"][k].get("kind") == "fomc"]
     logger.info(
-        "Cycle done. 6m %+.0f / 12m %+.0f / 3y %+.0f / 10y %+.0f bps · revised: %s",
-        result["horizons"]["6m"]["weighted_delta_bps"],
-        result["horizons"]["12m"]["weighted_delta_bps"],
-        result["horizons"]["3y"]["weighted_delta_bps"],
-        result["horizons"]["10y"]["weighted_delta_bps"],
+        "Cycle done. next %s %+.0f / headline %s %+.0f / %s %+.0f / 10y %+.0f bps · revised: %s",
+        _fomc[0] if _fomc else "-", result["horizons"][_fomc[0]]["weighted_delta_bps"] if _fomc else 0.0,
+        P, result["horizons"][P]["weighted_delta_bps"],
+        _fomc[-1] if _fomc else "-", result["horizons"][_fomc[-1]]["weighted_delta_bps"] if _fomc else 0.0,
+        result["horizons"].get("10y", {}).get("weighted_delta_bps", 0.0),
         result.get("collaboration", {}).get("agents_revised", []),
     )
 
@@ -444,7 +466,7 @@ async def _startup_warmup():
     try:
         from backend.database import crud
         async with AsyncSessionLocal() as _db:
-            latest = await crud.get_latest_horizon_forecast(_db, "12m")
+            latest = await crud.get_latest_primary_forecast(_db)
         if latest and latest.published_at:
             from datetime import datetime as _dt
             age_h = (_dt.utcnow() - latest.published_at).total_seconds() / 3600

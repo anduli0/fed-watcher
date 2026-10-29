@@ -2,7 +2,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from backend.database.models import (
     RunLog, AgentOutput, PublishedForecast, FeedbackEntry, HorizonForecast,
-    HORIZONS,
 )
 from datetime import datetime
 
@@ -45,8 +44,20 @@ async def get_latest_horizon_forecast(db: AsyncSession, horizon: str) -> Horizon
     return result.scalar_one_or_none()
 
 
-async def get_all_latest_horizons(db: AsyncSession) -> dict[str, HorizonForecast | None]:
-    return {h: await get_latest_horizon_forecast(db, h) for h in HORIZONS}
+async def get_all_latest_horizons(db: AsyncSession, keys: list[str]) -> dict[str, HorizonForecast | None]:
+    return {h: await get_latest_horizon_forecast(db, h) for h in keys}
+
+
+async def get_latest_primary_forecast(db: AsyncSession) -> HorizonForecast | None:
+    """Latest headline call (the meeting nearest 12 months ahead at issue time)."""
+    result = await db.execute(
+        select(HorizonForecast)
+        .where(HorizonForecast.is_primary == True)  # noqa: E712
+        .where(HorizonForecast.is_published == True)  # noqa: E712
+        .order_by(desc(HorizonForecast.published_at))
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def save_horizon_forecast(db: AsyncSession, data: dict) -> HorizonForecast:
@@ -72,7 +83,7 @@ async def get_latest_report(db: AsyncSession, lang: str = "ko") -> str | None:
     """Master derivation report — returns Korean or English version."""
     result = await db.execute(
         select(HorizonForecast)
-        .where(HorizonForecast.horizon == "12m")
+        .where(HorizonForecast.report_text.isnot(None) | HorizonForecast.report_text_en.isnot(None))
         .where(HorizonForecast.is_published == True)
         .order_by(desc(HorizonForecast.published_at))
         .limit(1)

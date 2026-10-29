@@ -1,7 +1,7 @@
 """
 Trading / track-record / today-at-a-glance endpoints.
 
-- /api/trading      : mock portfolio built from each cycle's 12M rate call
+- /api/trading      : mock portfolio built from each cycle's headline (~1Y) rate call
 - /api/track-record : published forecasts vs subsequent market-implied moves
 - /api/today        : KST date, today's material event, schedule, latest run
 """
@@ -18,6 +18,7 @@ from backend.database.models import MockTrade, HorizonForecast, FeedbackEntry, R
 from backend.data.cache import data_cache
 from backend.mock_trading.portfolio import Position
 from backend.mock_trading.simulator import calculate_pnl
+from backend.fomc_calendar import fomc_horizons, nearest_key, spec_by_key
 
 router = APIRouter(prefix="/api")
 
@@ -65,13 +66,36 @@ def _value_on_or_before(obs: list[dict], day: str) -> float | None:
 
 # Trade-plan desk: map the current horizon calls onto treasury/USD positions.
 # duration ≈ price sensitivity per 100bps; horizon window = expected time to target.
+# Driving horizon = months ahead, resolved each day to the FOMC meeting nearest
+# that offset ("10y" for the long end).
 _PLAN_INSTRUMENTS = [
-    # (instrument, driving horizon, duration, yield source series)
-    ("2Y_TREASURY", "12m", 2.0, "GS2"),
-    ("10Y_TREASURY", "3y", 8.0, "GS10"),
-    ("TLT", "10y", 18.0, "GS10"),
-    ("USD", "12m", 1.0, None),
+    # (instrument, driving horizon months, duration, yield source series)
+    ("2Y_TREASURY", 12, 2.0, "GS2"),
+    ("10Y_TREASURY", 36, 8.0, "GS10"),
+    ("TLT", 120, 18.0, "GS10"),
+    ("USD", 12, 1.0, None),
 ]
+
+
+def _resolve_month(specs, months: int) -> str | None:
+    """Horizon key for `months` ahead: nearest FOMC meeting inside the 3y
+    window, else the matching long-run key."""
+    if months <= 36:
+        return nearest_key(specs, months)
+    return f"{months // 12}y"
+
+
+async def _horizons_by_month(db, months: set[int]):
+    from backend.database import crud
+    specs = fomc_horizons()
+    smap = spec_by_key(specs)
+    out = {}
+    for m in months:
+        key = _resolve_month(specs, m)
+        f = await crud.get_latest_horizon_forecast(db, key) if key else None
+        if f and f.published_delta is not None:
+            out[m] = (key, f, smap.get(key))
+    return out
 _ACCOUNT_CAPITAL = float(os.getenv("ACCOUNT_CAPITAL_USD", "100000"))
 _RISK_FRACTION = float(os.getenv("POSITION_RISK_FRACTION", "0.25"))
 
@@ -80,11 +104,8 @@ async def _build_plan(db: AsyncSession) -> dict:
     from backend.database.models import HorizonForecast
     from backend.database import crud
 
-    horizons = {}
-    for h in ("6m", "12m", "3y", "10y"):
-        f = await crud.get_latest_horizon_forecast(db, h)
-        if f:
-            horizons[h] = f
+    horizons = await _horizons_by_month(db, {m for _, m, _, _ in _PLAN_INSTRUMENTS})
+    today = datetime.now(KST).date()
 
     yields = {}
     try:
@@ -110,12 +131,11 @@ async def _build_plan(db: AsyncSession) -> dict:
     except Exception:
         yields["GS10"] = None
 
-    window_days = {"6m": 183, "12m": 365, "3y": 1095, "10y": 3650}
     rows = []
     for instrument, h, dur, ysrc in _PLAN_INSTRUMENTS:
-        f = horizons.get(h)
-        if not f or f.published_delta is None:
+        if h not in horizons:
             continue
+        key, f, sp = horizons[h]
         delta = float(f.published_delta)
         if abs(delta) < 12.5:
             direction = "flat"
@@ -128,7 +148,8 @@ async def _build_plan(db: AsyncSession) -> dict:
         expected_return_pct = round(dur * abs(delta) * 0.01, 2) if direction != "flat" else 0.0
         rows.append({
             "instrument": instrument,
-            "driving_horizon": h,
+            "driving_horizon": sp.label("en") if sp else key,
+            "driving_horizon_key": key,
             "direction": direction,
             "predicted_delta_bps": delta,
             "confidence": f.confidence,
@@ -136,7 +157,7 @@ async def _build_plan(db: AsyncSession) -> dict:
             "target_yield": target,
             "duration": dur,
             "expected_return_pct": expected_return_pct,
-            "expected_days_to_target": window_days[h],
+            "expected_days_to_target": max(1, (sp.meeting_date - today).days) if sp else h * 30,
             "position_notional_usd": round(_ACCOUNT_CAPITAL * _RISK_FRACTION, 0),
         })
     return {
@@ -215,16 +236,17 @@ async def get_trading(db: AsyncSession = Depends(get_db)):
 # ── Treasury trading desk — positions by maturity (2Y/5Y/10Y/30Y) ────────────
 
 # (label, spot instrument, futures sym, futures name, cash mod-duration,
-#  futures DV01 $/bp per contract, fed-path beta, yield series, horizon blend)
+#  futures DV01 $/bp per contract, fed-path beta, yield series,
+#  horizon blend as (months ahead, weight) → resolved to FOMC meetings daily)
 # fed-path beta = how much this maturity's yield moves per bp of the committee's
 # cumulative Fed-path call (front-end tracks the Fed closely; long-end far less).
 # DV01/duration figures are round CTD-based estimates — recompute live before any
 # real order (see disclaimer).
 _DESK = [
-    ("2Y",  "US 2Y Note",  "ZT", "2Y T-Note Future",  1.9,   33.0, 0.85, "GS2",  [("6m", 0.55), ("12m", 0.45)]),
-    ("5Y",  "US 5Y Note",  "ZF", "5Y T-Note Future",  4.4,   46.0, 0.60, "GS5",  [("12m", 0.55), ("3y", 0.45)]),
-    ("10Y", "US 10Y Note", "ZN", "10Y T-Note Future", 8.0,   67.0, 0.42, "GS10", [("3y", 0.55), ("10y", 0.45)]),
-    ("30Y", "US 30Y Bond", "ZB", "30Y T-Bond Future", 17.5, 145.0, 0.30, "GS30", [("10y", 1.0)]),
+    ("2Y",  "US 2Y Note",  "ZT", "2Y T-Note Future",  1.9,   33.0, 0.85, "GS2",  [(6, 0.55), (12, 0.45)]),
+    ("5Y",  "US 5Y Note",  "ZF", "5Y T-Note Future",  4.4,   46.0, 0.60, "GS5",  [(12, 0.55), (36, 0.45)]),
+    ("10Y", "US 10Y Note", "ZN", "10Y T-Note Future", 8.0,   67.0, 0.42, "GS10", [(36, 0.55), (120, 0.45)]),
+    ("30Y", "US 30Y Bond", "ZB", "30Y T-Bond Future", 17.5, 145.0, 0.30, "GS30", [(120, 0.6), (360, 0.4)]),
 ]
 _NEUTRAL_BAND_BPS = 8.0      # |expected yield move| below this → stand aside
 _MIN_CONFIDENCE = 0.40       # weighted forecast confidence gate
@@ -257,13 +279,8 @@ async def get_trading_desk(equity: float = 1_000_000.0, db: AsyncSession = None)
     2Y / 5Y / 10Y / 30Y Treasury complex, with spot & futures legs, targets,
     stops and sizing. Bonds move inverse to yields: a dovish (yields-down) call
     is a LONG. All greeks are estimates — see disclaimer."""
-    from backend.database import crud
-
-    horizons = {}
-    for h in ("6m", "12m", "3y", "10y"):
-        f = await crud.get_latest_horizon_forecast(db, h)
-        if f and f.published_delta is not None:
-            horizons[h] = f
+    horizons = await _horizons_by_month(
+        db, {m for *_, blend in _DESK for m, _ in blend})
 
     fed_funds = await _latest_yield("GS2")  # placeholder; overwritten by DFF below
     try:
@@ -277,15 +294,16 @@ async def get_trading_desk(equity: float = 1_000_000.0, db: AsyncSession = None)
     for label, spot, fsym, fname, mod_dur, dv01, beta, yseries, blend in _DESK:
         # blended committee delta + confidence over this maturity's driving horizons
         wsum = dsum = csum = 0.0
-        parts = []
+        parts, months_used = [], []
         for h, w in blend:
-            f = horizons.get(h)
-            if not f:
+            if h not in horizons:
                 continue
+            key, f, sp = horizons[h]
             dsum += w * float(f.published_delta)
             csum += w * float(f.confidence or 0.0)
             wsum += w
-            parts.append(f"{w:.2f}·{h}")
+            parts.append(f"{w:.2f}·{sp.label('en') if sp else key}")
+            months_used.append(sp.months_ahead if sp else h)
         if wsum == 0:
             continue
         blended_delta = dsum / wsum
@@ -331,6 +349,7 @@ async def get_trading_desk(equity: float = 1_000_000.0, db: AsyncSession = None)
             "expected_dy_bps": expected_dy,
             "confidence": confidence,
             "horizon_basis": horizon_basis,
+            "horizon_months": [round(min(months_used), 1), round(max(months_used), 1)],
             "fed_path_beta": beta,
             "cash_mod_duration": mod_dur,
             "spot_face_value": face,
@@ -375,13 +394,13 @@ async def trading_desk_route(equity: float = 1_000_000.0, db: AsyncSession = Dep
 @router.get("/track-record")
 async def get_track_record(db: AsyncSession = Depends(get_db)):
     """
-    Daily hit record for the 12M call: the last published forecast of each day
+    Daily hit record for the headline (~1Y FOMC) call: the last published forecast of each day
     vs the subsequent change in the 2Y Treasury yield (market-implied proxy —
     the same outcome proxy the agent feedback loop trains against).
     """
     result = await db.execute(
         select(HorizonForecast)
-        .where(HorizonForecast.horizon == "12m")
+        .where(HorizonForecast.is_primary == True)  # noqa: E712
         .where(HorizonForecast.is_published == True)  # noqa: E712
         .order_by(HorizonForecast.published_at)
     )

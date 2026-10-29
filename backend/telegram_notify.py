@@ -17,8 +17,9 @@ from sqlalchemy import select, desc, and_
 
 from backend.config import settings
 from backend.database.init_db import AsyncSessionLocal
-from backend.database.models import DailyBriefing, HORIZONS
+from backend.database.models import DailyBriefing
 from backend.database import crud
+from backend.fomc_calendar import fomc_horizons, primary_key
 
 logger = logging.getLogger("fed_watcher.telegram")
 
@@ -26,7 +27,19 @@ MAX_LEN = 3800   # Telegram hard limit 4096; leave headroom
 _STATE_FILE = Path(__file__).resolve().parent.parent / ".telegram_state.json"
 
 _SIG_KO = {"hawkish": "매파", "dovish": "비둘기", "neutral": "중립"}
-_H_KO = {"today": "오늘", "3m": "3개월", "6m": "6개월", "12m": "1년", "3y": "3년", "10y": "10년"}
+_H_KO = {"today": "오늘", "5y": "5년 후", "10y": "10년 후", "30y": "30년 후",
+         "3m": "3개월", "6m": "6개월", "12m": "1년", "3y": "3년"}
+
+
+def _h_label(key: str) -> str:
+    """Korean label for a horizon key ("2026-12-09" → "12/9 FOMC")."""
+    if key in _H_KO:
+        return _H_KO[key]
+    try:
+        d = datetime.fromisoformat(key).date()
+        return f"{d.year % 100}.{d.month}.{d.day} FOMC"
+    except ValueError:
+        return key
 
 
 # ── plumbing ────────────────────────────────────────────────────────────────
@@ -144,16 +157,24 @@ async def send_telegram(text: str, parse_mode: str = "HTML") -> bool:
 
 
 async def _rate_call_line(db) -> str:
-    """One-line current rate-path call across the 4 horizons."""
+    """One-line current rate-path call: next two FOMCs, the headline (~1Y)
+    meeting, the last meeting in the 3y window, then 5y / 10y / 30y."""
+    specs = fomc_horizons()
+    fomc = [s for s in specs if s.is_fomc]
+    P = primary_key(specs)
+    picks: list[str] = []
+    for k in [s.key for s in fomc[:2]] + [P] + [s.key for s in fomc[-1:]] + ["5y", "10y", "30y"]:
+        if k and k not in picks:
+            picks.append(k)
     parts = []
-    for h in HORIZONS:
+    for h in picks:
         fc = await crud.get_latest_horizon_forecast(db, h)
         if not fc:
             continue
         d = fc.published_delta or 0
         sig = "hawkish" if d >= 25 else "dovish" if d <= -25 else "neutral"
         sign = "+" if d > 0 else ""
-        parts.append(f"{_H_KO[h]} {sign}{d:.0f}bps {_SIG_KO[sig]}")
+        parts.append(f"{_h_label(h)} {sign}{d:.0f}bps {_SIG_KO[sig]}")
     return " · ".join(parts)
 
 
@@ -237,7 +258,11 @@ async def notify_derivation_report(report_ko: str, changed: list[str] | None = N
             call = await _rate_call_line(db)
 
         header = "🔔 업데이트" if changed else "🗓 일일 보고서"
-        ch = ("  ·  변경: " + ", ".join(_H_KO.get(h, h) for h in changed)) if changed else ""
+        ch = ""
+        if changed:
+            shown = ", ".join(_h_label(h) for h in changed[:4])
+            more = f" 외 {len(changed) - 4}건" if len(changed) > 4 else ""
+            ch = f"  ·  변경: {shown}{more}"
         lines = [
             "📊 <b>Fed-Watcher 금리예측 도출보고서</b>",
             f"{header}{ch}  ·  {_now_kst()} KST",

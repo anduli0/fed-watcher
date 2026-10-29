@@ -95,11 +95,11 @@ Your job:
 3. Weight your output toward THIS bank's perspective — NOT the FOMC consensus. Other agents handle consensus.
 4. If your bank's president has a contrarian view from current Fed policy, reflect that — your value is the dissenting/dissident signal.
 
-Confidence calibration:
-- 6m: high if recent speeches available; moderate otherwise
-- 12m: moderate (reflects stance over typical voting cycle)
-- 3y: low (hard to predict succession or stance evolution)
-- 10y: very low (defer to Academic agent on r*)
+Confidence calibration (per FOMC meeting):
+- next 2-3 meetings: high if recent speeches available; moderate otherwise
+- meetings ~1 year out: moderate (reflects stance over typical voting cycle)
+- meetings 2-3 years out: low (hard to predict succession or stance evolution)
+- 5y / 10y / 30y: very low (defer to Academic agent on r*)
 """
 
     def _user_message(self, ctx: AgentContext) -> str:
