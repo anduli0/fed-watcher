@@ -22,10 +22,20 @@ export default function HorizonSelector({ horizons, active, onChange }: Props) {
   const { lang } = useLang();
   const ko = lang === "ko";
   const activeRef = useRef<HTMLButtonElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
 
-  // Keep the selected chip in view when the selection changes.
+  // Keep the selected chip in view when the selection changes. Scroll ONLY the
+  // chip strip: scrollIntoView() also scrolls every ancestor including the
+  // window, which dragged the whole page sideways when a far-right chip
+  // (5Y / 10Y / 30Y) was selected.
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    const strip = stripRef.current;
+    const chipEl = activeRef.current;
+    if (!strip || !chipEl) return;
+    const s = strip.getBoundingClientRect();
+    const c = chipEl.getBoundingClientRect();
+    const delta = c.left + c.width / 2 - (s.left + s.width / 2);
+    strip.scrollTo({ left: strip.scrollLeft + delta, behavior: "smooth" });
   }, [active]);
 
   if (!horizons || horizons.items.length === 0) return null;
@@ -84,8 +94,8 @@ export default function HorizonSelector({ horizons, active, onChange }: Props) {
   }
 
   return (
-    <div>
-      <div className="flex gap-1.5 overflow-x-auto snap-x pb-1 -mx-1 px-1"
+    <div className="min-w-0 max-w-full">
+      <div ref={stripRef} className="flex gap-1.5 overflow-x-auto snap-x pb-1 -mx-1 px-1"
         style={{ overscrollBehaviorX: "contain" }}>
         {today.map(chip)}
         {groups.map(g => (
