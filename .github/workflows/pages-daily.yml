@@ -19,7 +19,13 @@ on:
     - cron: "30 7 * * *"    # 16:30 KST — full cycle
     - cron: "30 11 * * *"   # 20:30 KST — full cycle
     - cron: "30 22 * * *"   # 07:30 KST — briefing
-    - cron: "17 * * * *"    # hourly    — market-data refresh (no AI)
+    # GitHub drops/delays scheduled runs, so the morning briefing gets backups.
+    # Each is a cheap no-op once today's briefing is published (ci_daily checks).
+    - cron: "50 22 * * *"   # 07:50 KST — briefing backup
+    - cron: "20 23 * * *"   # 08:20 KST — briefing backup
+    - cron: "50 23 * * *"   # 08:50 KST — briefing backup
+    - cron: "20 0 * * *"    # 09:20 KST — briefing backup
+    - cron: "17 * * * *"    # hourly    — market-data refresh (+ briefing backfill)
   workflow_dispatch:
     inputs:
       mode:
@@ -64,7 +70,7 @@ jobs:
         run: |
           case "${{ github.event.schedule }}" in
             "17 * * * *")  MODE=refresh ;;
-            "30 22 * * *") MODE=briefing ;;
+            "30 22 * * *"|"50 22 * * *"|"20 23 * * *"|"50 23 * * *"|"20 0 * * *") MODE=briefing ;;
             "")            MODE="${{ inputs.mode || 'full' }}" ;;
             *)             MODE=full ;;
           esac
@@ -100,7 +106,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Claude CLI
-        if: ${{ steps.mode.outputs.mode == 'full' || steps.mode.outputs.mode == 'briefing' }}
+        if: ${{ steps.mode.outputs.mode != 'export' }}
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Run pipeline + export static JSON
@@ -109,7 +115,7 @@ jobs:
         run: python scripts/ci_daily.py
 
       - name: Persist DB to ci-data branch
-        if: ${{ steps.mode.outputs.mode == 'full' || steps.mode.outputs.mode == 'briefing' }}
+        if: ${{ steps.mode.outputs.mode != 'export' }}
         run: |
           set -e
           STATE_DIR=$(mktemp -d)

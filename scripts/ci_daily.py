@@ -71,10 +71,29 @@ def _now_kst():
     return datetime.now(ZoneInfo("Asia/Seoul"))
 
 
+async def _briefing_exists(date_str: str) -> bool:
+    """True when both EN and KO briefings for `date_str` are already published."""
+    from sqlalchemy import select, func
+    from backend.database.init_db import AsyncSessionLocal
+    from backend.database.models import DailyBriefing
+    async with AsyncSessionLocal() as db:
+        n = (await db.execute(
+            select(func.count()).select_from(DailyBriefing).where(
+                DailyBriefing.briefing_date == date_str,
+                DailyBriefing.status == "published",
+            )
+        )).scalar() or 0
+    return n >= 2
+
+
 async def run_briefing():
     from backend.briefing.pipeline import run_briefing_pipeline
+    today = _now_kst().date()
     try:
-        await run_briefing_pipeline(target_date=_now_kst().date(), force=False)
+        if await _briefing_exists(today.isoformat()):
+            print(f"[ci_daily] briefing for {today} already published — skip")
+            return
+        await run_briefing_pipeline(target_date=today, force=False)
     except Exception as e:
         print(f"[ci_daily] briefing failed (non-fatal): {e}")
 
@@ -93,6 +112,13 @@ async def run_pipeline():
             await run_briefing()
     elif MODE == "briefing":
         await run_briefing()
+    elif MODE == "refresh":
+        # GitHub drops/delays scheduled runs, so the 07:30 briefing slot (and
+        # the 12:30 full cycle that backfills it) can both be skipped. Any
+        # later hourly refresh now backfills a missing briefing; the existence
+        # check makes this a no-op once today's briefing is published.
+        if _now_kst().hour >= 7:
+            await run_briefing()
 
 
 async def _merged_activity(client) -> list:
