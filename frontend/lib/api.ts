@@ -17,6 +17,26 @@ interface ApiClient {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+// The backend stores and serializes datetimes as naive UTC
+// ("2026-11-15 23:55:27.39"). Browsers parse a zone-less timestamp as LOCAL
+// time, so in Korea an 08:55 KST update rendered as "11/15 23:55" and the
+// "updated today" check failed. Tag every zone-less datetime string as UTC
+// once, here, so every component parses it correctly.
+const NAIVE_DT = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2}(?:\.\d+)?)$/;
+function utcTag(v: unknown): unknown {
+  if (typeof v === "string") {
+    const m = NAIVE_DT.exec(v);
+    return m ? `${m[1]}T${m[2]}Z` : v;
+  }
+  if (Array.isArray(v)) return v.map(utcTag);
+  if (v && typeof v === "object") {
+    const o: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v)) o[k] = utcTag(x);
+    return o;
+  }
+  return v;
+}
+
 async function staticGet<T>(url: string): Promise<{ data: T }> {
   const [path, qs] = url.split("?");
   const params = new URLSearchParams(qs || "");
@@ -28,7 +48,7 @@ async function staticGet<T>(url: string): Promise<{ data: T }> {
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`No static data for ${p} (${res.status})`);
-  let data: unknown = await res.json();
+  let data: unknown = utcTag(await res.json());
   // Query params a live backend would apply server-side:
   const limit = parseInt(params.get("limit") || "0", 10);
   if (isBriefingList && limit > 0 && Array.isArray(data)) data = data.slice(0, limit);
@@ -55,7 +75,7 @@ const axiosApi = axios.create({
 });
 
 axiosApi.interceptors.response.use(
-  (r) => r,
+  (r) => { r.data = utcTag(r.data); return r; },
   (err) => {
     if (err.response?.status === 401) {
       window.location.href = "/login";

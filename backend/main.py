@@ -108,7 +108,12 @@ async def _trigger_cycle_inner(cycle_type: str = "scheduled"):
 
         # FOMC-meeting horizon set for today: every meeting within 3 years plus
         # the meetings nearest 5 / 10 / 30 years ahead. Headline = ~12 months.
-        today = date.today()
+        # The product is read in Korea: label each cycle with the KST date.
+        # date.today() is the UTC date on the CI runner, so every pre-09:00 KST
+        # cycle was stamped with yesterday's date.
+        from zoneinfo import ZoneInfo
+        from datetime import datetime as _dtk
+        today = _dtk.now(ZoneInfo("Asia/Seoul")).date()
         specs = fomc_horizons(today)
         spec_map = spec_by_key(specs)
         P = _primary_key(specs)
