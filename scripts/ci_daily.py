@@ -98,10 +98,53 @@ async def run_briefing():
         print(f"[ci_daily] briefing failed (non-fatal): {e}")
 
 
+async def _cycle_overdue() -> str | None:
+    """Reason string when a forecast cycle is missing, else None.
+
+    GitHub silently drops scheduled runs (e.g. on 11-16 both the 12:30 and
+    16:30 KST cycles never started), so every non-full run checks this and
+    catches up itself. Two rules:
+      - morning: after 07:00 KST there must be a cycle from today (>= 04:30 KST)
+      - general: no completed cycle in the last 8 hours (the longest planned
+        gap is 7.5 h, 05:00 -> 12:30 KST)
+    """
+    from datetime import datetime, timedelta, timezone
+    from zoneinfo import ZoneInfo
+    from sqlalchemy import select, func
+    from backend.database.init_db import AsyncSessionLocal
+    from backend.database.models import RunLog
+    async with AsyncSessionLocal() as db:
+        last = (await db.execute(
+            select(func.max(RunLog.started_at)).where(RunLog.status == "completed")
+        )).scalar()
+    if last is None:
+        return "no completed cycle on record"
+    last_utc = last.replace(tzinfo=timezone.utc)  # stored as naive UTC
+    now_utc = datetime.now(timezone.utc)
+    kst = ZoneInfo("Asia/Seoul")
+    now_kst = now_utc.astimezone(kst)
+    if now_utc - last_utc > timedelta(hours=8):
+        return f"last cycle {last_utc.astimezone(kst):%m-%d %H:%M} KST is >8h old"
+    morning = now_kst.replace(hour=4, minute=30, second=0, microsecond=0)
+    if now_kst.hour >= 7 and last_utc < morning:
+        return f"no cycle yet today (last {last_utc.astimezone(kst):%m-%d %H:%M} KST)"
+    return None
+
+
 async def run_pipeline():
     from backend.main import run_data_collection, trigger_cycle
 
     await run_data_collection()
+
+    if MODE in ("briefing", "refresh"):
+        try:
+            reason = await _cycle_overdue()
+        except Exception as e:
+            reason = None
+            print(f"[ci_daily] overdue check failed (non-fatal): {e}")
+        if reason:
+            print(f"[ci_daily] catch-up full cycle: {reason}")
+            await trigger_cycle("catchup")
 
     if MODE in ("full",):
         await trigger_cycle("scheduled")
